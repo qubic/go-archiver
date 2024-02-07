@@ -1,0 +1,126 @@
+syntax = "proto3";
+
+package qubic.archiver.archive.pb;
+
+option go_package = "github.com/qubic/go-archiver/protobuff/";
+
+message TickData {
+  uint32 computor_index = 1;
+  uint32 epoch = 2;
+  uint32 tick_number = 3;
+  uint64 timestamp = 4;
+  repeated bytes var_struct = 5;
+  repeated bytes time_lock = 6;
+  repeated string transaction_digests_hex = 7;
+  repeated int64 contract_fees = 8;
+  string signature_hex = 9;
+}
+
+message GetTickDataRequest {
+  uint32 tick_number = 1;
+}
+
+message GetTickDataResponse {
+  TickData tick_data = 1;
+}
+
+message Transaction {
+  string hash_hex = 1;
+  string source_pubkey_hex = 2;
+  string dest_pubkey_hex = 3;
+  int64 amount = 4;
+  uint32 input_type = 5;
+  uint32 input_size = 6;
+  string input_hex = 7;
+  string signature_hex = 8;
+}
+
+message GetTransactionRequest {
+  string hash_hex = 1;
+}
+
+message GetTransactionResponse{
+  Transaction transaction = 1;
+}
+
+message Transactions {
+  repeated Transaction transactions = 1;
+}
+
+message GetTickTransactionsRequest {
+  uint32 tick_number = 1;
+}
+
+message GetTickTransactionsResponse {
+  repeated Transaction transactions = 1;
+}
+
+message QuorumTickData {
+  uint32 computor_index = 1;
+  uint32 epoch = 2;
+  uint32 tick_number = 3;
+  uint64 timestamp = 4;
+  uint64 prev_resource_testing_digest = 5;
+  uint64 salted_resource_testing_digest = 6;
+  string prev_spectrum_digest_hex = 7;
+  string prev_universe_digest_hex = 8;
+  string prev_computer_digest_hex = 9;
+  string salted_spectrum_digest_hex = 10;
+  string salted_universe_digest_hex = 11;
+  string salted_computer_digest_hex = 12;
+  string tx_digest_hex = 13;
+  string expected_next_tick_tx_digest_hex = 14;
+  string signature_hex = 15;
+}
+
+message GetQuorumTickDataRequest {
+  uint32 tick_number = 1;
+}
+
+message GetQuorumTickDataResponse {
+  QuorumTickData quorum_tick_data = 1;
+}
+
+message Computors {
+  uint32 epoch = 1;
+  repeated string identities = 2;
+  string signature_hex = 3;
+}
+
+message GetComputorsRequest {
+  uint32 epoch = 1;
+}
+
+message GetComputorsResponse {
+  Computors computors = 1;
+}
+
+message IdentityInfo {
+  string pubkey_hex = 1;
+  uint32 tick_number = 2;
+  int64 balance = 3;
+  int64 incoming_amount = 4;
+  int64 outgoing_amount = 5;
+  uint32 nr_incoming_transfers = 6;
+  uint32 nr_outgoing_transfers = 7;
+  uint32 latest_incoming_transfer_tick = 8;
+  uint32 latest_outgoing_transfer_tick = 9;
+  repeated string siblings_hex = 10;
+}
+
+message GetIdentityInfoRequest {
+  string identity = 1;
+}
+
+message GetIdentityInfoResponse {
+  IdentityInfo identity_info = 1;
+}
+
+service ArchiveService {
+  rpc GetTickData(GetTickDataRequest) returns (GetTickDataResponse);
+  rpc GetTickTransactions(GetTickTransactionsRequest) returns (GetTickTransactionsResponse);
+  rpc GetTransaction(GetTransactionRequest) returns (GetTransactionRequest);
+  rpc GetQuorumTickData(GetQuorumTickDataRequest) returns (GetQuorumTickDataResponse);
+  rpc GetComputors(GetComputorsRequest) returns (GetComputorsResponse);
+  rpc GetIdentityInfo(GetIdentityInfoRequest) returns (GetIdentityInfoResponse);
+}
