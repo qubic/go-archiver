@@ -55,22 +55,39 @@ message GetTickTransactionsResponse {
   repeated Transaction transactions = 1;
 }
 
-message QuorumTickData {
+//type QuorumDiff struct {
+//	SaltedResourceTestingDigest uint64
+//	SaltedSpectrumDigest        [32]byte
+//	SaltedUniverseDigest        [32]byte
+//	SaltedComputerDigest        [32]byte
+//	ExpectedNextTickTxDigest    [32]byte
+//	Signature                   [SignatureSize]byte
+//}
+
+message QuorumDiff {
+  string salted_resource_testing_digest_hex = 1;
+  string salted_spectrum_digest_hex = 2;
+  string salted_universe_digest_hex = 3;
+  string salted_computer_digest_hex = 4;
+  string expected_next_tick_tx_digest_hex = 5;
+  string signature_hex = 6;
+}
+
+message QuorumTickStructure {
   uint32 computor_index = 1;
   uint32 epoch = 2;
   uint32 tick_number = 3;
   uint64 timestamp = 4;
-  uint64 prev_resource_testing_digest = 5;
-  uint64 salted_resource_testing_digest = 6;
-  string prev_spectrum_digest_hex = 7;
-  string prev_universe_digest_hex = 8;
-  string prev_computer_digest_hex = 9;
-  string salted_spectrum_digest_hex = 10;
-  string salted_universe_digest_hex = 11;
-  string salted_computer_digest_hex = 12;
-  string tx_digest_hex = 13;
-  string expected_next_tick_tx_digest_hex = 14;
-  string signature_hex = 15;
+  string prev_resource_testing_digest_hex = 5;
+  string prev_spectrum_digest_hex = 6;
+  string prev_universe_digest_hex = 7;
+  string prev_computer_digest_hex = 8;
+  string tx_digest_hex = 9;
+}
+
+message QuorumTickData {
+  QuorumTickStructure quorum_tick_structure = 1;
+  map<uint32, QuorumDiff> quorum_diff_per_computor = 2;
 }
 
 message GetQuorumTickDataRequest {
