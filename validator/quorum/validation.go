@@ -1,15 +1,12 @@
 package quorum
 
 import (
-	"bytes"
 	"context"
-	"encoding/binary"
 	"encoding/hex"
-	"github.com/cloudflare/circl/xof/k12"
 	"github.com/pkg/errors"
+	"github.com/qubic/go-archiver/utils"
 	"github.com/qubic/go-node-connector/types"
 	"log"
-	"os/exec"
 )
 
 func Validate(ctx context.Context, quorumTickData types.ResponseQuorumTickData, computors types.Computors) error {
@@ -61,14 +58,21 @@ func quorumTickSigVerify(ctx context.Context, data types.ResponseQuorumTickData,
 	failedIdentites := make([]string, 0, 0)
 	log.Printf("Proceed to validate total quorum votes: %d\n", len(data.QuorumData))
 	for _, quorumTickData := range data.QuorumData {
-		digest, err := getDigestFromTickData(quorumTickData)
+		if quorumTickData.ComputorIndex == 558 {
+			b, err := utils.BinarySerialize(quorumTickData)
+			if err != nil {
+				return errors.Wrap(err, "serializing data")
+			}
+			log.Println(hex.EncodeToString(b))
+		}
+		digest, err := getDigestFromQuorumTickData(quorumTickData)
 		if err != nil {
 			return errors.Wrap(err, "getting digest from tick data")
 		}
 		computorPubKey := computors.PubKeys[quorumTickData.ComputorIndex]
-		if err := verify(ctx, computorPubKey, digest, quorumTickData.Signature); err != nil {
+		if err := utils.FourQSigVerify(ctx, computorPubKey, digest, quorumTickData.Signature); err != nil {
 			//return errors.Wrapf(err, "quorum tick signature verification failed for computor index: %d", quorumTickData.ComputorIndex)
-			log.Printf("Quorum tick signature verification failed for computor index: %d\n", quorumTickData.ComputorIndex)
+			log.Printf("Quorum tick signature verification failed for computor index: %d. Err: %s\n", quorumTickData.ComputorIndex, err.Error())
 			failedIndexes = append(failedIndexes, quorumTickData.ComputorIndex)
 			var badComputor types.Identity
 			badComputor, err = badComputor.FromPubKey(computorPubKey, false)
@@ -87,17 +91,17 @@ func quorumTickSigVerify(ctx context.Context, data types.ResponseQuorumTickData,
 	return nil
 }
 
-func getDigestFromTickData(data types.QuorumTickData) ([32]byte, error) {
+func getDigestFromQuorumTickData(data types.QuorumTickData) ([32]byte, error) {
 	// xor computor index with 8
 	data.ComputorIndex ^= 3
 
-	sData, err := serializeBinary(data)
+	sData, err := utils.BinarySerialize(data)
 	if err != nil {
 		return [32]byte{}, errors.Wrap(err, "serializing data")
 	}
 
 	tickData := sData[:len(sData)-64]
-	digest, err := hash(tickData)
+	digest, err := utils.K12Hash(tickData)
 	if err != nil {
 		return [32]byte{}, errors.Wrap(err, "hashing tick data")
 	}
@@ -105,47 +109,4 @@ func getDigestFromTickData(data types.QuorumTickData) ([32]byte, error) {
 	return digest, nil
 }
 
-func serializeBinary(data interface{}) ([]byte, error) {
-	if data == nil {
-		return nil, nil
-	}
 
-	var buff bytes.Buffer
-	err := binary.Write(&buff, binary.LittleEndian, data)
-	if err != nil {
-		return nil, errors.Wrap(err, "writing data to buff")
-	}
-
-	return buff.Bytes(), nil
-}
-
-func hash(data []byte) ([32]byte, error) {
-	h := k12.NewDraft10([]byte{}) // Using K12 for hashing, equivalent to KangarooTwelve(temp, 96, h, 64).
-	_, err := h.Write(data)
-	if err != nil {
-		return [32]byte{}, errors.Wrap(err, "k12 hashing")
-	}
-
-	var out [32]byte
-	_, err = h.Read(out[:])
-	if err != nil {
-		return [32]byte{}, errors.Wrap(err, "reading k12 digest")
-	}
-
-	return out, nil
-}
-
-func verify(ctx context.Context, pubkey [32]byte, digest [32]byte, sig [64]byte) error {
-	pubKeyHex := hex.EncodeToString(pubkey[:])
-	digestHex := hex.EncodeToString(digest[:])
-	sigHex := hex.EncodeToString(sig[:])
-
-	cmd := exec.Command("./fourq_verify", pubKeyHex, digestHex, sigHex)
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	if err := cmd.Run(); err != nil {
-		return errors.Wrapf(err, "running fourq_verify cmd: %s", cmd.String())
-	}
-
-	return nil
-}
