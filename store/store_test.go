@@ -2,6 +2,9 @@ package store
 
 import (
 	"context"
+	"encoding/hex"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/protobuf/proto"
 	"os"
 	"path/filepath"
@@ -89,39 +92,46 @@ func TestPebbleStore_QuorumTickData(t *testing.T) {
 	store := NewPebbleStore(db, logger)
 
 	// Sample QuorumTickData for testing
-	quorumData := pb.QuorumTickData{
-		ComputorIndex:               1,
-		Epoch:                       1,
-		TickNumber:                  101,
-		Timestamp:                   1596240001,
-		PrevResourceTestingDigest:   123456789,
-		SaltedResourceTestingDigest: 987654321,
-		PrevSpectrumDigestHex:       "prevSpectrumDigest",
-		PrevUniverseDigestHex:       "prevUniverseDigest",
-		PrevComputerDigestHex:       "prevComputerDigest",
-		SaltedSpectrumDigestHex:     "saltedSpectrumDigest",
-		SaltedUniverseDigestHex:     "saltedUniverseDigest",
-		SaltedComputerDigestHex:     "saltedComputerDigest",
-		TxDigestHex:                 "txDigest",
-		ExpectedNextTickTxDigestHex: "expectedNextTickTxDigest",
-		SignatureHex:                "signature",
+	quorumData := &pb.QuorumTickData{
+		QuorumTickStructure: &pb.QuorumTickStructure{
+			ComputorIndex:         1,
+			Epoch:                 1,
+			TickNumber:            101,
+			Timestamp:             1596240001,
+			PrevSpectrumDigestHex: "prevSpectrumDigest",
+			PrevUniverseDigestHex: "prevUniverseDigest",
+			PrevComputerDigestHex: "prevComputerDigest",
+			TxDigestHex:           "txDigest",
+		},
+		QuorumDiffPerComputor: map[uint32]*pb.QuorumDiff{
+			0: {
+				SaltedSpectrumDigestHex:     "saltedSpectrumDigest",
+				SaltedUniverseDigestHex:     "saltedUniverseDigest",
+				SaltedComputerDigestHex:     "saltedComputerDigest",
+				ExpectedNextTickTxDigestHex: "expectedNextTickTxDigest",
+				SignatureHex:                "signature",
+			},
+			1: {
+				SaltedSpectrumDigestHex:     "saltedSpectrumDigest",
+				SaltedUniverseDigestHex:     "saltedUniverseDigest",
+				SaltedComputerDigestHex:     "saltedComputerDigest",
+				ExpectedNextTickTxDigestHex: "expectedNextTickTxDigest",
+				SignatureHex:                "signature",
+			},
+		},
 	}
 
 	// Set QuorumTickData
-	err = store.SetQuorumTickData(ctx, uint64(quorumData.TickNumber), &quorumData)
+	err = store.SetQuorumTickData(ctx, uint64(quorumData.QuorumTickStructure.TickNumber), quorumData)
 	assert.NoError(t, err)
 
 	// Get QuorumTickData
-	retrievedData, err := store.GetQuorumTickData(ctx, uint64(quorumData.TickNumber))
+	retrievedData, err := store.GetQuorumTickData(ctx, uint64(quorumData.QuorumTickStructure.TickNumber))
 	assert.NoError(t, err)
 
-	// Validate retrieved data
-	assert.NotNil(t, retrievedData)
-	assert.Equal(t, quorumData.ComputorIndex, retrievedData.ComputorIndex)
-	assert.Equal(t, quorumData.Epoch, retrievedData.Epoch)
-	assert.Equal(t, quorumData.TickNumber, retrievedData.TickNumber)
-	assert.Equal(t, quorumData.Timestamp, retrievedData.Timestamp)
-	// Continue assertions for all fields...
+	if diff := cmp.Diff(quorumData, retrievedData, cmpopts.IgnoreUnexported(pb.QuorumTickData{}, pb.QuorumTickStructure{}, pb.QuorumDiff{})); diff != "" {
+		t.Fatalf("Unexpected result: %v", diff)
+	}
 
 	// Test retrieval of non-existent QuorumTickData
 	_, err = store.GetQuorumTickData(ctx, 999) // Assuming 999 is a tick number that wasn't stored
@@ -187,44 +197,47 @@ func TestPebbleStore_TickTransactions(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 	store := NewPebbleStore(db, logger)
 
+	transactions := &pb.Transactions{
+		Transactions: []*pb.Transaction{
+			{
+				SourcePubkeyHex: "source1",
+				DestPubkeyHex:   "dest1",
+				Amount:          100,
+				TickNumber:      101,
+				InputType:       1,
+				InputSize:       256,
+				InputHex:        "input1",
+				SignatureHex:    "signature1",
+				DigestHex: "ff01",
+			},
+			{
+				SourcePubkeyHex: "source1",
+				DestPubkeyHex:   "dest1",
+				Amount:          100,
+				TickNumber:      101,
+				InputType:       1,
+				InputSize:       256,
+				InputHex:        "input1",
+				SignatureHex:    "signature2",
+				DigestHex: "cd01",
+			},
+			// Add more transactions as needed
+		},
+	}
+
 	tickData := pb.TickData{
 		ComputorIndex:         1,
 		Epoch:                 1,
 		TickNumber:            101,
 		Timestamp:             1596240001,
 		SignatureHex:          "signature1",
-		TransactionDigestsHex: []string{"c1", "c2"},
+		TransactionDigestsHex: []string{"ff01", "cd01"},
 	}
 	err = store.SetTickData(ctx, uint64(tickData.TickNumber), &tickData)
 	assert.NoError(t, err, "Failed to store TickData")
 
 	// Sample Transactions for testing
 	tickNumber := uint64(101)
-	transactions := &pb.Transactions{
-		Transactions: []*pb.Transaction{
-			{
-				HashHex:         "c1",
-				SourcePubkeyHex: "source1",
-				DestPubkeyHex:   "dest1",
-				Amount:          100,
-				InputType:       1,
-				InputSize:       256,
-				InputHex:        "input1",
-				SignatureHex:    "signature1",
-			},
-			{
-				HashHex:         "c2",
-				SourcePubkeyHex: "source1",
-				DestPubkeyHex:   "dest1",
-				Amount:          100,
-				InputType:       1,
-				InputSize:       256,
-				InputHex:        "input1",
-				SignatureHex:    "signature2",
-			},
-			// Add more transactions as needed
-		},
-	}
 
 	// Assuming SetTickTransactions stores transactions for a tick
 	err = store.SetTickTransactions(ctx, transactions)
@@ -239,7 +252,6 @@ func TestPebbleStore_TickTransactions(t *testing.T) {
 	assert.Len(t, retrievedTransactions.Transactions, len(transactions.Transactions))
 	for i, tx := range transactions.Transactions {
 		retrievedTx := retrievedTransactions.Transactions[i]
-		assert.Equal(t, tx.HashHex, retrievedTx.HashHex)
 		assert.Equal(t, tx.SourcePubkeyHex, retrievedTx.SourcePubkeyHex)
 		// Continue with other fields...
 	}
@@ -267,7 +279,6 @@ func TestPebbleStore_GetTransaction(t *testing.T) {
 
 	// Insert transactions for a tick
 	targetTransaction := &pb.Transaction{
-		HashHex:         "c1",
 		SourcePubkeyHex: "source_target",
 		DestPubkeyHex:   "dest_target",
 		Amount:          500,
@@ -275,6 +286,7 @@ func TestPebbleStore_GetTransaction(t *testing.T) {
 		InputSize:       512,
 		InputHex:        "input_target",
 		SignatureHex:    "signature_target",
+		DigestHex: "cd01",
 	}
 	transactions := &pb.Transactions{
 		Transactions: []*pb.Transaction{
@@ -288,12 +300,13 @@ func TestPebbleStore_GetTransaction(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Attempt to retrieve the target transaction
-	retrievedTransaction, err := store.GetTransaction(ctx, targetTransaction.HashHex)
+	digest, err := hex.DecodeString(targetTransaction.DigestHex)
+	assert.NoError(t, err)
+	retrievedTransaction, err := store.GetTransaction(ctx, digest)
 	assert.NoError(t, err)
 	assert.NotNil(t, retrievedTransaction)
 
 	// Validate the retrieved transaction
-	assert.Equal(t, targetTransaction.HashHex, retrievedTransaction.HashHex)
 	assert.Equal(t, targetTransaction.SourcePubkeyHex, retrievedTransaction.SourcePubkeyHex)
 	assert.Equal(t, targetTransaction.DestPubkeyHex, retrievedTransaction.DestPubkeyHex)
 	assert.Equal(t, targetTransaction.Amount, retrievedTransaction.Amount)
@@ -302,8 +315,9 @@ func TestPebbleStore_GetTransaction(t *testing.T) {
 	assert.Equal(t, targetTransaction.InputHex, retrievedTransaction.InputHex)
 	assert.Equal(t, targetTransaction.SignatureHex, retrievedTransaction.SignatureHex)
 
+	digest[0] = 0x00
 	// Optionally, test retrieval of a non-existent transaction
-	_, err = store.GetTransaction(ctx, "c3")
+	_, err = store.GetTransaction(ctx, digest)
 	assert.Error(t, err)
 	assert.Equal(t, ErrNotFound, err)
 }

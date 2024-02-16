@@ -2,6 +2,7 @@ package computors
 
 import (
 	"context"
+	"github.com/qubic/go-archiver/store"
 
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/utils"
@@ -11,7 +12,7 @@ import (
 
 func Validate(ctx context.Context, computors types.Computors) error {
 	arbitratorID := types.Identity(types.ArbitratorIdentity)
-	arbitratorPubKey, err := arbitratorID.ToPubKey()
+	arbitratorPubKey, err := arbitratorID.ToPubKey(false)
 	if err != nil {
 		return errors.Wrap(err, "getting arbitrator pubkey")
 	}
@@ -43,4 +44,29 @@ func getDigestFromComputors(data types.Computors) ([32]byte, error) {
 	}
 
 	return digest, nil
+}
+
+func Store(ctx context.Context, store *store.PebbleStore, computors types.Computors) error {
+	protoModel := qubicToProto(computors)
+
+	err := store.SetComputors(ctx, uint64(protoModel.Epoch), protoModel)
+	if err != nil {
+		return errors.Wrap(err, "set computors")
+	}
+
+	return nil
+}
+
+func Get(ctx context.Context, store *store.PebbleStore, epoch uint64) (types.Computors, error) {
+	protoModel, err := store.GetComputors(ctx, epoch)
+	if err != nil {
+		return types.Computors{}, errors.Wrap(err, "get computors")
+	}
+
+	model, err := protoToQubic(protoModel)
+	if err != nil {
+		return types.Computors{}, errors.Wrap(err, "proto to qubic")
+	}
+
+	return model, nil
 }

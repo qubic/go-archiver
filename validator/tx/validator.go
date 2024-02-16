@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/hex"
 	"github.com/pkg/errors"
+	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-archiver/utils"
 	"github.com/qubic/go-node-connector/types"
-	"log"
 )
 
 var emptyTxDigest [32]byte
@@ -24,6 +24,52 @@ func Validate(ctx context.Context, transactions []types.Transaction, tickData ty
 	return nil
 }
 
+func validateTransactions(ctx context.Context, transactions []types.Transaction, digestsMap map[string]struct{}) error {
+	for _, tx := range transactions {
+		txDigest, err := getDigestFromTransaction(tx)
+		if err != nil {
+			return errors.Wrap(err, "getting digest from tx data")
+		}
+		hexDigest := hex.EncodeToString(txDigest[:])
+		if _, ok := digestsMap[hexDigest]; !ok {
+			return errors.Errorf("tx not found in digests map: %s", hexDigest)
+		}
+
+		txDataBytes, err := tx.MarshallBinary()
+		if err != nil {
+			return errors.Wrap(err, "marshalling tx data")
+		}
+
+		constructedDigest, err := utils.K12Hash(txDataBytes[:len(txDataBytes)-64])
+		if err != nil {
+			return errors.Wrap(err, "constructing digest from tx data")
+		}
+
+		err = utils.FourQSigVerify(ctx, tx.SourcePublicKey, constructedDigest, tx.Signature)
+		if err != nil {
+			return errors.Wrap(err, "verifying tx signature")
+		}
+
+		//log.Printf("Validated tx: %s. Count: %d\n", hexDigest, index)
+	}
+
+	return nil
+}
+
+func getDigestFromTransaction(tx types.Transaction) ([32]byte, error) {
+	txDataMarshalledBytes, err := tx.MarshallBinary()
+	if err != nil {
+		return [32]byte{}, errors.Wrap(err, "marshalling")
+	}
+
+	digest, err := utils.K12Hash(txDataMarshalledBytes)
+	if err != nil {
+		return [32]byte{}, errors.Wrap(err, "hashing tx tx")
+	}
+
+	return digest, nil
+}
+
 func createTxDigestsMap(tickData types.TickData) map[string]struct{}{
 	digestsMap := make(map[string]struct{})
 
@@ -39,48 +85,16 @@ func createTxDigestsMap(tickData types.TickData) map[string]struct{}{
 	return digestsMap
 }
 
-func validateTransactions(ctx context.Context, transactions []types.Transaction, digestsMap map[string]struct{}) error {
-	for index, tx := range transactions {
-		txDigest, err := getDigestFromTransaction(tx.Data)
-		if err != nil {
-			return errors.Wrap(err, "getting digest from tx data")
-		}
-		hexDigest := hex.EncodeToString(txDigest[:])
-		if _, ok := digestsMap[hexDigest]; !ok {
-			return errors.Errorf("tx not found in digests map: %s", hexDigest)
-		}
+func Store(ctx context.Context, store *store.PebbleStore, transactions types.Transactions) error {
+	protoModel, err := qubicToProto(transactions)
+	if err != nil {
+		return errors.Wrap(err, "converting to proto")
+	}
 
-		txDataBytes, err := tx.Data.MarshallBinary()
-		if err != nil {
-			return errors.Wrap(err, "marshalling tx data")
-		}
-
-		constructedDigest, err := utils.K12Hash(txDataBytes[:len(txDataBytes)-64])
-		if err != nil {
-			return errors.Wrap(err, "constructing digest from tx data")
-		}
-
-		err = utils.FourQSigVerify(ctx, tx.Data.Header.SourcePublicKey, constructedDigest, tx.Data.Signature)
-		if err != nil {
-			return errors.Wrap(err, "verifying tx signature")
-		}
-
-		log.Printf("Validated tx: %s. Count: %d\n", hexDigest, index)
+	err = store.SetTickTransactions(ctx, protoModel)
+	if err != nil {
+		return errors.Wrap(err, "storing tick transactions")
 	}
 
 	return nil
-}
-
-func getDigestFromTransaction(data types.TransactionData) ([32]byte, error) {
-	txDataMarshalledBytes, err := data.MarshallBinary()
-	if err != nil {
-		return [32]byte{}, errors.Wrap(err, "marshalling")
-	}
-
-	digest, err := utils.K12Hash(txDataMarshalledBytes)
-	if err != nil {
-		return [32]byte{}, errors.Wrap(err, "hashing tx data")
-	}
-
-	return digest, nil
 }

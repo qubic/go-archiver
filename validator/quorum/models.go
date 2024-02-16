@@ -8,46 +8,46 @@ import (
 	"time"
 )
 
-func qubicModelToProto(model *types.ResponseQuorumTickData) *protobuff.QuorumTickData {
-	firstQuorumTickData := model.QuorumData[0]
+func qubicToProto(votes types.QuorumVotes) *protobuff.QuorumTickData {
+	firstQuorumTickData := votes[0]
 	protoQuorumTickData := protobuff.QuorumTickData{
-		QuorumTickStructure: qubicModelTickStructureToProto(firstQuorumTickData),
+		QuorumTickStructure:   qubicTickStructureToProto(firstQuorumTickData),
 		QuorumDiffPerComputor: make(map[uint32]*protobuff.QuorumDiff),
 	}
 
-	for _, quorumTickData := range model.QuorumData {
-		protoQuorumTickData.QuorumDiffPerComputor[uint32(quorumTickData.ComputorIndex)] = qubicModelDiffToProto(quorumTickData)
+	for _, quorumTickData := range votes {
+		protoQuorumTickData.QuorumDiffPerComputor[uint32(quorumTickData.ComputorIndex)] = qubicDiffToProto(quorumTickData)
 	}
 
 	return &protoQuorumTickData
 }
 
-func qubicModelTickStructureToProto(model types.QuorumTickData) *protobuff.QuorumTickStructure {
-	date := time.Date(2000 + int(model.Year), time.Month(model.Month), int(model.Day), int(model.Hour), int(model.Minute), int(model.Second), 0, time.UTC)
-	timestamp := date.UnixMilli() + int64(model.Millisecond)
+func qubicTickStructureToProto(tickVote types.QuorumTickVote) *protobuff.QuorumTickStructure {
+	date := time.Date(2000+int(tickVote.Year), time.Month(tickVote.Month), int(tickVote.Day), int(tickVote.Hour), int(tickVote.Minute), int(tickVote.Second), 0, time.UTC)
+	timestamp := date.UnixMilli() + int64(tickVote.Millisecond)
 	protoQuorumTickStructure := protobuff.QuorumTickStructure{
-		ComputorIndex:                uint32(model.ComputorIndex),
-		Epoch:                        uint32(model.Epoch),
-		TickNumber:                   model.Tick,
+		ComputorIndex:                uint32(tickVote.ComputorIndex),
+		Epoch:                        uint32(tickVote.Epoch),
+		TickNumber:                   tickVote.Tick,
 		Timestamp:                    uint64(timestamp),
-		PrevResourceTestingDigestHex: convertUint64ToHex(model.PreviousResourceTestingDigest),
-		PrevSpectrumDigestHex:        hex.EncodeToString(model.PreviousSpectrumDigest[:]),
-		PrevUniverseDigestHex:        hex.EncodeToString(model.PreviousUniverseDigest[:]),
-		PrevComputerDigestHex:        hex.EncodeToString(model.PreviousComputerDigest[:]),
-		TxDigestHex:                  hex.EncodeToString(model.TxDigest[:]),
+		PrevResourceTestingDigestHex: convertUint64ToHex(tickVote.PreviousResourceTestingDigest),
+		PrevSpectrumDigestHex:        hex.EncodeToString(tickVote.PreviousSpectrumDigest[:]),
+		PrevUniverseDigestHex:        hex.EncodeToString(tickVote.PreviousUniverseDigest[:]),
+		PrevComputerDigestHex:        hex.EncodeToString(tickVote.PreviousComputerDigest[:]),
+		TxDigestHex:                  hex.EncodeToString(tickVote.TxDigest[:]),
 	}
 
 	return &protoQuorumTickStructure
 }
 
-func qubicModelDiffToProto(model types.QuorumTickData) *protobuff.QuorumDiff {
+func qubicDiffToProto(tickVote types.QuorumTickVote) *protobuff.QuorumDiff {
 	protoQuorumDiff := protobuff.QuorumDiff{
-		SaltedResourceTestingDigestHex: convertUint64ToHex(model.SaltedResourceTestingDigest),
-		SaltedSpectrumDigestHex:        hex.EncodeToString(model.SaltedSpectrumDigest[:]),
-		SaltedUniverseDigestHex:        hex.EncodeToString(model.SaltedUniverseDigest[:]),
-		SaltedComputerDigestHex:        hex.EncodeToString(model.SaltedComputerDigest[:]),
-		ExpectedNextTickTxDigestHex:    hex.EncodeToString(model.ExpectedNextTickTxDigest[:]),
-		SignatureHex:                   hex.EncodeToString(model.Signature[:]),
+		SaltedResourceTestingDigestHex: convertUint64ToHex(tickVote.SaltedResourceTestingDigest),
+		SaltedSpectrumDigestHex:        hex.EncodeToString(tickVote.SaltedSpectrumDigest[:]),
+		SaltedUniverseDigestHex:        hex.EncodeToString(tickVote.SaltedUniverseDigest[:]),
+		SaltedComputerDigestHex:        hex.EncodeToString(tickVote.SaltedComputerDigest[:]),
+		ExpectedNextTickTxDigestHex:    hex.EncodeToString(tickVote.ExpectedNextTickTxDigest[:]),
+		SignatureHex:                   hex.EncodeToString(tickVote.Signature[:]),
 	}
 	return &protoQuorumDiff
 }
@@ -57,4 +57,3 @@ func convertUint64ToHex(value uint64) string {
 	binary.LittleEndian.PutUint64(b, value)
 	return hex.EncodeToString(b)
 }
-

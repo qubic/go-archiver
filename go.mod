@@ -3,12 +3,13 @@ module github.com/qubic/go-archiver
 go 1.20
 
 require (
+	github.com/ardanlabs/conf v1.5.0
 	github.com/cloudflare/circl v1.3.6
 	github.com/cockroachdb/pebble v1.1.0
 	github.com/google/go-cmp v0.6.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.19.1
 	github.com/pkg/errors v0.9.1
-	github.com/qubic/go-node-connector v0.1.1
+	github.com/qubic/go-node-connector v0.2.1
 	github.com/stretchr/testify v1.8.1
 	go.uber.org/zap v1.26.0
 	google.golang.org/grpc v1.61.0
@@ -47,5 +48,3 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240125205218-1f4bbc51befe // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/qubic/go-node-connector => ../go-qubic

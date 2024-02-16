@@ -19,12 +19,13 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	ArchiveService_GetTickData_FullMethodName         = "/qubic.archiver.archive.pb.ArchiveService/GetTickData"
-	ArchiveService_GetTickTransactions_FullMethodName = "/qubic.archiver.archive.pb.ArchiveService/GetTickTransactions"
-	ArchiveService_GetTransaction_FullMethodName      = "/qubic.archiver.archive.pb.ArchiveService/GetTransaction"
-	ArchiveService_GetQuorumTickData_FullMethodName   = "/qubic.archiver.archive.pb.ArchiveService/GetQuorumTickData"
-	ArchiveService_GetComputors_FullMethodName        = "/qubic.archiver.archive.pb.ArchiveService/GetComputors"
-	ArchiveService_GetIdentityInfo_FullMethodName     = "/qubic.archiver.archive.pb.ArchiveService/GetIdentityInfo"
+	ArchiveService_GetTickData_FullMethodName          = "/qubic.archiver.archive.pb.ArchiveService/GetTickData"
+	ArchiveService_GetTickTransactions_FullMethodName  = "/qubic.archiver.archive.pb.ArchiveService/GetTickTransactions"
+	ArchiveService_GetTransaction_FullMethodName       = "/qubic.archiver.archive.pb.ArchiveService/GetTransaction"
+	ArchiveService_GetQuorumTickData_FullMethodName    = "/qubic.archiver.archive.pb.ArchiveService/GetQuorumTickData"
+	ArchiveService_GetComputors_FullMethodName         = "/qubic.archiver.archive.pb.ArchiveService/GetComputors"
+	ArchiveService_GetIdentityInfo_FullMethodName      = "/qubic.archiver.archive.pb.ArchiveService/GetIdentityInfo"
+	ArchiveService_GetLastProcessedTick_FullMethodName = "/qubic.archiver.archive.pb.ArchiveService/GetLastProcessedTick"
 )
 
 // ArchiveServiceClient is the client API for ArchiveService service.
@@ -33,10 +34,11 @@ const (
 type ArchiveServiceClient interface {
 	GetTickData(ctx context.Context, in *GetTickDataRequest, opts ...grpc.CallOption) (*GetTickDataResponse, error)
 	GetTickTransactions(ctx context.Context, in *GetTickTransactionsRequest, opts ...grpc.CallOption) (*GetTickTransactionsResponse, error)
-	GetTransaction(ctx context.Context, in *GetTransactionRequest, opts ...grpc.CallOption) (*GetTransactionRequest, error)
+	GetTransaction(ctx context.Context, in *GetTransactionRequest, opts ...grpc.CallOption) (*GetTransactionResponse, error)
 	GetQuorumTickData(ctx context.Context, in *GetQuorumTickDataRequest, opts ...grpc.CallOption) (*GetQuorumTickDataResponse, error)
 	GetComputors(ctx context.Context, in *GetComputorsRequest, opts ...grpc.CallOption) (*GetComputorsResponse, error)
 	GetIdentityInfo(ctx context.Context, in *GetIdentityInfoRequest, opts ...grpc.CallOption) (*GetIdentityInfoResponse, error)
+	GetLastProcessedTick(ctx context.Context, in *GetLastProcessedTickRequest, opts ...grpc.CallOption) (*GetLastProcessedTickResponse, error)
 }
 
 type archiveServiceClient struct {
@@ -65,8 +67,8 @@ func (c *archiveServiceClient) GetTickTransactions(ctx context.Context, in *GetT
 	return out, nil
 }
 
-func (c *archiveServiceClient) GetTransaction(ctx context.Context, in *GetTransactionRequest, opts ...grpc.CallOption) (*GetTransactionRequest, error) {
-	out := new(GetTransactionRequest)
+func (c *archiveServiceClient) GetTransaction(ctx context.Context, in *GetTransactionRequest, opts ...grpc.CallOption) (*GetTransactionResponse, error) {
+	out := new(GetTransactionResponse)
 	err := c.cc.Invoke(ctx, ArchiveService_GetTransaction_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -101,16 +103,26 @@ func (c *archiveServiceClient) GetIdentityInfo(ctx context.Context, in *GetIdent
 	return out, nil
 }
 
+func (c *archiveServiceClient) GetLastProcessedTick(ctx context.Context, in *GetLastProcessedTickRequest, opts ...grpc.CallOption) (*GetLastProcessedTickResponse, error) {
+	out := new(GetLastProcessedTickResponse)
+	err := c.cc.Invoke(ctx, ArchiveService_GetLastProcessedTick_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ArchiveServiceServer is the server API for ArchiveService service.
 // All implementations must embed UnimplementedArchiveServiceServer
 // for forward compatibility
 type ArchiveServiceServer interface {
 	GetTickData(context.Context, *GetTickDataRequest) (*GetTickDataResponse, error)
 	GetTickTransactions(context.Context, *GetTickTransactionsRequest) (*GetTickTransactionsResponse, error)
-	GetTransaction(context.Context, *GetTransactionRequest) (*GetTransactionRequest, error)
+	GetTransaction(context.Context, *GetTransactionRequest) (*GetTransactionResponse, error)
 	GetQuorumTickData(context.Context, *GetQuorumTickDataRequest) (*GetQuorumTickDataResponse, error)
 	GetComputors(context.Context, *GetComputorsRequest) (*GetComputorsResponse, error)
 	GetIdentityInfo(context.Context, *GetIdentityInfoRequest) (*GetIdentityInfoResponse, error)
+	GetLastProcessedTick(context.Context, *GetLastProcessedTickRequest) (*GetLastProcessedTickResponse, error)
 	mustEmbedUnimplementedArchiveServiceServer()
 }
 
@@ -124,7 +136,7 @@ func (UnimplementedArchiveServiceServer) GetTickData(context.Context, *GetTickDa
 func (UnimplementedArchiveServiceServer) GetTickTransactions(context.Context, *GetTickTransactionsRequest) (*GetTickTransactionsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTickTransactions not implemented")
 }
-func (UnimplementedArchiveServiceServer) GetTransaction(context.Context, *GetTransactionRequest) (*GetTransactionRequest, error) {
+func (UnimplementedArchiveServiceServer) GetTransaction(context.Context, *GetTransactionRequest) (*GetTransactionResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTransaction not implemented")
 }
 func (UnimplementedArchiveServiceServer) GetQuorumTickData(context.Context, *GetQuorumTickDataRequest) (*GetQuorumTickDataResponse, error) {
@@ -135,6 +147,9 @@ func (UnimplementedArchiveServiceServer) GetComputors(context.Context, *GetCompu
 }
 func (UnimplementedArchiveServiceServer) GetIdentityInfo(context.Context, *GetIdentityInfoRequest) (*GetIdentityInfoResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetIdentityInfo not implemented")
+}
+func (UnimplementedArchiveServiceServer) GetLastProcessedTick(context.Context, *GetLastProcessedTickRequest) (*GetLastProcessedTickResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetLastProcessedTick not implemented")
 }
 func (UnimplementedArchiveServiceServer) mustEmbedUnimplementedArchiveServiceServer() {}
 
@@ -257,6 +272,24 @@ func _ArchiveService_GetIdentityInfo_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ArchiveService_GetLastProcessedTick_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetLastProcessedTickRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ArchiveServiceServer).GetLastProcessedTick(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ArchiveService_GetLastProcessedTick_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ArchiveServiceServer).GetLastProcessedTick(ctx, req.(*GetLastProcessedTickRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ArchiveService_ServiceDesc is the grpc.ServiceDesc for ArchiveService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -287,6 +320,10 @@ var ArchiveService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetIdentityInfo",
 			Handler:    _ArchiveService_GetIdentityInfo_Handler,
+		},
+		{
+			MethodName: "GetLastProcessedTick",
+			Handler:    _ArchiveService_GetLastProcessedTick_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

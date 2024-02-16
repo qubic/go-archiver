@@ -2,10 +2,13 @@ package store
 
 import (
 	"context"
+	"encoding/binary"
+	"encoding/hex"
 	"github.com/cockroachdb/pebble"
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
 	"go.uber.org/zap"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -132,12 +135,17 @@ func (s *PebbleStore) SetTickTransactions(ctx context.Context, txs *protobuff.Tr
 	defer batch.Close()
 
 	for _, tx := range txs.GetTransactions() {
-		key, err := tickTxKey(tx.HashHex)
+		digest, err := hex.DecodeString(tx.DigestHex)
 		if err != nil {
-			return errors.Wrapf(err, "creating tx key for digest: %s", tx.HashHex)
+			return errors.Wrapf(err, "decoding hex digest: %s", tx.DigestHex)
 		}
 
-		serialized, err := proto.Marshal(tx)
+		key, err := tickTxKey(digest)
+		if err != nil {
+			return errors.Wrapf(err, "creating tx key for digest: %s", digest)
+		}
+
+		serialized, err := protojson.MarshalOptions{EmitDefaultValues: true}.Marshal(tx)
 		if err != nil {
 			return errors.Wrap(err, "serializing tx proto")
 		}
@@ -166,14 +174,19 @@ func (s *PebbleStore) GetTickTransactions(ctx context.Context, tickNumber uint64
 	}
 
 	txs := make([]*protobuff.Transaction, 0, len(td.TransactionDigestsHex))
-	for _, hashTxHex := range td.TransactionDigestsHex {
-		tx, err := s.GetTransaction(ctx, hashTxHex)
+	for _, digestHex := range td.TransactionDigestsHex {
+		digest, err := hex.DecodeString(digestHex)
+		if err != nil {
+			return nil, errors.Wrapf(err, "decoding hex digest: %s", digestHex)
+		}
+
+		tx, err := s.GetTransaction(ctx, digest)
 		if err != nil {
 			if errors.Is(err, ErrNotFound) {
 				return nil, ErrNotFound
 			}
 
-			return nil, errors.Wrapf(err, "getting tx for digest: %s", hashTxHex)
+			return nil, errors.Wrapf(err, "getting tx for digest: %s", digestHex)
 		}
 
 		txs = append(txs, tx)
@@ -182,8 +195,8 @@ func (s *PebbleStore) GetTickTransactions(ctx context.Context, tickNumber uint64
 	return &protobuff.Transactions{Transactions: txs}, nil
 }
 
-func (s *PebbleStore) GetTransaction(ctx context.Context, hashHex string) (*protobuff.Transaction, error) {
-	key, err := tickTxKey(hashHex)
+func (s *PebbleStore) GetTransaction(ctx context.Context, digest []byte) (*protobuff.Transaction, error) {
+	key, err := tickTxKey(digest)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting tx key")
 	}
@@ -199,9 +212,39 @@ func (s *PebbleStore) GetTransaction(ctx context.Context, hashHex string) (*prot
 	defer closer.Close()
 
 	var tx protobuff.Transaction
-	if err := proto.Unmarshal(value, &tx); err != nil {
+	if err := protojson.Unmarshal(value, &tx); err != nil {
 		return nil, errors.Wrap(err, "unmarshalling tx to protobuff type")
 	}
 
 	return &tx, nil
 }
+
+func (s *PebbleStore) SetLastProcessedTick(ctx context.Context, tickNumber uint64) error {
+	key := lastProcessedTickKey()
+	value := make([]byte, 8)
+	binary.LittleEndian.PutUint64(value, tickNumber)
+
+	err := s.db.Set(key, value, &pebble.WriteOptions{Sync: true})
+	if err != nil {
+		return errors.Wrap(err, "setting last processed tick")
+	}
+
+	return nil
+}
+
+func (s *PebbleStore) GetLastProcessedTick(ctx context.Context) (uint64, error) {
+	key := lastProcessedTickKey()
+	value, closer, err := s.db.Get(key)
+	if err != nil {
+		if errors.Is(err, pebble.ErrNotFound) {
+			return 0, ErrNotFound
+		}
+
+		return 0, errors.Wrap(err, "getting last processed tick")
+	}
+	defer closer.Close()
+
+	return binary.LittleEndian.Uint64(value), nil
+}
+
+

@@ -4,11 +4,17 @@ import (
 	"context"
 	"encoding/hex"
 	"github.com/pkg/errors"
+	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-archiver/utils"
 	"github.com/qubic/go-node-connector/types"
 )
 
-func Validate(ctx context.Context, data types.TickData, quorumTickData types.QuorumTickData, comps types.Computors) error {
+func Validate(ctx context.Context, data types.TickData, quorumTickVote types.QuorumTickVote, comps types.Computors) error {
+	//empty tick with empty quorum tx digest means other verification is not needed
+	if (data.IsEmpty()) && quorumTickVote.TxDigest == [32]byte{}  {
+		return nil
+	}
+
 	computorPubKey := comps.PubKeys[data.ComputorIndex]
 
 	digest, err := getDigestFromTickData(data)
@@ -27,8 +33,8 @@ func Validate(ctx context.Context, data types.TickData, quorumTickData types.Quo
 		return errors.Wrap(err, "getting full tick data digest")
 	}
 
-	if fullDigest != quorumTickData.TxDigest {
-		return errors.Wrapf(err, "quorum tx digest mismatch. full digest: %s. quorum tx digest: %s", hex.EncodeToString(fullDigest[:]), hex.EncodeToString(quorumTickData.TxDigest[:]))
+	if fullDigest != quorumTickVote.TxDigest {
+		return errors.Wrapf(err, "quorum tx digest mismatch. full digest: %s. quorum tx digest: %s", hex.EncodeToString(fullDigest[:]), hex.EncodeToString(quorumTickVote.TxDigest[:]))
 	}
 
 	return nil
@@ -68,4 +74,14 @@ func getFullDigestFromTickData(data types.TickData) ([32]byte, error) {
 	}
 
 	return digest, nil
+}
+
+func Store(ctx context.Context, store *store.PebbleStore, tickData types.TickData) error {
+	protoTickData := qubicToProto(tickData)
+
+	err := store.SetTickData(ctx, uint64(protoTickData.TickNumber), protoTickData)
+	if err != nil {
+		return errors.Wrap(err, "set tick data")
+	}
+	return nil
 }

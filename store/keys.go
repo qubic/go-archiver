@@ -2,15 +2,14 @@ package store
 
 import (
 	"encoding/binary"
-	"encoding/hex"
-	"github.com/pkg/errors"
 )
 
 const (
-	TickData     = 0x00
-	QuorumData   = 0x01
-	ComputorList = 0x02
-	Transaction  = 0x03
+	TickData          = 0x00
+	QuorumData        = 0x01
+	ComputorList      = 0x02
+	Transaction       = 0x03
+	LastProcessedTick = 0x04
 )
 
 func tickDataKey(tickNumber uint64) []byte {
@@ -34,14 +33,14 @@ func computorsKey(epochNumber uint64) []byte {
 	return key
 }
 
-func tickTxKey(hashHex string) ([]byte, error) {
-	txHash, err := hex.DecodeString(hashHex)
-	if err != nil {
-		return nil, errors.Wrap(err, "hex decoding tx hash")
-	}
-
+func tickTxKey(digest []byte) ([]byte, error) {
 	key := []byte{Transaction}
-	key = append(key, txHash...)
+	key = append(key, digest...)
 
 	return key, nil
+}
+
+func lastProcessedTickKey() []byte {
+	return []byte{LastProcessedTick}
+
 }

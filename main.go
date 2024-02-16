@@ -2,63 +2,161 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"github.com/ardanlabs/conf"
+	"github.com/cockroachdb/pebble"
+	"github.com/pkg/errors"
+	"github.com/qubic/go-archiver/rpc"
 	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-archiver/validator"
-	"go.uber.org/zap"
 	"log"
 	"os"
-	"strconv"
+	"os/signal"
+	"syscall"
 	"time"
 
 	qubic "github.com/qubic/go-node-connector"
 )
 
-var nodePort = "21841"
+const prefix = "QUBIC_ARCHIVER"
 
 func main() {
-	if len(os.Args) < 2 {
-		log.Fatalf("Please provide tick number and nodeIP")
-	}
-
-	ip := os.Args[1]
-
-	tickNumber, err := strconv.ParseUint(os.Args[2], 10, 64)
-	if err != nil {
-		log.Fatalf("Parsing tick number. err: %s", err.Error())
-	}
-
-	err = run(ip, tickNumber)
-	if err != nil {
-		log.Fatalf(err.Error())
+	if err := run(); err != nil {
+		log.Fatalf("main: exited with error: %s", err.Error())
 	}
 }
 
-func run(nodeIP string, tickNumber uint64) error {
-	client, err := qubic.NewClient(context.Background(), nodeIP, nodePort)
-	if err != nil {
-		log.Fatalf("creating qubic sdk: err: %s", err.Error())
+func run() error {
+	var cfg struct {
+		Server struct {
+			GrpcHost        string        `conf:"default:0.0.0.0:21841"`
+			HttpHost        string        `conf:"default:0.0.0.0:21842"`
+			ReadTimeout     time.Duration `conf:"default:5s"`
+			WriteTimeout    time.Duration `conf:"default:5s"`
+			ShutdownTimeout time.Duration `conf:"default:5s"`
+		}
+		Qubic struct {
+			NodeIp       string `conf:"default:212.51.150.253"`
+			NodePort     string `conf:"default:21841"`
+			FallbackTick uint64 `conf:"default:12522443"`
+			BatchSize   uint64 `conf:"default:500"`
+		}
 	}
-	// releasing tcp connection related resources
+
+	if err := conf.Parse(os.Args[1:], prefix, &cfg); err != nil {
+		switch err {
+		case conf.ErrHelpWanted:
+			usage, err := conf.Usage(prefix, &cfg)
+			if err != nil {
+				return errors.Wrap(err, "generating config usage")
+			}
+			fmt.Println(usage)
+			return nil
+		case conf.ErrVersionWanted:
+			version, err := conf.VersionString(prefix, &cfg)
+			if err != nil {
+				return errors.Wrap(err, "generating config version")
+			}
+			fmt.Println(version)
+			return nil
+		}
+		return errors.Wrap(err, "parsing config")
+	}
+
+	out, err := conf.String(&cfg)
+	if err != nil {
+		return errors.Wrap(err, "generating config for output")
+	}
+	log.Printf("main: Config :\n%v\n", out)
+
+	db, err := pebble.Open("demo", &pebble.Options{})
+	if err != nil {
+		log.Fatalf("err opening pebble: %s", err.Error())
+	}
+	defer db.Close()
+
+	ps := store.NewPebbleStore(db, nil)
+
+	rpcServer := rpc.NewServer("0.0.0.0:21841", "0.0.0.0:21842", ps, nil)
+	rpcServer.Start()
+
+	shutdown := make(chan os.Signal, 1)
+	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
+
+	ticker := time.NewTicker(1 * time.Second)
+
+	for {
+		select {
+		case <-shutdown:
+			log.Fatalf("Shutting down")
+		case <-ticker.C:
+			err = validateMultiple(cfg.Qubic.NodeIp, cfg.Qubic.NodePort, cfg.Qubic.FallbackTick, cfg.Qubic.BatchSize, ps)
+			if err != nil {
+				log.Printf("Error running batch. Retrying...: %s", err.Error())
+			}
+			log.Printf("Batch completed, continuing to next one")
+		}
+
+	}
+}
+
+func validateMultiple(nodeIP string, nodePort string, fallbackStartTick uint64, batchSize uint64, ps *store.PebbleStore) error {
+	client, err := qubic.NewConnection(context.Background(), nodeIP, nodePort)
+	if err != nil {
+		return errors.Wrap(err, "creating qubic client")
+	}
 	defer client.Close()
 
-	logger, _ := zap.NewDevelopment()
-	val := validator.NewValidator(client, store.NewPebbleStore(nil, logger))
+	val := validator.NewValidator(client, ps)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
 
-	failedTicks := 0
+	tickInfo, err := client.GetTickInfo(ctx)
+	if err != nil {
+		return errors.Wrap(err, "getting tick info")
+	}
+	targetTick := uint64(tickInfo.Tick)
+	startTick, err := getNextProcessingTick(ctx, fallbackStartTick, ps)
+	if err != nil {
+		return errors.Wrap(err, "getting next processing tick")
+	}
+
+	if targetTick <= startTick {
+		return errors.Errorf("Starting tick %d is in the future. Latest tick is: %d", startTick, tickInfo.Tick)
+	}
+
+	if targetTick-startTick > batchSize {
+		targetTick = startTick + batchSize
+	}
+
+	log.Printf("Starting from tick: %d, validating until tick: %d", startTick, targetTick)
 	start := time.Now().Unix()
-	for t := tickNumber; t < tickNumber+30; t++ {
+	for t := startTick; t < targetTick; t++ {
 		stepIn := time.Now().Unix()
 		if err := val.ValidateTick(context.Background(), t); err != nil {
-			failedTicks += 1
-			log.Printf("Failed to validate tick %d: %s", t, err.Error())
-			continue
-			//return errors.Wrapf(err, "validating tick: %d", t)
+			return errors.Wrapf(err, "validating tick %d", t)
+		}
+		err := ps.SetLastProcessedTick(ctx, t)
+		if err != nil {
+			return errors.Wrapf(err, "setting last processed tick %d", t)
 		}
 		stepOut := time.Now().Unix()
 		log.Printf("Tick %d validated in %d seconds", t, stepOut-stepIn)
 	}
 	end := time.Now().Unix()
-	log.Printf("30 ticks validated in %d seconds", end-start)
-
+	log.Printf("%d ticks validated in %d seconds", targetTick-startTick, end-start)
 	return nil
+}
+
+func getNextProcessingTick(ctx context.Context, fallBackTick uint64, ps *store.PebbleStore) (uint64, error) {
+	lastTick, err := ps.GetLastProcessedTick(ctx)
+	if err != nil {
+		if errors.Cause(err) == store.ErrNotFound {
+			return fallBackTick, nil
+		}
+
+		return 0, errors.Wrap(err, "getting last processed tick")
+	}
+
+	return lastTick + 1, nil
 }

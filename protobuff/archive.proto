@@ -9,8 +9,8 @@ message TickData {
   uint32 epoch = 2;
   uint32 tick_number = 3;
   uint64 timestamp = 4;
-  repeated bytes var_struct = 5;
-  repeated bytes time_lock = 6;
+  bytes var_struct = 5;
+  bytes time_lock = 6;
   repeated string transaction_digests_hex = 7;
   repeated int64 contract_fees = 8;
   string signature_hex = 9;
@@ -25,18 +25,19 @@ message GetTickDataResponse {
 }
 
 message Transaction {
-  string hash_hex = 1;
-  string source_pubkey_hex = 2;
-  string dest_pubkey_hex = 3;
-  int64 amount = 4;
+  string source_pubkey_hex = 1;
+  string dest_pubkey_hex = 2;
+  int64 amount = 3;
+  uint32 tick_number = 4;
   uint32 input_type = 5;
   uint32 input_size = 6;
   string input_hex = 7;
   string signature_hex = 8;
+  string digest_hex = 9;
 }
 
 message GetTransactionRequest {
-  string hash_hex = 1;
+  string digest_hex = 1;
 }
 
 message GetTransactionResponse{
@@ -133,11 +134,17 @@ message GetIdentityInfoResponse {
   IdentityInfo identity_info = 1;
 }
 
+message GetLastProcessedTickRequest {}
+message GetLastProcessedTickResponse{
+  uint32 last_processed_tick = 1;
+}
+
 service ArchiveService {
   rpc GetTickData(GetTickDataRequest) returns (GetTickDataResponse);
   rpc GetTickTransactions(GetTickTransactionsRequest) returns (GetTickTransactionsResponse);
-  rpc GetTransaction(GetTransactionRequest) returns (GetTransactionRequest);
+  rpc GetTransaction(GetTransactionRequest) returns (GetTransactionResponse);
   rpc GetQuorumTickData(GetQuorumTickDataRequest) returns (GetQuorumTickDataResponse);
   rpc GetComputors(GetComputorsRequest) returns (GetComputorsResponse);
   rpc GetIdentityInfo(GetIdentityInfoRequest) returns (GetIdentityInfoResponse);
+  rpc GetLastProcessedTick(GetLastProcessedTickRequest) returns (GetLastProcessedTickResponse);
 }
