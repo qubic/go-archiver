@@ -38,7 +38,7 @@ func run() error {
 		Qubic struct {
 			NodeIp       string `conf:"default:212.51.150.253"`
 			NodePort     string `conf:"default:21841"`
-			FallbackTick uint64 `conf:"default:12522443"`
+			FallbackTick uint64 `conf:"default:12543674"`
 			BatchSize   uint64 `conf:"default:500"`
 		}
 	}

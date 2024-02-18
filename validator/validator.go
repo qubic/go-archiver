@@ -88,12 +88,12 @@ func (v *Validator) ValidateTick(ctx context.Context, tickNumber uint64) error {
 
 	log.Printf("Validating %d transactions\n", len(transactions))
 
-	err = tx.Validate(ctx, transactions, tickData)
+	validTxs, err := tx.Validate(ctx, transactions, tickData)
 	if err != nil {
 		return errors.Wrap(err, "validating transactions")
 	}
 
-	log.Printf("Validated %d transactions\n", len(transactions))
+	log.Printf("Validated %d transactions\n", len(validTxs))
 
 	err = quorum.Store(ctx, v.store, quorumVotes)
 	if err != nil {
@@ -109,7 +109,7 @@ func (v *Validator) ValidateTick(ctx context.Context, tickNumber uint64) error {
 
 	log.Printf("Stored tick data\n")
 
-	err = tx.Store(ctx, v.store, transactions)
+	err = tx.Store(ctx, v.store, validTxs)
 	if err != nil {
 		return errors.Wrap(err, "storing transactions")
 	}
