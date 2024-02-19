@@ -15,7 +15,7 @@ import (
 )
 
 type Validator struct {
-	qu *qubic.Connection
+	qu    *qubic.Connection
 	store *store.PebbleStore
 }
 
@@ -24,7 +24,7 @@ func NewValidator(qu *qubic.Connection, store *store.PebbleStore) *Validator {
 }
 
 func (v *Validator) ValidateTick(ctx context.Context, tickNumber uint64) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5 * time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	quorumVotes, err := v.qu.GetQuorumVotes(ctx, uint32(tickNumber))
@@ -32,10 +32,12 @@ func (v *Validator) ValidateTick(ctx context.Context, tickNumber uint64) error {
 		return errors.Wrap(err, "getting quorum tick data")
 	}
 
+	//
 	if len(quorumVotes) == 0 {
 		return errors.New("not quorum votes fetched")
 	}
 
+	//getting computors from storage, otherwise get it from a node
 	epoch := quorumVotes[0].Epoch
 	var comps types.Computors
 	comps, err = computors.Get(ctx, v.store, uint64(epoch))
@@ -48,11 +50,6 @@ func (v *Validator) ValidateTick(ctx context.Context, tickNumber uint64) error {
 		if err != nil {
 			return errors.Wrap(err, "getting computors from qubic")
 		}
-
-		err = computors.Store(ctx, v.store, comps)
-		if err != nil {
-			return errors.Wrap(err, "storing computors")
-		}
 	}
 
 	err = computors.Validate(ctx, comps)
@@ -60,10 +57,20 @@ func (v *Validator) ValidateTick(ctx context.Context, tickNumber uint64) error {
 		return errors.Wrap(err, "validating comps")
 	}
 	//log.Println("Computors validated")
+	err = computors.Store(ctx, v.store, comps)
+	if err != nil {
+		return errors.Wrap(err, "storing computors")
+	}
 
 	err = quorum.Validate(ctx, quorumVotes, comps)
 	if err != nil {
 		return errors.Wrap(err, "validating quorum")
+	}
+
+	// if the quorum votes have an empty tick data, it means that POTENTIALLY there is no tick data, it doesn't for
+	// validation, but we may need to fetch it in the future ?!
+	if quorumVotes[0].TxDigest == [32]byte{} {
+		return nil
 	}
 
 	log.Println("Quorum validated")
@@ -95,6 +102,7 @@ func (v *Validator) ValidateTick(ctx context.Context, tickNumber uint64) error {
 
 	log.Printf("Validated %d transactions\n", len(validTxs))
 
+	// proceed to storing tick information
 	err = quorum.Store(ctx, v.store, quorumVotes)
 	if err != nil {
 		return errors.Wrap(err, "storing quorum votes")

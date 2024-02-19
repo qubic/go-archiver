@@ -14,8 +14,8 @@ COPY fourq_verify /app/fourq_verify
 RUN chmod +x /app/go-archiver
 RUN chmod +x /app/fourq_verify
 
-EXPOSE 21841
-EXPOSE 21842
+EXPOSE 8000
+EXPOSE 8001
 
 WORKDIR /app
 

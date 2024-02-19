@@ -29,8 +29,6 @@ func main() {
 func run() error {
 	var cfg struct {
 		Server struct {
-			GrpcHost        string        `conf:"default:0.0.0.0:21841"`
-			HttpHost        string        `conf:"default:0.0.0.0:21842"`
 			ReadTimeout     time.Duration `conf:"default:5s"`
 			WriteTimeout    time.Duration `conf:"default:5s"`
 			ShutdownTimeout time.Duration `conf:"default:5s"`
@@ -39,7 +37,7 @@ func run() error {
 			NodeIp       string `conf:"default:212.51.150.253"`
 			NodePort     string `conf:"default:21841"`
 			FallbackTick uint64 `conf:"default:12543674"`
-			BatchSize   uint64 `conf:"default:500"`
+			BatchSize    uint64 `conf:"default:500"`
 		}
 	}
 
@@ -69,7 +67,7 @@ func run() error {
 	}
 	log.Printf("main: Config :\n%v\n", out)
 
-	db, err := pebble.Open("demo", &pebble.Options{})
+	db, err := pebble.Open("store", &pebble.Options{})
 	if err != nil {
 		log.Fatalf("err opening pebble: %s", err.Error())
 	}
@@ -77,7 +75,7 @@ func run() error {
 
 	ps := store.NewPebbleStore(db, nil)
 
-	rpcServer := rpc.NewServer("0.0.0.0:21841", "0.0.0.0:21842", ps, nil)
+	rpcServer := rpc.NewServer("0.0.0.0:8001", "0.0.0.0:8000", ps, nil)
 	rpcServer.Start()
 
 	shutdown := make(chan os.Signal, 1)

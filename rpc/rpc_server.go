@@ -60,7 +60,7 @@ func (s *Server) GetTickTransactions(ctx context.Context, req *protobuff.GetTick
 	return &protobuff.GetTickTransactionsResponse{Transactions: txs.Transactions}, nil
 }
 func (s *Server) GetTransaction(ctx context.Context, req *protobuff.GetTransactionRequest) (*protobuff.GetTransactionResponse, error) {
-	id := types.Identity(req.DigestHex)
+	id := types.Identity(req.TxId)
 	digest, err := id.ToPubKey(true)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid tx id: %v", err)

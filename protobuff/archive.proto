@@ -37,7 +37,7 @@ message Transaction {
 }
 
 message GetTransactionRequest {
-  string digest_hex = 1;
+  string tx_id = 1;
 }
 
 message GetTransactionResponse{
