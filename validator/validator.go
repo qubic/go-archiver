@@ -32,7 +32,6 @@ func (v *Validator) ValidateTick(ctx context.Context, tickNumber uint64) error {
 		return errors.Wrap(err, "getting quorum tick data")
 	}
 
-	//
 	if len(quorumVotes) == 0 {
 		return errors.New("not quorum votes fetched")
 	}

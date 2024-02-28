@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/ardanlabs/conf"
 	"github.com/cockroachdb/pebble"
@@ -9,7 +10,10 @@ import (
 	"github.com/qubic/go-archiver/rpc"
 	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-archiver/validator"
+	"io"
 	"log"
+	"math/rand"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -81,16 +85,28 @@ func run() error {
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
 
-	ticker := time.NewTicker(1 * time.Second)
+	ticker := time.NewTicker(5 * time.Second)
+	peer, err := getNewRandomPeer("http://127.0.0.1:8080/peers")
+	if err != nil {
+		return errors.Wrap(err, "getting new random peer")
+	}
+
+	fmt.Printf("Got new peer: %s\n", peer)
 
 	for {
 		select {
 		case <-shutdown:
 			log.Fatalf("Shutting down")
 		case <-ticker.C:
-			err = validateMultiple(cfg.Qubic.NodeIp, cfg.Qubic.NodePort, cfg.Qubic.FallbackTick, cfg.Qubic.BatchSize, ps)
+			err = validateMultiple(peer, cfg.Qubic.NodePort, cfg.Qubic.FallbackTick, cfg.Qubic.BatchSize, ps)
 			if err != nil {
 				log.Printf("Error running batch. Retrying...: %s", err.Error())
+				newPeer, err := getNewRandomPeer("http://127.0.0.1:8080/peers")
+				if err != nil {
+					continue
+				}
+				fmt.Printf("Got new peer: %s\n", newPeer)
+				peer = newPeer
 			}
 			log.Printf("Batch completed, continuing to next one")
 		}
@@ -119,17 +135,17 @@ func validateMultiple(nodeIP string, nodePort string, fallbackStartTick uint64, 
 		return errors.Wrap(err, "getting next processing tick")
 	}
 
-	if targetTick <= startTick {
-		return errors.Errorf("Starting tick %d is in the future. Latest tick is: %d", startTick, tickInfo.Tick)
-	}
-
 	if targetTick-startTick > batchSize {
 		targetTick = startTick + batchSize
 	}
 
-	log.Printf("Starting from tick: %d, validating until tick: %d", startTick, targetTick)
+	if targetTick <= startTick {
+		return errors.Errorf("Target processing tick %d is not greater than last processing tick %d", targetTick, startTick)
+	}
+
+	log.Printf("Current batch starting from tick: %d until tick: %d", startTick, targetTick)
 	start := time.Now().Unix()
-	for t := startTick; t < targetTick; t++ {
+	for t := startTick; t <= targetTick; t++ {
 		stepIn := time.Now().Unix()
 		if err := val.ValidateTick(context.Background(), t); err != nil {
 			return errors.Wrapf(err, "validating tick %d", t)
@@ -157,4 +173,32 @@ func getNextProcessingTick(ctx context.Context, fallBackTick uint64, ps *store.P
 	}
 
 	return lastTick + 1, nil
+}
+
+type response struct {
+	Peers       []string `json:"peers"`
+	Length      int      `json:"length"`
+	LastUpdated int64    `json:"last_updated"`
+}
+
+func getNewRandomPeer(host string) (string, error) {
+	res, err := http.Get(host)
+	if err != nil {
+		return "", errors.Wrap(err, "getting peers from node fetcher")
+	}
+
+	var resp response
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return "", errors.Wrap(err, "reading response body")
+	}
+
+	err = json.Unmarshal(body, &resp)
+	if err != nil {
+		return "", errors.Wrap(err, "unmarshalling response")
+	}
+
+	fmt.Printf("Got %d new peers\n", len(resp.Peers))
+
+	return resp.Peers[rand.Intn(len(resp.Peers))], nil
 }
