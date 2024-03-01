@@ -15,11 +15,11 @@ import (
 )
 
 type Validator struct {
-	qu    *qubic.Connection
+	qu    *qubic.Client
 	store *store.PebbleStore
 }
 
-func NewValidator(qu *qubic.Connection, store *store.PebbleStore) *Validator {
+func NewValidator(qu *qubic.Client, store *store.PebbleStore) *Validator {
 	return &Validator{qu: qu, store: store}
 }
 
@@ -126,7 +126,7 @@ func (v *Validator) ValidateTick(ctx context.Context, tickNumber uint64) error {
 	return nil
 }
 
-func getComputorsAndValidate(ctx context.Context, qu *qubic.Connection) (types.Computors, error) {
+func getComputorsAndValidate(ctx context.Context, qu *qubic.Client) (types.Computors, error) {
 	comps, err := qu.GetComputors(ctx)
 	if err != nil {
 		return types.Computors{}, errors.Wrap(err, "getting comps")

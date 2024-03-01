@@ -25,10 +25,10 @@ type Server struct {
 	listenAddrGRPC string
 	listenAddrHTTP string
 	store          *store.PebbleStore
-	qc             *qubic.Connection
+	qc             *qubic.Client
 }
 
-func NewServer(listenAddrGRPC, listenAddrHTTP string, store *store.PebbleStore, qc *qubic.Connection) *Server {
+func NewServer(listenAddrGRPC, listenAddrHTTP string, store *store.PebbleStore, qc *qubic.Client) *Server {
 	return &Server{
 		listenAddrGRPC: listenAddrGRPC,
 		listenAddrHTTP: listenAddrHTTP,
