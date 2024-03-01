@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/ardanlabs/conf"
+	"github.com/buraksezer/connpool"
 	"github.com/cockroachdb/pebble"
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/rpc"
@@ -13,6 +14,7 @@ import (
 	"io"
 	"log"
 	"math/rand"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -86,45 +88,58 @@ func run() error {
 	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
 
 	ticker := time.NewTicker(5 * time.Second)
-	peer, err := getNewRandomPeer("http://127.0.0.1:8080/peers")
-	if err != nil {
-		return errors.Wrap(err, "getting new random peer")
-	}
 
-	fmt.Printf("Got new peer: %s\n", peer)
+	cf := &connectionFactory{nodeFetcherHost: "http://127.0.0.1:8080/peers"}
+	p, err := connpool.NewChannelPool(5, 30, cf.connect)
+	if err != nil {
+		return errors.Wrap(err, "creating new connection pool")
+	}
 
 	for {
 		select {
 		case <-shutdown:
 			log.Fatalf("Shutting down")
 		case <-ticker.C:
-			err = validateMultiple(peer, cfg.Qubic.NodePort, cfg.Qubic.FallbackTick, cfg.Qubic.BatchSize, ps)
+			err := do(p, cfg.Qubic.FallbackTick, cfg.Qubic.BatchSize, ps)
 			if err != nil {
-				log.Printf("Error running batch. Retrying...: %s", err.Error())
-				newPeer, err := getNewRandomPeer("http://127.0.0.1:8080/peers")
-				if err != nil {
-					continue
-				}
-				fmt.Printf("Got new peer: %s\n", newPeer)
-				peer = newPeer
+				log.Printf("do err: %s", err.Error())
 			}
-			log.Printf("Batch completed, continuing to next one")
 		}
-
 	}
 }
 
-func validateMultiple(nodeIP string, nodePort string, fallbackStartTick uint64, batchSize uint64, ps *store.PebbleStore) error {
-	client, err := qubic.NewConnection(context.Background(), nodeIP, nodePort)
+func do(pool connpool.Pool, fallbackTick, batchSize uint64, ps *store.PebbleStore) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	conn, err := pool.Get(ctx)
+	if err != nil {
+		return errors.Wrap(err, "getting initial connection")
+	}
+
+	err = validateMultiple(conn, fallbackTick, batchSize, ps)
+	if err != nil {
+		conn.Close()
+		return errors.Wrap(err, "validating multiple")
+	}
+	log.Printf("Batch completed, continuing to next one")
+
+	return nil
+}
+
+func validateMultiple(conn net.Conn, fallbackStartTick uint64, batchSize uint64, ps *store.PebbleStore) error {
+	defer conn.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+	defer cancel()
+
+	client, err := qubic.NewClientWithConn(ctx, conn)
 	if err != nil {
 		return errors.Wrap(err, "creating qubic client")
 	}
 	defer client.Close()
 
 	val := validator.NewValidator(client, ps)
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
 	tickInfo, err := client.GetTickInfo(ctx)
 	if err != nil {
 		return errors.Wrap(err, "getting tick info")
@@ -173,6 +188,19 @@ func getNextProcessingTick(ctx context.Context, fallBackTick uint64, ps *store.P
 	}
 
 	return lastTick + 1, nil
+}
+
+type connectionFactory struct {
+	nodeFetcherHost string
+}
+
+func (cf *connectionFactory) connect() (net.Conn, error) {
+	peer, err := getNewRandomPeer(cf.nodeFetcherHost)
+	if err != nil {
+		return nil, errors.Wrap(err, "getting new random peer")
+	}
+	fmt.Printf("connecting to: %s\n", peer)
+	return net.Dial("tcp", net.JoinHostPort(peer, "21841"))
 }
 
 type response struct {
