@@ -119,7 +119,11 @@ func do(pool connpool.Pool, fallbackTick, batchSize uint64, ps *store.PebbleStor
 
 	err = validateMultiple(conn, fallbackTick, batchSize, ps)
 	if err != nil {
-		conn.Close()
+		if pc, ok := conn.(*connpool.PoolConn); ok {
+			fmt.Printf("Marking conn: %s unusable\n", pc.Conn.RemoteAddr().String())
+			pc.MarkUnusable()
+			pc.Close()
+		}
 		return errors.Wrap(err, "validating multiple")
 	}
 	log.Printf("Batch completed, continuing to next one")
@@ -200,7 +204,7 @@ func (cf *connectionFactory) connect() (net.Conn, error) {
 		return nil, errors.Wrap(err, "getting new random peer")
 	}
 	fmt.Printf("connecting to: %s\n", peer)
-	return net.Dial("tcp", net.JoinHostPort(peer, "21841"))
+	return net.DialTimeout("tcp", net.JoinHostPort(peer, "21841"), 5*time.Second)
 }
 
 type response struct {
