@@ -5,16 +5,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/ardanlabs/conf"
-	"github.com/buraksezer/connpool"
 	"github.com/cockroachdb/pebble"
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/rpc"
 	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-archiver/validator"
+	"github.com/silenceper/pool"
 	"io"
 	"log"
 	"math/rand"
-	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -38,12 +37,16 @@ func run() error {
 			ReadTimeout     time.Duration `conf:"default:5s"`
 			WriteTimeout    time.Duration `conf:"default:5s"`
 			ShutdownTimeout time.Duration `conf:"default:5s"`
+			HttpHost        string        `conf:"0.0.0.0:8000"`
+			GrpcHost        string        `conf:"0.0.0.0:8001"`
 		}
 		Qubic struct {
-			NodeIp       string `conf:"default:212.51.150.253"`
-			NodePort     string `conf:"default:21841"`
-			FallbackTick uint64 `conf:"default:12543674"`
-			BatchSize    uint64 `conf:"default:500"`
+			NodeIp              string `conf:"default:212.51.150.253"`
+			NodePort            string `conf:"default:21841"`
+			FallbackTick        uint64 `conf:"default:12710000"`
+			BatchSize           uint64 `conf:"default:500"`
+			NodeFetcherEndpoint string `conf:"default:http://127.0.0.1:8080/peers"`
+			StorageFolder       string `conf:"default:store"`
 		}
 	}
 
@@ -73,7 +76,7 @@ func run() error {
 	}
 	log.Printf("main: Config :\n%v\n", out)
 
-	db, err := pebble.Open("store", &pebble.Options{})
+	db, err := pebble.Open(cfg.Qubic.StorageFolder, &pebble.Options{})
 	if err != nil {
 		log.Fatalf("err opening pebble: %s", err.Error())
 	}
@@ -81,7 +84,7 @@ func run() error {
 
 	ps := store.NewPebbleStore(db, nil)
 
-	rpcServer := rpc.NewServer("0.0.0.0:8001", "0.0.0.0:8000", ps, nil)
+	rpcServer := rpc.NewServer(cfg.Server.GrpcHost, cfg.Server.HttpHost, ps, nil)
 	rpcServer.Start()
 
 	shutdown := make(chan os.Signal, 1)
@@ -89,8 +92,23 @@ func run() error {
 
 	ticker := time.NewTicker(5 * time.Second)
 
-	cf := &connectionFactory{nodeFetcherHost: "http://127.0.0.1:8080/peers"}
-	p, err := connpool.NewChannelPool(5, 30, cf.connect)
+	cf := &connectionFactory{nodeFetcherHost: cfg.Qubic.NodeFetcherEndpoint}
+	//p, err := connpool.NewChannelPool(5, 30, cf.connect)
+	//if err != nil {
+	//	return errors.Wrap(err, "creating new connection pool")
+	//}
+
+	poolConfig := pool.Config{
+		InitialCap: 5,
+		MaxIdle:    20,
+		MaxCap:     30,
+		Factory:    cf.connect,
+		Close:      cf.close,
+		//Ping:       ping,
+		//The maximum idle time of the connection, the connection exceeding this time will be closed, which can avoid the problem of automatic failure when connecting to EOF when idle
+		IdleTimeout: 15 * time.Second,
+	}
+	p, err := pool.NewChannelPool(&poolConfig)
 	if err != nil {
 		return errors.Wrap(err, "creating new connection pool")
 	}
@@ -102,42 +120,44 @@ func run() error {
 		case <-ticker.C:
 			err := do(p, cfg.Qubic.FallbackTick, cfg.Qubic.BatchSize, ps)
 			if err != nil {
-				log.Printf("do err: %s", err.Error())
+				log.Printf("do err: %s. pool len: %d\n", err.Error(), p.Len())
 			}
 		}
 	}
 }
 
-func do(pool connpool.Pool, fallbackTick, batchSize uint64, ps *store.PebbleStore) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
+func do(pool pool.Pool, fallbackTick, batchSize uint64, ps *store.PebbleStore) error {
+	//ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	//defer cancel()
 
-	conn, err := pool.Get(ctx)
+	v, err := pool.Get()
 	if err != nil {
 		return errors.Wrap(err, "getting initial connection")
 	}
 
-	err = validateMultiple(conn, fallbackTick, batchSize, ps)
+	client := v.(*qubic.Client)
+	err = validateMultiple(client, fallbackTick, batchSize, ps)
 	if err != nil {
-		if pc, ok := conn.(*connpool.PoolConn); ok {
-			fmt.Printf("Marking conn: %s unusable\n", pc.Conn.RemoteAddr().String())
-			pc.MarkUnusable()
+		cErr := pool.Close(v)
+		if cErr != nil {
+			log.Printf("Closing conn failed: %s", cErr.Error())
 		}
 		return errors.Wrap(err, "validating multiple")
+	} else {
+		err = pool.Put(client)
+		if err != nil {
+			log.Printf("Putting conn back to pool failed: %s", err.Error())
+		}
 	}
-	log.Printf("Batch completed, continuing to next one")
+
+	log.Println("Batch completed")
 
 	return nil
 }
 
-func validateMultiple(conn net.Conn, fallbackStartTick uint64, batchSize uint64, ps *store.PebbleStore) error {
+func validateMultiple(client *qubic.Client, fallbackStartTick uint64, batchSize uint64, ps *store.PebbleStore) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
 	defer cancel()
-
-	client, err := qubic.NewClientWithConn(ctx, conn)
-	if err != nil {
-		return errors.Wrap(err, "creating qubic client")
-	}
 
 	val := validator.NewValidator(client, ps)
 	tickInfo, err := client.GetTickInfo(ctx)
@@ -194,14 +214,25 @@ type connectionFactory struct {
 	nodeFetcherHost string
 }
 
-func (cf *connectionFactory) connect() (net.Conn, error) {
+func (cf *connectionFactory) connect() (interface{}, error) {
 	peer, err := getNewRandomPeer(cf.nodeFetcherHost)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting new random peer")
 	}
-	fmt.Printf("connecting to: %s\n", peer)
-	return net.DialTimeout("tcp", net.JoinHostPort(peer, "21841"), 5*time.Second)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	client, err := qubic.NewClient(ctx, peer, "21841")
+	if err != nil {
+		return nil, errors.Wrap(err, "creating qubic client")
+	}
+
+	fmt.Printf("connected to: %s\n", peer)
+	return client, nil
 }
+
+func (cf *connectionFactory) close(v interface{}) error { return v.(*qubic.Client).Close() }
 
 type response struct {
 	Peers       []string `json:"peers"`
@@ -226,7 +257,9 @@ func getNewRandomPeer(host string) (string, error) {
 		return "", errors.Wrap(err, "unmarshalling response")
 	}
 
-	fmt.Printf("Got %d new peers\n", len(resp.Peers))
+	peer := resp.Peers[rand.Intn(len(resp.Peers))]
 
-	return resp.Peers[rand.Intn(len(resp.Peers))], nil
+	fmt.Printf("Got %d new peers. Selected random %s\n", len(resp.Peers), peer)
+
+	return peer, nil
 }

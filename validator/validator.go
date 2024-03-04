@@ -33,7 +33,7 @@ func (v *Validator) ValidateTick(ctx context.Context, tickNumber uint64) error {
 	}
 
 	if len(quorumVotes) == 0 {
-		return errors.New("not quorum votes fetched")
+		return errors.New("no quorum votes fetched")
 	}
 
 	//getting computors from storage, otherwise get it from a node
