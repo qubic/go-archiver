@@ -11,7 +11,6 @@ import (
 	qubic "github.com/qubic/go-node-connector"
 	"github.com/qubic/go-node-connector/types"
 	"log"
-	"time"
 )
 
 type Validator struct {
@@ -19,14 +18,11 @@ type Validator struct {
 	store *store.PebbleStore
 }
 
-func NewValidator(qu *qubic.Client, store *store.PebbleStore) *Validator {
+func New(qu *qubic.Client, store *store.PebbleStore) *Validator {
 	return &Validator{qu: qu, store: store}
 }
 
 func (v *Validator) ValidateTick(ctx context.Context, tickNumber uint64) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
 	quorumVotes, err := v.qu.GetQuorumVotes(ctx, uint32(tickNumber))
 	if err != nil {
 		return errors.Wrap(err, "getting quorum tick data")
@@ -55,7 +51,6 @@ func (v *Validator) ValidateTick(ctx context.Context, tickNumber uint64) error {
 	if err != nil {
 		return errors.Wrap(err, "validating comps")
 	}
-	//log.Println("Computors validated")
 	err = computors.Store(ctx, v.store, comps)
 	if err != nil {
 		return errors.Wrap(err, "storing computors")
@@ -125,128 +120,3 @@ func (v *Validator) ValidateTick(ctx context.Context, tickNumber uint64) error {
 
 	return nil
 }
-
-func getComputorsAndValidate(ctx context.Context, qu *qubic.Client) (types.Computors, error) {
-	comps, err := qu.GetComputors(ctx)
-	if err != nil {
-		return types.Computors{}, errors.Wrap(err, "getting comps")
-	}
-
-	err = computors.Validate(ctx, comps)
-	if err != nil {
-		return types.Computors{}, errors.Wrap(err, "validating comps")
-	}
-	log.Println("Computors validated")
-
-	return comps, nil
-}
-
-//func (v *Validator) ValidateTickParallel(ctx context.Context, nodeIP string, tickNumber uint64) error {
-//	comps, err := getComputorsAndValidate(ctx, v.qu)
-//
-//	var quorumVotes []types.QuorumTickData
-//	var tickData types.TickData
-//	var transactions []types.Transaction
-//	var wg sync.WaitGroup
-//	var errChan = make(chan error, 3)
-//
-//	wg.Add(3)
-//
-//	go func() {
-//		defer wg.Done()
-//		client, err := qubic.NewClient(context.Background(), nodeIP, "21841")
-//		if err != nil {
-//			errChan <- errors.Wrap(err, "creating qubic client")
-//			return
-//		}
-//		defer client.Close()
-//
-//		log.Println("Fetching Quorum votes")
-//		data, err := client.GetQuorumTickData(ctx, uint32(tickNumber))
-//		if err != nil {
-//			log.Println("err quorum")
-//			errChan <- errors.Wrap(err, "getting quorum tick data")
-//			return
-//		}
-//
-//		quorumVotes = data.QuorumData
-//		log.Println("Quorum Tick data fetched")
-//	}()
-//
-//	go func() {
-//		defer wg.Done()
-//		client, err := qubic.NewClient(context.Background(), nodeIP, "21841")
-//		if err != nil {
-//			errChan <- errors.Wrap(err, "creating qubic client")
-//			return
-//		}
-//		defer client.Close()
-//
-//		log.Println("Fetching tick data")
-//		data, err := client.GetTickData(ctx, uint32(tickNumber))
-//		if err != nil {
-//			log.Println("err tick")
-//			errChan <- errors.Wrap(err, "getting tick data")
-//			return
-//		}
-//
-//		tickData = data
-//		log.Println("Tick data fetched")
-//	}()
-//
-//	 go func() {
-//		 defer wg.Done()
-//		 client, err := qubic.NewClient(context.Background(), nodeIP, "21841")
-//		 if err != nil {
-//			 errChan <- errors.Wrap(err, "creating qubic client")
-//			 return
-//		 }
-//		 defer client.Close()
-//
-//		 log.Println("Fetching tick transaction")
-//		 data, err := client.GetTickTransactions(ctx, uint32(tickNumber))
-//		 if err != nil {
-//			 log.Println("err tx")
-//			 errChan <- errors.Wrap(err, "getting tick transactions")
-//			 return
-//		 }
-//
-//		 transactions = data
-//		 log.Println("Tick transaction data fetched")
-//	 }()
-//
-//	go func() {
-//		wg.Wait()
-//		log.Println("Work done")
-//		close(errChan) // Close channel after all goroutines report back
-//	}()
-//
-//	for err := range errChan {
-//		if err != nil {
-//			fmt.Println("Error received:", err)
-//			return err    // Exit the loop on the first error
-//		}
-//	}
-//
-//	err = quorum.Validate(ctx, quorumVotes, comps)
-//	if err != nil {
-//		return errors.Wrap(err, "validating quorum")
-//	}
-//
-//	log.Println("Quorum validated")
-//
-//	err = tick.Validate(ctx, tickData, quorumVotes[0], comps)
-//	if err != nil {
-//		return errors.Wrap(err, "validating tick data")
-//	}
-//
-//	log.Println("Tick validated")
-//
-//
-//	err = tx.Validate(ctx, transactions, tickData)
-//	if err != nil {
-//		return errors.Wrap(err, "validating transactions")
-//	}
-//
-//	return nil
-//}
