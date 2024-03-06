@@ -46,9 +46,12 @@ func getDigestFromComputors(data types.Computors) ([32]byte, error) {
 }
 
 func Store(ctx context.Context, store *store.PebbleStore, epoch uint16, computors types.Computors) error {
-	protoModel := qubicToProto(computors)
+	protoModel, err := qubicToProto(computors)
+	if err != nil {
+		return errors.Wrap(err, "qubic to proto")
+	}
 
-	err := store.SetComputors(ctx, uint32(epoch), protoModel)
+	err = store.SetComputors(ctx, uint32(epoch), protoModel)
 	if err != nil {
 		return errors.Wrap(err, "set computors")
 	}
