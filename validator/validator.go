@@ -51,7 +51,7 @@ func (v *Validator) ValidateTick(ctx context.Context, tickNumber uint64) error {
 	if err != nil {
 		return errors.Wrap(err, "validating comps")
 	}
-	err = computors.Store(ctx, v.store, comps)
+	err = computors.Store(ctx, v.store, epoch, comps)
 	if err != nil {
 		return errors.Wrap(err, "storing computors")
 	}
@@ -63,9 +63,9 @@ func (v *Validator) ValidateTick(ctx context.Context, tickNumber uint64) error {
 
 	// if the quorum votes have an empty tick data, it means that POTENTIALLY there is no tick data, it doesn't for
 	// validation, but we may need to fetch it in the future ?!
-	if quorumVotes[0].TxDigest == [32]byte{} {
-		return nil
-	}
+	//if quorumVotes[0].TxDigest == [32]byte{} {
+	//	return nil
+	//}
 
 	log.Println("Quorum validated")
 
@@ -97,14 +97,14 @@ func (v *Validator) ValidateTick(ctx context.Context, tickNumber uint64) error {
 	log.Printf("Validated %d transactions\n", len(validTxs))
 
 	// proceed to storing tick information
-	err = quorum.Store(ctx, v.store, quorumVotes)
+	err = quorum.Store(ctx, v.store, tickNumber, quorumVotes)
 	if err != nil {
 		return errors.Wrap(err, "storing quorum votes")
 	}
 
 	log.Printf("Stored %d quorum votes\n", len(quorumVotes))
 
-	err = tick.Store(ctx, v.store, tickData)
+	err = tick.Store(ctx, v.store, tickNumber, tickData)
 	if err != nil {
 		return errors.Wrap(err, "storing tick data")
 	}

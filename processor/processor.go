@@ -108,6 +108,8 @@ func (p *Processor) processOneByOne() error {
 func (p *Processor) getNextProcessingTick(ctx context.Context, currentTickInfo types.TickInfo) (uint64, error) {
 	lastTick, err := p.ps.GetLastProcessedTick(ctx)
 	if err != nil {
+		//handles first run of the archiver where there is nothing in storage
+		// in this case we start from the initial tick of the current epoch
 		if errors.Is(err, store.ErrNotFound) {
 			return uint64(currentTickInfo.InitialTick), nil
 		}
@@ -115,9 +117,12 @@ func (p *Processor) getNextProcessingTick(ctx context.Context, currentTickInfo t
 		return 0, errors.Wrap(err, "getting last processed tick")
 	}
 
+	//handles the case where the initial tick of epoch returned by the node is greater than the last processed tick
+	// which means that we are in the next epoch and we should start from the initial tick of the current epoch
 	if uint64(currentTickInfo.InitialTick) > lastTick {
 		return uint64(currentTickInfo.InitialTick), nil
 	}
 
+	// otherwise we are in the same epoch and we should start from the last processed tick + 1
 	return lastTick + 1, nil
 }

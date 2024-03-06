@@ -56,7 +56,7 @@ func TestQubicToProto(t *testing.T) {
 	unionData := [256]byte{1, 2, 3, 4, 5}
 	timeLock := [32]byte{6, 4, 7, 4, 2}
 	transactionDigests := [1024][32]byte{digestOne, digestTwo}
-	contractFees := [1024]int64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
+	contractFees := [1024]int64{1, 2, 3, 4, 5, 6, 7, 8, 9}
 	signature := [64]byte{0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x07, 0x8, 0x9, 0x10, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x07, 0x8, 0x9, 0x10}
 	qubicTickData := types.TickData{
 		ComputorIndex:      15,
@@ -84,7 +84,7 @@ func TestQubicToProto(t *testing.T) {
 		VarStruct:      unionData[:],
 		TimeLock:       timeLock[:],
 		TransactionIds: []string{idOne.String(), idTwo.String()},
-		ContractFees:   contractFees[:],
+		ContractFees:   []int64{1, 2, 3, 4, 5, 6, 7, 8, 9},
 		SignatureHex:   fillStringTo(128, "0102030405060708091001020304050607080910"),
 	}
 

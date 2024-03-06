@@ -45,10 +45,10 @@ func getDigestFromComputors(data types.Computors) ([32]byte, error) {
 	return digest, nil
 }
 
-func Store(ctx context.Context, store *store.PebbleStore, computors types.Computors) error {
+func Store(ctx context.Context, store *store.PebbleStore, epoch uint16, computors types.Computors) error {
 	protoModel := qubicToProto(computors)
 
-	err := store.SetComputors(ctx, protoModel.Epoch, protoModel)
+	err := store.SetComputors(ctx, uint32(epoch), protoModel)
 	if err != nil {
 		return errors.Wrap(err, "set computors")
 	}

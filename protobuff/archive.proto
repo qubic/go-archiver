@@ -131,6 +131,14 @@ message GetLastProcessedTickResponse{
   map<uint32, uint64> last_processed_ticks_per_epoch = 2;
 }
 
+message SendRawTransactionRequest {
+  string signed_tx = 1;
+}
+
+message SendRawTransactionResponse {
+  string message = 1;
+}
+
 service ArchiveService {
   rpc GetTickData(GetTickDataRequest) returns (GetTickDataResponse);
   rpc GetTickTransactions(GetTickTransactionsRequest) returns (GetTickTransactionsResponse);
@@ -139,4 +147,5 @@ service ArchiveService {
   rpc GetComputors(GetComputorsRequest) returns (GetComputorsResponse);
   rpc GetIdentityInfo(GetIdentityInfoRequest) returns (GetIdentityInfoResponse);
   rpc GetLastProcessedTick(GetLastProcessedTickRequest) returns (GetLastProcessedTickResponse);
+  rpc SendRawTransaction(SendRawTransactionRequest) returns (SendRawTransactionResponse);
 }

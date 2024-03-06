@@ -227,7 +227,7 @@ func TestPebbleStore_TickTransactions(t *testing.T) {
 	tickData := pb.TickData{
 		ComputorIndex:  1,
 		Epoch:          1,
-		TickNumber:     101,
+		TickNumber:     12795005,
 		Timestamp:      1596240001,
 		SignatureHex:   "signature1",
 		TransactionIds: []string{"ff01", "cd01"},
@@ -236,7 +236,7 @@ func TestPebbleStore_TickTransactions(t *testing.T) {
 	assert.NoError(t, err, "Failed to store TickData")
 
 	// Sample Transactions for testing
-	tickNumber := uint64(101)
+	tickNumber := uint64(12795005)
 
 	// Assuming SetTickTransactions stores transactions for a tick
 	err = store.SetTickTransactions(ctx, transactions)
