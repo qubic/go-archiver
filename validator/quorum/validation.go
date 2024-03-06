@@ -33,19 +33,19 @@ func compareVotes(ctx context.Context, quorumVotes types.QuorumVotes) error {
 
 	for i := 1; i < len(quorumVotes); i++ {
 		if quorumVotes[i].Epoch != firstTickData.Epoch ||
-					quorumVotes[i].Tick != firstTickData.Tick ||
-					quorumVotes[i].Millisecond != firstTickData.Millisecond ||
-					quorumVotes[i].Second != firstTickData.Second ||
-					quorumVotes[i].Minute != firstTickData.Minute ||
-					quorumVotes[i].Hour != firstTickData.Hour ||
-					quorumVotes[i].Day != firstTickData.Day ||
-					quorumVotes[i].Month != firstTickData.Month ||
-					quorumVotes[i].Year != firstTickData.Year ||
-					quorumVotes[i].PreviousResourceTestingDigest != firstTickData.PreviousResourceTestingDigest ||
-					quorumVotes[i].PreviousComputerDigest != firstTickData.PreviousComputerDigest ||
-					quorumVotes[i].PreviousSpectrumDigest != firstTickData.PreviousSpectrumDigest ||
-					quorumVotes[i].PreviousUniverseDigest != firstTickData.PreviousUniverseDigest ||
-					quorumVotes[i].TxDigest != firstTickData.TxDigest {
+			quorumVotes[i].Tick != firstTickData.Tick ||
+			quorumVotes[i].Millisecond != firstTickData.Millisecond ||
+			quorumVotes[i].Second != firstTickData.Second ||
+			quorumVotes[i].Minute != firstTickData.Minute ||
+			quorumVotes[i].Hour != firstTickData.Hour ||
+			quorumVotes[i].Day != firstTickData.Day ||
+			quorumVotes[i].Month != firstTickData.Month ||
+			quorumVotes[i].Year != firstTickData.Year ||
+			quorumVotes[i].PreviousResourceTestingDigest != firstTickData.PreviousResourceTestingDigest ||
+			quorumVotes[i].PreviousComputerDigest != firstTickData.PreviousComputerDigest ||
+			quorumVotes[i].PreviousSpectrumDigest != firstTickData.PreviousSpectrumDigest ||
+			quorumVotes[i].PreviousUniverseDigest != firstTickData.PreviousUniverseDigest ||
+			quorumVotes[i].TxDigest != firstTickData.TxDigest {
 			return errors.New("quorum votes are not the same between quorum computors")
 		}
 	}
@@ -76,7 +76,7 @@ func quorumTickSigVerify(ctx context.Context, quorumVotes types.QuorumVotes, com
 			failedIdentites = append(failedIdentites, string(badComputor))
 			continue
 		}
-		successVotes +=1
+		successVotes += 1
 		//log.Printf("Validated vote for computor index: %d. Vote number %d\n", quorumTickData.ComputorIndex, successVotes)
 	}
 
@@ -106,12 +106,10 @@ func getDigestFromQuorumTickData(data types.QuorumTickVote) ([32]byte, error) {
 func Store(ctx context.Context, store *store.PebbleStore, quorumVotes types.QuorumVotes) error {
 	protoModel := qubicToProto(quorumVotes)
 
-	err := store.SetQuorumTickData(ctx, uint64(protoModel.QuorumTickStructure.Epoch), protoModel)
+	err := store.SetQuorumTickData(ctx, uint64(protoModel.QuorumTickStructure.TickNumber), protoModel)
 	if err != nil {
 		return errors.Wrap(err, "set quorum votes")
 	}
 
 	return nil
 }
-
-

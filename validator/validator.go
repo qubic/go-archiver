@@ -63,9 +63,9 @@ func (v *Validator) ValidateTick(ctx context.Context, tickNumber uint64) error {
 
 	// if the quorum votes have an empty tick data, it means that POTENTIALLY there is no tick data, it doesn't for
 	// validation, but we may need to fetch it in the future ?!
-	if quorumVotes[0].TxDigest == [32]byte{} {
-		return nil
-	}
+	//if quorumVotes[0].TxDigest == [32]byte{} {
+	//	return nil
+	//}
 
 	log.Println("Quorum validated")
 

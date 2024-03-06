@@ -26,6 +26,7 @@ const (
 	ArchiveService_GetComputors_FullMethodName         = "/qubic.archiver.archive.pb.ArchiveService/GetComputors"
 	ArchiveService_GetIdentityInfo_FullMethodName      = "/qubic.archiver.archive.pb.ArchiveService/GetIdentityInfo"
 	ArchiveService_GetLastProcessedTick_FullMethodName = "/qubic.archiver.archive.pb.ArchiveService/GetLastProcessedTick"
+	ArchiveService_SendRawTransaction_FullMethodName   = "/qubic.archiver.archive.pb.ArchiveService/SendRawTransaction"
 )
 
 // ArchiveServiceClient is the client API for ArchiveService service.
@@ -39,6 +40,7 @@ type ArchiveServiceClient interface {
 	GetComputors(ctx context.Context, in *GetComputorsRequest, opts ...grpc.CallOption) (*GetComputorsResponse, error)
 	GetIdentityInfo(ctx context.Context, in *GetIdentityInfoRequest, opts ...grpc.CallOption) (*GetIdentityInfoResponse, error)
 	GetLastProcessedTick(ctx context.Context, in *GetLastProcessedTickRequest, opts ...grpc.CallOption) (*GetLastProcessedTickResponse, error)
+	SendRawTransaction(ctx context.Context, in *SendRawTransactionRequest, opts ...grpc.CallOption) (*SendRawTransactionResponse, error)
 }
 
 type archiveServiceClient struct {
@@ -112,6 +114,15 @@ func (c *archiveServiceClient) GetLastProcessedTick(ctx context.Context, in *Get
 	return out, nil
 }
 
+func (c *archiveServiceClient) SendRawTransaction(ctx context.Context, in *SendRawTransactionRequest, opts ...grpc.CallOption) (*SendRawTransactionResponse, error) {
+	out := new(SendRawTransactionResponse)
+	err := c.cc.Invoke(ctx, ArchiveService_SendRawTransaction_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ArchiveServiceServer is the server API for ArchiveService service.
 // All implementations must embed UnimplementedArchiveServiceServer
 // for forward compatibility
@@ -123,6 +134,7 @@ type ArchiveServiceServer interface {
 	GetComputors(context.Context, *GetComputorsRequest) (*GetComputorsResponse, error)
 	GetIdentityInfo(context.Context, *GetIdentityInfoRequest) (*GetIdentityInfoResponse, error)
 	GetLastProcessedTick(context.Context, *GetLastProcessedTickRequest) (*GetLastProcessedTickResponse, error)
+	SendRawTransaction(context.Context, *SendRawTransactionRequest) (*SendRawTransactionResponse, error)
 	mustEmbedUnimplementedArchiveServiceServer()
 }
 
@@ -150,6 +162,9 @@ func (UnimplementedArchiveServiceServer) GetIdentityInfo(context.Context, *GetId
 }
 func (UnimplementedArchiveServiceServer) GetLastProcessedTick(context.Context, *GetLastProcessedTickRequest) (*GetLastProcessedTickResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetLastProcessedTick not implemented")
+}
+func (UnimplementedArchiveServiceServer) SendRawTransaction(context.Context, *SendRawTransactionRequest) (*SendRawTransactionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SendRawTransaction not implemented")
 }
 func (UnimplementedArchiveServiceServer) mustEmbedUnimplementedArchiveServiceServer() {}
 
@@ -290,6 +305,24 @@ func _ArchiveService_GetLastProcessedTick_Handler(srv interface{}, ctx context.C
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ArchiveService_SendRawTransaction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SendRawTransactionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ArchiveServiceServer).SendRawTransaction(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ArchiveService_SendRawTransaction_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ArchiveServiceServer).SendRawTransaction(ctx, req.(*SendRawTransactionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ArchiveService_ServiceDesc is the grpc.ServiceDesc for ArchiveService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -324,6 +357,10 @@ var ArchiveService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetLastProcessedTick",
 			Handler:    _ArchiveService_GetLastProcessedTick_Handler,
+		},
+		{
+			MethodName: "SendRawTransaction",
+			Handler:    _ArchiveService_SendRawTransaction_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

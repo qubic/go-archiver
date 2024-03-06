@@ -3,6 +3,7 @@ package rpc
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
@@ -23,18 +24,20 @@ import (
 
 type Server struct {
 	protobuff.UnimplementedArchiveServiceServer
-	listenAddrGRPC string
-	listenAddrHTTP string
-	store          *store.PebbleStore
-	pool           pool.Pool
+	listenAddrGRPC       string
+	listenAddrHTTP       string
+	store                *store.PebbleStore
+	pool                 pool.Pool
+	nrPeersToBroadcastTx int
 }
 
-func NewServer(listenAddrGRPC, listenAddrHTTP string, store *store.PebbleStore, p pool.Pool) *Server {
+func NewServer(listenAddrGRPC, listenAddrHTTP string, store *store.PebbleStore, p pool.Pool, nrPeersToBroadcastTx int) *Server {
 	return &Server{
-		listenAddrGRPC: listenAddrGRPC,
-		listenAddrHTTP: listenAddrHTTP,
-		store:          store,
-		pool:           p,
+		listenAddrGRPC:       listenAddrGRPC,
+		listenAddrHTTP:       listenAddrHTTP,
+		store:                store,
+		pool:                 p,
+		nrPeersToBroadcastTx: nrPeersToBroadcastTx,
 	}
 }
 
@@ -145,6 +148,32 @@ func (s *Server) GetLastProcessedTick(ctx context.Context, req *protobuff.GetLas
 	}
 
 	return &protobuff.GetLastProcessedTickResponse{LastProcessedTick: uint32(tick), LastProcessedTicksPerEpoch: lastProcessedTicksPerEpoch}, nil
+}
+
+func (s *Server) SendRawTransaction(ctx context.Context, req *protobuff.SendRawTransactionRequest) (*protobuff.SendRawTransactionResponse, error) {
+	nrSuccess := 0
+	for i := 0; i < s.nrPeersToBroadcastTx; i++ {
+		func() {
+			qcv, err := s.pool.Get()
+			if err != nil {
+				return
+			}
+			defer s.pool.Put(qcv)
+
+			client := qcv.(*qubic.Client)
+			err = client.SendRawTransaction(ctx, []byte(req.SignedTx))
+			if err != nil {
+				return
+			}
+			nrSuccess++
+		}()
+	}
+
+	if nrSuccess == 0 {
+		return nil, status.Errorf(codes.Internal, "broadcasting tx failed for all peers")
+	}
+
+	return &protobuff.SendRawTransactionResponse{Message: fmt.Sprintf("Transaction broadcasted to %d peers", nrSuccess)}, nil
 }
 
 func (s *Server) Start() error {

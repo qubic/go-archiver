@@ -9,7 +9,6 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
-	"log"
 	"strconv"
 )
 
@@ -279,7 +278,6 @@ func (s *PebbleStore) GetLastProcessedTicksPerEpoch(ctx context.Context) (map[ui
 		epochNumber := binary.BigEndian.Uint32(key[1:])
 		tickNumber := binary.LittleEndian.Uint64(value)
 		ticksPerEpoch[epochNumber] = tickNumber
-		log.Printf("key: %s, value: %s\n", key, value)
 	}
 
 	return ticksPerEpoch, nil
