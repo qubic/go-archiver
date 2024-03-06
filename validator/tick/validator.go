@@ -11,7 +11,7 @@ import (
 
 func Validate(ctx context.Context, data types.TickData, quorumTickVote types.QuorumTickVote, comps types.Computors) error {
 	//empty tick with empty quorum tx digest means other verification is not needed
-	if (data.IsEmpty()) && quorumTickVote.TxDigest == [32]byte{}  {
+	if (data.IsEmpty()) && quorumTickVote.TxDigest == [32]byte{} {
 		return nil
 	}
 
@@ -77,9 +77,12 @@ func getFullDigestFromTickData(data types.TickData) ([32]byte, error) {
 }
 
 func Store(ctx context.Context, store *store.PebbleStore, tickData types.TickData) error {
-	protoTickData := qubicToProto(tickData)
+	protoTickData, err := qubicToProto(tickData)
+	if err != nil {
+		return errors.Wrap(err, "converting qubic tick data to proto")
+	}
 
-	err := store.SetTickData(ctx, uint64(protoTickData.TickNumber), protoTickData)
+	err = store.SetTickData(ctx, uint64(protoTickData.TickNumber), protoTickData)
 	if err != nil {
 		return errors.Wrap(err, "set tick data")
 	}

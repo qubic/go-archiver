@@ -9,6 +9,7 @@ import (
 	"github.com/qubic/go-archiver/store"
 	qubic "github.com/qubic/go-node-connector"
 	"github.com/qubic/go-node-connector/types"
+	"github.com/silenceper/pool"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
@@ -25,15 +26,15 @@ type Server struct {
 	listenAddrGRPC string
 	listenAddrHTTP string
 	store          *store.PebbleStore
-	qc             *qubic.Client
+	pool           pool.Pool
 }
 
-func NewServer(listenAddrGRPC, listenAddrHTTP string, store *store.PebbleStore, qc *qubic.Client) *Server {
+func NewServer(listenAddrGRPC, listenAddrHTTP string, store *store.PebbleStore, p pool.Pool) *Server {
 	return &Server{
 		listenAddrGRPC: listenAddrGRPC,
 		listenAddrHTTP: listenAddrHTTP,
 		store:          store,
-		qc:             qc,
+		pool:           p,
 	}
 }
 
@@ -60,12 +61,7 @@ func (s *Server) GetTickTransactions(ctx context.Context, req *protobuff.GetTick
 	return &protobuff.GetTickTransactionsResponse{Transactions: txs.Transactions}, nil
 }
 func (s *Server) GetTransaction(ctx context.Context, req *protobuff.GetTransactionRequest) (*protobuff.GetTransactionResponse, error) {
-	id := types.Identity(req.TxId)
-	digest, err := id.ToPubKey(true)
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid tx id: %v", err)
-	}
-	tx, err := s.store.GetTransaction(ctx, digest[:])
+	tx, err := s.store.GetTransaction(ctx, req.TxId)
 	if err != nil {
 		if errors.Cause(err) == store.ErrNotFound {
 			return nil, status.Errorf(codes.NotFound, "transaction not found")
@@ -98,7 +94,14 @@ func (s *Server) GetComputors(ctx context.Context, req *protobuff.GetComputorsRe
 	return &protobuff.GetComputorsResponse{Computors: computors}, nil
 }
 func (s *Server) GetIdentityInfo(ctx context.Context, req *protobuff.GetIdentityInfoRequest) (*protobuff.GetIdentityInfoResponse, error) {
-	addr, err := s.qc.GetIdentity(ctx, req.Identity)
+	qcv, err := s.pool.Get()
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "getting qubic pooled client connection: %v", err)
+	}
+	defer s.pool.Put(qcv)
+
+	client := qcv.(*qubic.Client)
+	addr, err := client.GetIdentity(ctx, req.Identity)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "getting identity info: %v", err)
 	}
@@ -111,8 +114,13 @@ func (s *Server) GetIdentityInfo(ctx context.Context, req *protobuff.GetIdentity
 		siblings = append(siblings, hex.EncodeToString(sibling[:]))
 	}
 
+	var addrID types.Identity
+	addrID, err = addrID.FromPubKey(addr.AddressData.PublicKey, false)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "getting address id: %v", err)
+	}
 	return &protobuff.GetIdentityInfoResponse{IdentityInfo: &protobuff.IdentityInfo{
-		PubkeyHex:                  hex.EncodeToString(addr.AddressData.PublicKey[:]),
+		Id:                         addrID.String(),
 		TickNumber:                 addr.Tick,
 		Balance:                    addr.AddressData.IncomingAmount - addr.AddressData.OutgoingAmount,
 		IncomingAmount:             addr.AddressData.IncomingAmount,

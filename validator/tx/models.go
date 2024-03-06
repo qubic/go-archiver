@@ -7,7 +7,7 @@ import (
 	"github.com/qubic/go-node-connector/types"
 )
 
-func qubicToProto(txs types.Transactions) (*protobuff.Transactions, error){
+func qubicToProto(txs types.Transactions) (*protobuff.Transactions, error) {
 	protoTxs := protobuff.Transactions{
 		Transactions: make([]*protobuff.Transaction, len(txs)),
 	}
@@ -27,16 +27,33 @@ func txToProto(tx types.Transaction) (*protobuff.Transaction, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "getting tx digest")
 	}
+	var txID types.Identity
+	txID, err = txID.FromPubKey(digest, true)
+	if err != nil {
+		return nil, errors.Wrap(err, "getting tx id")
+	}
+
+	var sourceID types.Identity
+	sourceID, err = sourceID.FromPubKey(tx.SourcePublicKey, false)
+	if err != nil {
+		return nil, errors.Wrap(err, "getting source id")
+	}
+
+	var destID types.Identity
+	destID, err = destID.FromPubKey(tx.DestinationPublicKey, false)
+	if err != nil {
+		return nil, errors.Wrap(err, "getting dest id")
+	}
 
 	return &protobuff.Transaction{
-		SourcePubkeyHex: hex.EncodeToString(tx.SourcePublicKey[:]),
-		DestPubkeyHex:   hex.EncodeToString(tx.DestinationPublicKey[:]),
-		Amount:          tx.Amount,
-		TickNumber:      tx.Tick,
-		InputType:       uint32(tx.InputType),
-		InputSize:       uint32(tx.InputSize),
-		InputHex:        hex.EncodeToString(tx.Input[:]),
-		SignatureHex:    hex.EncodeToString(tx.Signature[:]),
-		DigestHex: hex.EncodeToString(digest[:]),
+		SourceId:     sourceID.String(),
+		DestId:       destID.String(),
+		Amount:       tx.Amount,
+		TickNumber:   tx.Tick,
+		InputType:    uint32(tx.InputType),
+		InputSize:    uint32(tx.InputSize),
+		InputHex:     hex.EncodeToString(tx.Input[:]),
+		SignatureHex: hex.EncodeToString(tx.Signature[:]),
+		TxId:         txID.String(),
 	}, nil
 }

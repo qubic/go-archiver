@@ -33,9 +33,9 @@ func computorsKey(epochNumber uint64) []byte {
 	return key
 }
 
-func tickTxKey(digest []byte) ([]byte, error) {
+func tickTxKey(txID string) ([]byte, error) {
 	key := []byte{Transaction}
-	key = append(key, digest...)
+	key = append(key, []byte(txID)...)
 
 	return key, nil
 }

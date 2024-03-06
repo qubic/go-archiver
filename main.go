@@ -44,7 +44,7 @@ func run() error {
 		}
 		Qubic struct {
 			NodePort           string        `conf:"default:21841"`
-			FallbackTick       uint64        `conf:"default:12769858"`
+			FallbackTick       uint64        `conf:"default:12789267"`
 			StorageFolder      string        `conf:"default:store"`
 			ProcessTickTimeout time.Duration `conf:"default:5s"`
 		}
@@ -84,12 +84,6 @@ func run() error {
 
 	ps := store.NewPebbleStore(db, nil)
 
-	rpcServer := rpc.NewServer(cfg.Server.GrpcHost, cfg.Server.HttpHost, ps, nil)
-	rpcServer.Start()
-
-	shutdown := make(chan os.Signal, 1)
-	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
-
 	fact := factory.NewQubicConnection(cfg.Pool.NodeFetcherTimeout, cfg.Pool.NodeFetcherUrl)
 	poolConfig := pool.Config{
 		InitialCap: cfg.Pool.InitialCap,
@@ -104,6 +98,12 @@ func run() error {
 	if err != nil {
 		return errors.Wrap(err, "creating new connection pool")
 	}
+
+	rpcServer := rpc.NewServer(cfg.Server.GrpcHost, cfg.Server.HttpHost, ps, chPool)
+	rpcServer.Start()
+
+	shutdown := make(chan os.Signal, 1)
+	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
 
 	p := processor.NewProcessor(chPool, ps, cfg.Qubic.FallbackTick, cfg.Qubic.ProcessTickTimeout)
 	archiveErrors := make(chan error, 1)

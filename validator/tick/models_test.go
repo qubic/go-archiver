@@ -1,7 +1,6 @@
 package tick
 
 import (
-	"encoding/hex"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/qubic/go-archiver/protobuff"
@@ -10,10 +9,52 @@ import (
 )
 
 func TestQubicToProto(t *testing.T) {
+	txOne := types.Transaction{
+		SourcePublicKey:      [32]byte{0x01, 0xd1, 0xf1, 0x00, 0xc2},
+		DestinationPublicKey: [32]byte{0x00, 0xff, 0xf1, 0x00, 0xff},
+		Amount:               100,
+		Tick:                 20,
+		InputType:            0,
+		InputSize:            100,
+		Input:                []byte{0x01, 0x02, 0x03, 0x04, 0x05},
+		Signature:            [64]byte{0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x07, 0x8, 0x9, 0x10, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x07, 0x8, 0x9, 0x10}, //01020304050607080910010203040506070809100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+	}
+
+	digestOne, err := txOne.Digest()
+	if err != nil {
+		t.Fatalf("txOne.Digest() unexpected error: %v", err)
+	}
+
+	var idOne types.Identity
+	idOne, err = idOne.FromPubKey(digestOne, true)
+	if err != nil {
+		t.Fatalf("idOne.FromPubKey() unexpected error: %v", err)
+	}
+
+	txTwo := types.Transaction{
+		SourcePublicKey:      [32]byte{0x01, 0xd1, 0xf1, 0x00, 0xc2},
+		DestinationPublicKey: [32]byte{0x00, 0xff, 0xf1, 0x00, 0xff},
+		Amount:               15,
+		Tick:                 20,
+		InputType:            0,
+		InputSize:            120,
+		Input:                []byte{0x01, 0x02, 0xda, 0x04, 0x05},
+		Signature:            [64]byte{0x1, 0x2, 0x3, 0x4, 0xff, 0x6, 0x07, 0x8, 0x9, 0x10, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x07, 0x8, 0x9, 0x10}, //01020304ff0607080910010203040506070809100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+	}
+
+	digestTwo, err := txTwo.Digest()
+	if err != nil {
+		t.Fatalf("txTwo.Digest() unexpected error: %v", err)
+	}
+
+	var idTwo types.Identity
+	idTwo, err = idTwo.FromPubKey(digestTwo, true)
+	if err != nil {
+		t.Fatalf("idTwo.FromPubKey() unexpected error: %v", err)
+	}
+
 	unionData := [256]byte{1, 2, 3, 4, 5}
 	timeLock := [32]byte{6, 4, 7, 4, 2}
-	digestOne := [32]byte{0xff, 0x12, 0x32, 0x11, 0x00}
-	digestTwo := [32]byte{0xda, 0x3a, 0x0a, 0x00, 0xff}
 	transactionDigests := [1024][32]byte{digestOne, digestTwo}
 	contractFees := [1024]int64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 	signature := [64]byte{0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x07, 0x8, 0x9, 0x10, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x07, 0x8, 0x9, 0x10}
@@ -35,20 +76,23 @@ func TestQubicToProto(t *testing.T) {
 		Signature:          signature,
 	}
 
-	expectedProtoTickData := &protobuff.TickData{
-		ComputorIndex:         15,
-		Epoch:                 20,
-		TickNumber:            100,
-		Timestamp:             1685937782001,
-		VarStruct:             unionData[:],
-		TimeLock:              timeLock[:],
-		TransactionDigestsHex: []string{hex.EncodeToString(digestOne[:]), hex.EncodeToString(digestTwo[:])},
-		ContractFees:          contractFees[:],
-		SignatureHex:          fillStringTo(128, "0102030405060708091001020304050607080910"),
+	expectedProtoTickData := protobuff.TickData{
+		ComputorIndex:  15,
+		Epoch:          20,
+		TickNumber:     100,
+		Timestamp:      1685937782001,
+		VarStruct:      unionData[:],
+		TimeLock:       timeLock[:],
+		TransactionIds: []string{idOne.String(), idTwo.String()},
+		ContractFees:   contractFees[:],
+		SignatureHex:   fillStringTo(128, "0102030405060708091001020304050607080910"),
 	}
 
-	got := qubicToProto(qubicTickData)
-	if diff := cmp.Diff(got, expectedProtoTickData, cmpopts.IgnoreUnexported(protobuff.TickData{})); diff != "" {
+	got, err := qubicToProto(qubicTickData)
+	if err != nil {
+		t.Fatalf("qubicToProto() unexpected error: %v", err)
+	}
+	if diff := cmp.Diff(got, &expectedProtoTickData, cmpopts.IgnoreUnexported(protobuff.TickData{})); diff != "" {
 		t.Fatalf("qubicToProto() mismatch (-got +want):\n%s", diff)
 	}
 }
@@ -59,5 +103,3 @@ func fillStringTo(nrChars int, value string) string {
 	}
 	return value
 }
-
-

@@ -2,7 +2,6 @@ package processor
 
 import (
 	"context"
-	"fmt"
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-archiver/validator"
@@ -42,16 +41,11 @@ func NewProcessor(pool pool.Pool, ps *store.PebbleStore, fallbackNextProcessingT
 }
 
 func (p *Processor) Start() error {
-	var titfError *TickInTheFutureError
 	for {
 		err := p.processOneByOne()
 		if err != nil {
-			if errors.As(err, &titfError) {
-				log.Printf("Processing failed: %s", err.Error())
-				time.Sleep(1 * time.Second)
-				continue
-			}
 			log.Printf("Processing failed: %s", err.Error())
+			time.Sleep(1 * time.Second)
 		}
 	}
 }
@@ -86,7 +80,7 @@ func (p *Processor) processOneByOne() error {
 	if err != nil {
 		return errors.Wrap(err, "getting next processing tick")
 	}
-	fmt.Printf("Next tick to process: %d\n", nextTick)
+	log.Printf("Next tick to process: %d\n", nextTick)
 	tickInfo, err := client.GetTickInfo(ctx)
 	if err != nil {
 		return errors.Wrap(err, "getting tick info")

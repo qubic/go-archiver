@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"encoding/hex"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/protobuf/proto"
@@ -200,38 +199,38 @@ func TestPebbleStore_TickTransactions(t *testing.T) {
 	transactions := &pb.Transactions{
 		Transactions: []*pb.Transaction{
 			{
-				SourcePubkeyHex: "source1",
-				DestPubkeyHex:   "dest1",
-				Amount:          100,
-				TickNumber:      101,
-				InputType:       1,
-				InputSize:       256,
-				InputHex:        "input1",
-				SignatureHex:    "signature1",
-				DigestHex: "ff01",
+				SourceId:     "QJRRSSKMJRDKUDTYVNYGAMQPULKAMILQQYOWBEXUDEUWQUMNGDHQYLOAJMEB",
+				DestId:       "IXTSDANOXIVIWGNDCNZVWSAVAEPBGLGSQTLSVHHBWEGKSEKPRQGWIJJCTUZB",
+				Amount:       100,
+				TickNumber:   101,
+				InputType:    1,
+				InputSize:    256,
+				InputHex:     "input1",
+				SignatureHex: "signature1",
+				TxId:         "ff01",
 			},
 			{
-				SourcePubkeyHex: "source1",
-				DestPubkeyHex:   "dest1",
-				Amount:          100,
-				TickNumber:      101,
-				InputType:       1,
-				InputSize:       256,
-				InputHex:        "input1",
-				SignatureHex:    "signature2",
-				DigestHex: "cd01",
+				SourceId:     "IXTSDANOXIVIWGNDCNZVWSAVAEPBGLGSQTLSVHHBWEGKSEKPRQGWIJJCTUZB",
+				DestId:       "QJRRSSKMJRDKUDTYVNYGAMQPULKAMILQQYOWBEXUDEUWQUMNGDHQYLOAJMEB",
+				Amount:       100,
+				TickNumber:   101,
+				InputType:    1,
+				InputSize:    256,
+				InputHex:     "input1",
+				SignatureHex: "signature2",
+				TxId:         "cd01",
 			},
 			// Add more transactions as needed
 		},
 	}
 
 	tickData := pb.TickData{
-		ComputorIndex:         1,
-		Epoch:                 1,
-		TickNumber:            101,
-		Timestamp:             1596240001,
-		SignatureHex:          "signature1",
-		TransactionDigestsHex: []string{"ff01", "cd01"},
+		ComputorIndex:  1,
+		Epoch:          1,
+		TickNumber:     101,
+		Timestamp:      1596240001,
+		SignatureHex:   "signature1",
+		TransactionIds: []string{"ff01", "cd01"},
 	}
 	err = store.SetTickData(ctx, uint64(tickData.TickNumber), &tickData)
 	assert.NoError(t, err, "Failed to store TickData")
@@ -252,7 +251,7 @@ func TestPebbleStore_TickTransactions(t *testing.T) {
 	assert.Len(t, retrievedTransactions.Transactions, len(transactions.Transactions))
 	for i, tx := range transactions.Transactions {
 		retrievedTx := retrievedTransactions.Transactions[i]
-		assert.Equal(t, tx.SourcePubkeyHex, retrievedTx.SourcePubkeyHex)
+		assert.Equal(t, tx.SourceId, retrievedTx.SourceId)
 		// Continue with other fields...
 	}
 
@@ -279,14 +278,14 @@ func TestPebbleStore_GetTransaction(t *testing.T) {
 
 	// Insert transactions for a tick
 	targetTransaction := &pb.Transaction{
-		SourcePubkeyHex: "source_target",
-		DestPubkeyHex:   "dest_target",
-		Amount:          500,
-		InputType:       2,
-		InputSize:       512,
-		InputHex:        "input_target",
-		SignatureHex:    "signature_target",
-		DigestHex: "cd01",
+		SourceId:     "source_target",
+		DestId:       "dest_target",
+		Amount:       500,
+		InputType:    2,
+		InputSize:    512,
+		InputHex:     "input_target",
+		SignatureHex: "signature_target",
+		TxId:         "cd01",
 	}
 	transactions := &pb.Transactions{
 		Transactions: []*pb.Transaction{
@@ -299,25 +298,21 @@ func TestPebbleStore_GetTransaction(t *testing.T) {
 	err = store.SetTickTransactions(ctx, transactions)
 	assert.NoError(t, err)
 
-	// Attempt to retrieve the target transaction
-	digest, err := hex.DecodeString(targetTransaction.DigestHex)
-	assert.NoError(t, err)
-	retrievedTransaction, err := store.GetTransaction(ctx, digest)
+	retrievedTransaction, err := store.GetTransaction(ctx, targetTransaction.TxId)
 	assert.NoError(t, err)
 	assert.NotNil(t, retrievedTransaction)
 
 	// Validate the retrieved transaction
-	assert.Equal(t, targetTransaction.SourcePubkeyHex, retrievedTransaction.SourcePubkeyHex)
-	assert.Equal(t, targetTransaction.DestPubkeyHex, retrievedTransaction.DestPubkeyHex)
+	assert.Equal(t, targetTransaction.SourceId, retrievedTransaction.SourceId)
+	assert.Equal(t, targetTransaction.DestId, retrievedTransaction.DestId)
 	assert.Equal(t, targetTransaction.Amount, retrievedTransaction.Amount)
 	assert.Equal(t, targetTransaction.InputType, retrievedTransaction.InputType)
 	assert.Equal(t, targetTransaction.InputSize, retrievedTransaction.InputSize)
 	assert.Equal(t, targetTransaction.InputHex, retrievedTransaction.InputHex)
 	assert.Equal(t, targetTransaction.SignatureHex, retrievedTransaction.SignatureHex)
 
-	digest[0] = 0x00
 	// Optionally, test retrieval of a non-existent transaction
-	_, err = store.GetTransaction(ctx, digest)
+	_, err = store.GetTransaction(ctx, "00")
 	assert.Error(t, err)
 	assert.Equal(t, ErrNotFound, err)
 }

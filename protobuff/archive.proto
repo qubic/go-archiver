@@ -11,7 +11,7 @@ message TickData {
   uint64 timestamp = 4;
   bytes var_struct = 5;
   bytes time_lock = 6;
-  repeated string transaction_digests_hex = 7;
+  repeated string transaction_ids = 7;
   repeated int64 contract_fees = 8;
   string signature_hex = 9;
 }
@@ -25,15 +25,15 @@ message GetTickDataResponse {
 }
 
 message Transaction {
-  string source_pubkey_hex = 1;
-  string dest_pubkey_hex = 2;
+  string source_id = 1;
+  string dest_id = 2;
   int64 amount = 3;
   uint32 tick_number = 4;
   uint32 input_type = 5;
   uint32 input_size = 6;
   string input_hex = 7;
   string signature_hex = 8;
-  string digest_hex = 9;
+  string tx_id = 9;
 }
 
 message GetTransactionRequest {
@@ -55,15 +55,6 @@ message GetTickTransactionsRequest {
 message GetTickTransactionsResponse {
   repeated Transaction transactions = 1;
 }
-
-//type QuorumDiff struct {
-//	SaltedResourceTestingDigest uint64
-//	SaltedSpectrumDigest        [32]byte
-//	SaltedUniverseDigest        [32]byte
-//	SaltedComputerDigest        [32]byte
-//	ExpectedNextTickTxDigest    [32]byte
-//	Signature                   [SignatureSize]byte
-//}
 
 message QuorumDiff {
   string salted_resource_testing_digest_hex = 1;
@@ -114,7 +105,7 @@ message GetComputorsResponse {
 }
 
 message IdentityInfo {
-  string pubkey_hex = 1;
+  string id = 1;
   uint32 tick_number = 2;
   int64 balance = 3;
   int64 incoming_amount = 4;
