@@ -83,7 +83,7 @@ func (s *Server) GetQuorumTickData(ctx context.Context, req *protobuff.GetQuorum
 	return &protobuff.GetQuorumTickDataResponse{QuorumTickData: qtd}, nil
 }
 func (s *Server) GetComputors(ctx context.Context, req *protobuff.GetComputorsRequest) (*protobuff.GetComputorsResponse, error) {
-	computors, err := s.store.GetComputors(ctx, uint64(req.Epoch))
+	computors, err := s.store.GetComputors(ctx, req.Epoch)
 	if err != nil {
 		if errors.Cause(err) == store.ErrNotFound {
 			return nil, status.Errorf(codes.NotFound, "computors not found")
@@ -139,7 +139,12 @@ func (s *Server) GetLastProcessedTick(ctx context.Context, req *protobuff.GetLas
 		return nil, status.Errorf(codes.Internal, "getting last processed tick: %v", err)
 	}
 
-	return &protobuff.GetLastProcessedTickResponse{LastProcessedTick: uint32(tick)}, nil
+	lastProcessedTicksPerEpoch, err := s.store.GetLastProcessedTicksPerEpoch(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "getting last processed tick: %v", err)
+	}
+
+	return &protobuff.GetLastProcessedTickResponse{LastProcessedTick: uint32(tick), LastProcessedTicksPerEpoch: lastProcessedTicksPerEpoch}, nil
 }
 
 func (s *Server) Start() error {

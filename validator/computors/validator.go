@@ -7,7 +7,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/utils"
 	"github.com/qubic/go-node-connector/types"
-
 )
 
 func Validate(ctx context.Context, computors types.Computors) error {
@@ -49,7 +48,7 @@ func getDigestFromComputors(data types.Computors) ([32]byte, error) {
 func Store(ctx context.Context, store *store.PebbleStore, computors types.Computors) error {
 	protoModel := qubicToProto(computors)
 
-	err := store.SetComputors(ctx, uint64(protoModel.Epoch), protoModel)
+	err := store.SetComputors(ctx, protoModel.Epoch, protoModel)
 	if err != nil {
 		return errors.Wrap(err, "set computors")
 	}
@@ -57,7 +56,7 @@ func Store(ctx context.Context, store *store.PebbleStore, computors types.Comput
 	return nil
 }
 
-func Get(ctx context.Context, store *store.PebbleStore, epoch uint64) (types.Computors, error) {
+func Get(ctx context.Context, store *store.PebbleStore, epoch uint32) (types.Computors, error) {
 	protoModel, err := store.GetComputors(ctx, epoch)
 	if err != nil {
 		return types.Computors{}, errors.Wrap(err, "get computors")

@@ -44,7 +44,6 @@ func run() error {
 		}
 		Qubic struct {
 			NodePort           string        `conf:"default:21841"`
-			FallbackTick       uint64        `conf:"default:12789267"`
 			StorageFolder      string        `conf:"default:store"`
 			ProcessTickTimeout time.Duration `conf:"default:5s"`
 		}
@@ -105,7 +104,7 @@ func run() error {
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
 
-	p := processor.NewProcessor(chPool, ps, cfg.Qubic.FallbackTick, cfg.Qubic.ProcessTickTimeout)
+	p := processor.NewProcessor(chPool, ps, cfg.Qubic.ProcessTickTimeout)
 	archiveErrors := make(chan error, 1)
 
 	// Start the service listening for requests.

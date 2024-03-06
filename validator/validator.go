@@ -35,7 +35,7 @@ func (v *Validator) ValidateTick(ctx context.Context, tickNumber uint64) error {
 	//getting computors from storage, otherwise get it from a node
 	epoch := quorumVotes[0].Epoch
 	var comps types.Computors
-	comps, err = computors.Get(ctx, v.store, uint64(epoch))
+	comps, err = computors.Get(ctx, v.store, uint32(epoch))
 	if err != nil {
 		if errors.Cause(err) != store.ErrNotFound {
 			return errors.Wrap(err, "getting computors from store")

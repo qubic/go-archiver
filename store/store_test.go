@@ -154,7 +154,7 @@ func TestPebbleStore_Computors(t *testing.T) {
 	store := NewPebbleStore(db, logger)
 
 	// Sample Computors for testing
-	epoch := uint64(1) // Convert epoch to uint64 as per method requirements
+	epoch := uint32(1) // Convert epoch to uint32 as per method requirements
 	computors := &pb.Computors{
 		Epoch:        1,
 		Identities:   []string{"identity1", "identity2"},
@@ -315,4 +315,59 @@ func TestPebbleStore_GetTransaction(t *testing.T) {
 	_, err = store.GetTransaction(ctx, "00")
 	assert.Error(t, err)
 	assert.Equal(t, ErrNotFound, err)
+}
+
+func TestSetAndGetLastProcessedTicksPerEpoch(t *testing.T) {
+	ctx := context.Background()
+
+	// Setup test environment
+	dbDir, err := os.MkdirTemp("", "pebble_test")
+	assert.NoError(t, err)
+	defer os.RemoveAll(dbDir)
+
+	db, err := pebble.Open(filepath.Join(dbDir, "testdb"), &pebble.Options{})
+	assert.NoError(t, err)
+	defer db.Close()
+
+	logger, _ := zap.NewDevelopment()
+	store := NewPebbleStore(db, logger)
+
+	// Set last processed ticks per epoch
+	err = store.SetLastProcessedTick(ctx, 16, 1)
+	assert.NoError(t, err)
+
+	// Get last processed tick per epoch
+	lastProcessedTick, err := store.GetLastProcessedTick(ctx)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(16), lastProcessedTick)
+
+	lastProcessedTicksPerEpoch, err := store.GetLastProcessedTicksPerEpoch(ctx)
+	assert.NoError(t, err)
+	assert.Equal(t, map[uint32]uint64{1: 16}, lastProcessedTicksPerEpoch)
+
+	// Set last processed ticks per epoch
+	err = store.SetLastProcessedTick(ctx, 17, 1)
+	assert.NoError(t, err)
+
+	// Get last processed tick per epoch
+	lastProcessedTick, err = store.GetLastProcessedTick(ctx)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(17), lastProcessedTick)
+
+	lastProcessedTicksPerEpoch, err = store.GetLastProcessedTicksPerEpoch(ctx)
+	assert.NoError(t, err)
+	assert.Equal(t, map[uint32]uint64{1: 17}, lastProcessedTicksPerEpoch)
+
+	// Set last processed ticks per epoch
+	err = store.SetLastProcessedTick(ctx, 18, 2)
+	assert.NoError(t, err)
+
+	// Get last processed tick per epoch
+	lastProcessedTick, err = store.GetLastProcessedTick(ctx)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(18), lastProcessedTick)
+
+	lastProcessedTicksPerEpoch, err = store.GetLastProcessedTicksPerEpoch(ctx)
+	assert.NoError(t, err)
+	assert.Equal(t, map[uint32]uint64{1: 17, 2: 18}, lastProcessedTicksPerEpoch)
 }

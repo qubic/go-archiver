@@ -9,6 +9,8 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+	"log"
+	"strconv"
 )
 
 var ErrNotFound = errors.New("store resource not found")
@@ -92,7 +94,7 @@ func (s *PebbleStore) SetQuorumTickData(ctx context.Context, tickNumber uint64, 
 	return nil
 }
 
-func (s *PebbleStore) GetComputors(ctx context.Context, epoch uint64) (*protobuff.Computors, error) {
+func (s *PebbleStore) GetComputors(ctx context.Context, epoch uint32) (*protobuff.Computors, error) {
 	key := computorsKey(epoch)
 
 	value, closer, err := s.db.Get(key)
@@ -113,7 +115,7 @@ func (s *PebbleStore) GetComputors(ctx context.Context, epoch uint64) (*protobuf
 	return &computors, nil
 }
 
-func (s *PebbleStore) SetComputors(ctx context.Context, epoch uint64, computors *protobuff.Computors) error {
+func (s *PebbleStore) SetComputors(ctx context.Context, epoch uint32, computors *protobuff.Computors) error {
 	key := computorsKey(epoch)
 
 	serialized, err := proto.Marshal(computors)
@@ -208,14 +210,31 @@ func (s *PebbleStore) GetTransaction(ctx context.Context, txID string) (*protobu
 	return &tx, nil
 }
 
-func (s *PebbleStore) SetLastProcessedTick(ctx context.Context, tickNumber uint64) error {
-	key := lastProcessedTickKey()
+func (s *PebbleStore) SetLastProcessedTick(ctx context.Context, tickNumber uint64, epochNumber uint32) error {
+	batch := s.db.NewBatch()
+	defer batch.Close()
+
+	key := lastProcessedTickKeyPerEpoch(epochNumber)
 	value := make([]byte, 8)
 	binary.LittleEndian.PutUint64(value, tickNumber)
 
-	err := s.db.Set(key, value, &pebble.WriteOptions{Sync: true})
+	err := batch.Set(key, value, pebble.Sync)
 	if err != nil {
 		return errors.Wrap(err, "setting last processed tick")
+	}
+
+	key = lastProcessedTickKey()
+	value = make([]byte, 8)
+	binary.LittleEndian.PutUint64(value, tickNumber)
+
+	err = batch.Set(key, value, pebble.Sync)
+	if err != nil {
+		return errors.Wrap(err, "setting last processed tick")
+	}
+
+	err = batch.Commit(pebble.Sync)
+	if err != nil {
+		return errors.Wrap(err, "committing batch")
 	}
 
 	return nil
@@ -234,4 +253,34 @@ func (s *PebbleStore) GetLastProcessedTick(ctx context.Context) (uint64, error) 
 	defer closer.Close()
 
 	return binary.LittleEndian.Uint64(value), nil
+}
+
+func (s *PebbleStore) GetLastProcessedTicksPerEpoch(ctx context.Context) (map[uint32]uint64, error) {
+	maxUint64 := ^uint64(0)
+	upperBound := append([]byte{LastProcessedTickPerEpoch}, []byte(strconv.FormatUint(maxUint64, 10))...)
+	iter, err := s.db.NewIter(&pebble.IterOptions{
+		LowerBound: []byte{LastProcessedTickPerEpoch},
+		UpperBound: upperBound,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "creating iter")
+	}
+	defer iter.Close()
+
+	ticksPerEpoch := make(map[uint32]uint64)
+	for iter.First(); iter.Valid(); iter.Next() {
+		key := iter.Key()
+
+		value, err := iter.ValueAndErr()
+		if err != nil {
+			return nil, errors.Wrap(err, "getting value from iter")
+		}
+
+		epochNumber := binary.BigEndian.Uint32(key[1:])
+		tickNumber := binary.LittleEndian.Uint64(value)
+		ticksPerEpoch[epochNumber] = tickNumber
+		log.Printf("key: %s, value: %s\n", key, value)
+	}
+
+	return ticksPerEpoch, nil
 }

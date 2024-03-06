@@ -6,6 +6,7 @@ import (
 	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-archiver/validator"
 	qubic "github.com/qubic/go-node-connector"
+	"github.com/qubic/go-node-connector/types"
 	"github.com/silenceper/pool"
 	"log"
 	"time"
@@ -25,18 +26,16 @@ func (e *TickInTheFutureError) Error() string {
 }
 
 type Processor struct {
-	pool                       pool.Pool
-	ps                         *store.PebbleStore
-	processTickTimeout         time.Duration
-	fallbackNextProcessingTick uint64
+	pool               pool.Pool
+	ps                 *store.PebbleStore
+	processTickTimeout time.Duration
 }
 
-func NewProcessor(pool pool.Pool, ps *store.PebbleStore, fallbackNextProcessingTick uint64, processTickTimeout time.Duration) *Processor {
+func NewProcessor(pool pool.Pool, ps *store.PebbleStore, processTickTimeout time.Duration) *Processor {
 	return &Processor{
-		pool:                       pool,
-		ps:                         ps,
-		fallbackNextProcessingTick: fallbackNextProcessingTick,
-		processTickTimeout:         processTickTimeout,
+		pool:               pool,
+		ps:                 ps,
+		processTickTimeout: processTickTimeout,
 	}
 }
 
@@ -76,15 +75,17 @@ func (p *Processor) processOneByOne() error {
 		}
 	}()
 
-	nextTick, err := p.getNextProcessingTick(ctx)
-	if err != nil {
-		return errors.Wrap(err, "getting next processing tick")
-	}
-	log.Printf("Next tick to process: %d\n", nextTick)
 	tickInfo, err := client.GetTickInfo(ctx)
 	if err != nil {
 		return errors.Wrap(err, "getting tick info")
 	}
+
+	nextTick, err := p.getNextProcessingTick(ctx, tickInfo)
+	if err != nil {
+		return errors.Wrap(err, "getting next processing tick")
+	}
+	log.Printf("Next tick to process: %d\n", nextTick)
+
 	if uint64(tickInfo.Tick) < nextTick {
 		err = newTickInTheFutureError(nextTick, uint64(tickInfo.Tick))
 		return err
@@ -96,7 +97,7 @@ func (p *Processor) processOneByOne() error {
 		return errors.Wrapf(err, "validating tick %d", nextTick)
 	}
 
-	err = p.ps.SetLastProcessedTick(ctx, nextTick)
+	err = p.ps.SetLastProcessedTick(ctx, nextTick, uint32(tickInfo.Epoch))
 	if err != nil {
 		return errors.Wrapf(err, "setting last processed tick %d", nextTick)
 	}
@@ -104,15 +105,19 @@ func (p *Processor) processOneByOne() error {
 	return nil
 }
 
-func (p *Processor) getNextProcessingTick(ctx context.Context) (uint64, error) {
+func (p *Processor) getNextProcessingTick(ctx context.Context, currentTickInfo types.TickInfo) (uint64, error) {
 	lastTick, err := p.ps.GetLastProcessedTick(ctx)
-	if err == nil {
-		return lastTick + 1, nil
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return uint64(currentTickInfo.InitialTick), nil
+		}
+
+		return 0, errors.Wrap(err, "getting last processed tick")
 	}
 
-	if errors.Cause(err) == store.ErrNotFound {
-		return p.fallbackNextProcessingTick, nil
+	if uint64(currentTickInfo.InitialTick) > lastTick {
+		return uint64(currentTickInfo.InitialTick), nil
 	}
 
-	return 0, errors.Wrap(err, "getting last processed tick")
+	return lastTick + 1, nil
 }

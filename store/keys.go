@@ -5,11 +5,12 @@ import (
 )
 
 const (
-	TickData          = 0x00
-	QuorumData        = 0x01
-	ComputorList      = 0x02
-	Transaction       = 0x03
-	LastProcessedTick = 0x04
+	TickData                  = 0x00
+	QuorumData                = 0x01
+	ComputorList              = 0x02
+	Transaction               = 0x03
+	LastProcessedTick         = 0x04
+	LastProcessedTickPerEpoch = 0x05
 )
 
 func tickDataKey(tickNumber uint64) []byte {
@@ -26,9 +27,9 @@ func quorumTickDataKey(tickNumber uint64) []byte {
 	return key
 }
 
-func computorsKey(epochNumber uint64) []byte {
+func computorsKey(epochNumber uint32) []byte {
 	key := []byte{ComputorList}
-	key = binary.BigEndian.AppendUint64(key, epochNumber)
+	key = binary.BigEndian.AppendUint32(key, epochNumber)
 
 	return key
 }
@@ -42,5 +43,11 @@ func tickTxKey(txID string) ([]byte, error) {
 
 func lastProcessedTickKey() []byte {
 	return []byte{LastProcessedTick}
+}
 
+func lastProcessedTickKeyPerEpoch(epochNumber uint32) []byte {
+	key := []byte{LastProcessedTickPerEpoch}
+	key = binary.BigEndian.AppendUint32(key, epochNumber)
+
+	return key
 }
