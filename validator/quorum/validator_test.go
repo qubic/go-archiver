@@ -65,14 +65,15 @@ func TestValidateVotes(t *testing.T) {
 	require.ErrorContains(t, err, "not enough quorum votes")
 
 	cases := []struct {
-		name        string
-		modify      func(votes *types.QuorumVotes)
-		expectError bool
+		name          string
+		modify        func(votes *types.QuorumVotes)
+		expectedVotes int
+		expectError   bool
 	}{
 		{
-			name:        "valid data",
-			modify:      func(votes *types.QuorumVotes) {},
-			expectError: false,
+			name:          "valid data",
+			modify:        func(votes *types.QuorumVotes) {},
+			expectedVotes: 2,
 		},
 		// Test cases for mismatches in each field
 		{
@@ -82,7 +83,7 @@ func TestValidateVotes(t *testing.T) {
 				valueVotes[1].Second += 1
 				*votes = valueVotes
 			},
-			expectError: true,
+			expectedVotes: 1,
 		},
 		{
 			name: "mismatched Minute",
@@ -91,7 +92,7 @@ func TestValidateVotes(t *testing.T) {
 				valueVotes[1].Minute += 1
 				*votes = valueVotes
 			},
-			expectError: true,
+			expectedVotes: 1,
 		},
 		{
 			name: "mismatched Hour",
@@ -100,7 +101,7 @@ func TestValidateVotes(t *testing.T) {
 				valueVotes[1].Hour += 1
 				*votes = valueVotes
 			},
-			expectError: true,
+			expectedVotes: 1,
 		},
 		{
 			name: "mismatched Day",
@@ -109,7 +110,7 @@ func TestValidateVotes(t *testing.T) {
 				valueVotes[1].Day += 1
 				*votes = valueVotes
 			},
-			expectError: true,
+			expectedVotes: 1,
 		},
 		{
 			name: "mismatched Month",
@@ -118,7 +119,7 @@ func TestValidateVotes(t *testing.T) {
 				valueVotes[1].Month += 1
 				*votes = valueVotes
 			},
-			expectError: true,
+			expectedVotes: 1,
 		},
 		{
 			name: "mismatched Year",
@@ -127,7 +128,7 @@ func TestValidateVotes(t *testing.T) {
 				valueVotes[1].Year += 1
 				*votes = valueVotes
 			},
-			expectError: true,
+			expectedVotes: 1,
 		},
 		{
 			name: "mismatched PreviousResourceTestingDigest",
@@ -136,7 +137,7 @@ func TestValidateVotes(t *testing.T) {
 				valueVotes[1].PreviousResourceTestingDigest += 1
 				*votes = valueVotes
 			},
-			expectError: true,
+			expectedVotes: 1,
 		},
 		{
 			name: "mismatched PreviousSpectrumDigest",
@@ -145,7 +146,7 @@ func TestValidateVotes(t *testing.T) {
 				valueVotes[1].PreviousSpectrumDigest = nonEmptyDigest(2)
 				*votes = valueVotes
 			},
-			expectError: true,
+			expectedVotes: 1,
 		},
 		{
 			name: "mismatched PreviousUniverseDigest",
@@ -154,7 +155,7 @@ func TestValidateVotes(t *testing.T) {
 				valueVotes[1].PreviousUniverseDigest[0] += 1
 				*votes = valueVotes
 			},
-			expectError: true,
+			expectedVotes: 1,
 		},
 		{
 			name: "mismatched PreviousComputerDigest",
@@ -163,7 +164,7 @@ func TestValidateVotes(t *testing.T) {
 				valueVotes[1].PreviousComputerDigest[0] += 1
 				*votes = valueVotes
 			},
-			expectError: true,
+			expectedVotes: 1,
 		},
 		{
 			name: "mismatched TxDigest",
@@ -172,7 +173,7 @@ func TestValidateVotes(t *testing.T) {
 				valueVotes[1].TxDigest[0] += 1
 				*votes = valueVotes
 			},
-			expectError: true,
+			expectedVotes: 1,
 		},
 		{
 			name: "mismatched SaltedSpectrumDigest",
@@ -181,7 +182,7 @@ func TestValidateVotes(t *testing.T) {
 				valueVotes[1].SaltedSpectrumDigest[0] += 1
 				*votes = valueVotes
 			},
-			expectError: false,
+			expectedVotes: 2,
 		},
 		{
 			name: "mismatched SaltedUniverseDigest",
@@ -190,7 +191,7 @@ func TestValidateVotes(t *testing.T) {
 				valueVotes[1].SaltedUniverseDigest[0] += 1
 				*votes = valueVotes
 			},
-			expectError: false,
+			expectedVotes: 2,
 		},
 		{
 			name: "mismatched SaltedComputerDigest",
@@ -199,7 +200,7 @@ func TestValidateVotes(t *testing.T) {
 				valueVotes[1].SaltedComputerDigest[0] += 1
 				*votes = valueVotes
 			},
-			expectError: false,
+			expectedVotes: 2,
 		},
 		{
 			name: "mismatched SaltedResourceTestingDigest",
@@ -208,7 +209,7 @@ func TestValidateVotes(t *testing.T) {
 				valueVotes[1].SaltedResourceTestingDigest += 1
 				*votes = valueVotes
 			},
-			expectError: false,
+			expectedVotes: 2,
 		},
 		{
 			name: "mismatched ExpectedNextTickTxDigest",
@@ -217,7 +218,7 @@ func TestValidateVotes(t *testing.T) {
 				valueVotes[1].ExpectedNextTickTxDigest[0] += 1
 				*votes = valueVotes
 			},
-			expectError: false,
+			expectedVotes: 2,
 		},
 		{
 			name: "mismatched Signature",
@@ -226,7 +227,7 @@ func TestValidateVotes(t *testing.T) {
 				valueVotes[1].Signature[0] += 1
 				*votes = valueVotes
 			},
-			expectError: false,
+			expectedVotes: 2,
 		},
 	}
 
@@ -236,12 +237,9 @@ func TestValidateVotes(t *testing.T) {
 			dataCopy := deepCopy(originalData)
 			tc.modify(&dataCopy)
 
-			err := compareVotes(context.Background(), dataCopy)
-			if tc.expectError {
-				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-			}
+			alignedVotes, err := getAlignedVotes(dataCopy)
+			require.NoError(t, err)
+			require.Equal(t, alignedVotes, tc.expectedVotes)
 		})
 	}
 }

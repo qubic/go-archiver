@@ -15,12 +15,17 @@ func Validate(ctx context.Context, quorumVotes types.QuorumVotes, computors type
 	}
 
 	log.Printf("Proceed to validate total quorum votes: %d\n", len(quorumVotes))
-	if err := compareVotes(ctx, quorumVotes); err != nil {
+	alignedVotes, err := getAlignedVotes(quorumVotes)
+	if err != nil {
 		return errors.Wrap(err, "quorum votes are not the same between quorum computors")
 	}
 
+	if alignedVotes < types.MinimumQuorumVotes {
+		return errors.Errorf("Not enough aligned quorum votes. Aligned votes: %d", alignedVotes)
+	}
+
 	log.Printf("Proceed to validate total quorum sigs: %d\n", len(quorumVotes))
-	err := quorumTickSigVerify(ctx, quorumVotes, computors)
+	err = quorumTickSigVerify(ctx, quorumVotes, computors)
 	if err != nil {
 		return errors.Wrap(err, "quorum tick signature verification failed")
 	}
@@ -28,29 +33,102 @@ func Validate(ctx context.Context, quorumVotes types.QuorumVotes, computors type
 	return nil
 }
 
-func compareVotes(ctx context.Context, quorumVotes types.QuorumVotes) error {
-	firstTickData := quorumVotes[0]
+func compareVotes(ctx context.Context, quorumVotes types.QuorumVotes, minimumRequiredVotes int) error {
+	alignedVotes, err := getAlignedVotes(quorumVotes)
+	if err != nil {
+		return errors.Wrap(err, "getting aligned votes")
+	}
 
-	for i := 1; i < len(quorumVotes); i++ {
-		if quorumVotes[i].Epoch != firstTickData.Epoch ||
-			quorumVotes[i].Tick != firstTickData.Tick ||
-			quorumVotes[i].Millisecond != firstTickData.Millisecond ||
-			quorumVotes[i].Second != firstTickData.Second ||
-			quorumVotes[i].Minute != firstTickData.Minute ||
-			quorumVotes[i].Hour != firstTickData.Hour ||
-			quorumVotes[i].Day != firstTickData.Day ||
-			quorumVotes[i].Month != firstTickData.Month ||
-			quorumVotes[i].Year != firstTickData.Year ||
-			quorumVotes[i].PreviousResourceTestingDigest != firstTickData.PreviousResourceTestingDigest ||
-			quorumVotes[i].PreviousComputerDigest != firstTickData.PreviousComputerDigest ||
-			quorumVotes[i].PreviousSpectrumDigest != firstTickData.PreviousSpectrumDigest ||
-			quorumVotes[i].PreviousUniverseDigest != firstTickData.PreviousUniverseDigest ||
-			quorumVotes[i].TxDigest != firstTickData.TxDigest {
-			return errors.New("quorum votes are not the same between quorum computors")
-		}
+	if alignedVotes < minimumRequiredVotes {
+		return errors.Errorf("Not enough aligned quorum votes. Aligned votes: %d", alignedVotes)
 	}
 
 	return nil
+}
+
+type vote struct {
+	Epoch                         uint16
+	Tick                          uint32
+	Millisecond                   uint16
+	Second                        uint8
+	Minute                        uint8
+	Hour                          uint8
+	Day                           uint8
+	Month                         uint8
+	Year                          uint8
+	PreviousResourceTestingDigest uint64
+	PreviousSpectrumDigest        [32]byte
+	PreviousUniverseDigest        [32]byte
+	PreviousComputerDigest        [32]byte
+	TxDigest                      [32]byte
+}
+
+func (v *vote) digest() ([32]byte, error) {
+	b, err := utils.BinarySerialize(v)
+	if err != nil {
+		return [32]byte{}, errors.Wrap(err, "serializing vote")
+	}
+
+	digest, err := utils.K12Hash(b)
+	if err != nil {
+		return [32]byte{}, errors.Wrap(err, "hashing vote")
+	}
+
+	return digest, nil
+}
+
+func getAlignedVotes(quorumVotes types.QuorumVotes) (int, error) {
+	votesHeatMap := make(map[[32]byte]int)
+	for _, qv := range quorumVotes {
+		v := vote{
+			Epoch:                         qv.Epoch,
+			Tick:                          qv.Tick,
+			Millisecond:                   qv.Millisecond,
+			Second:                        qv.Second,
+			Minute:                        qv.Minute,
+			Hour:                          qv.Hour,
+			Day:                           qv.Day,
+			Month:                         qv.Month,
+			Year:                          qv.Year,
+			PreviousResourceTestingDigest: qv.PreviousResourceTestingDigest,
+			PreviousSpectrumDigest:        qv.PreviousSpectrumDigest,
+			PreviousUniverseDigest:        qv.PreviousUniverseDigest,
+			PreviousComputerDigest:        qv.PreviousComputerDigest,
+			TxDigest:                      qv.TxDigest,
+		}
+		digest, err := v.digest()
+		if err != nil {
+			return 0, errors.Wrap(err, "getting digest")
+		}
+		if _, ok := votesHeatMap[digest]; !ok {
+			votesHeatMap[digest] = 1
+		} else {
+			votesHeatMap[digest] += 1
+		}
+	}
+
+	alignedVotes := 0
+	for _, v := range votesHeatMap {
+		if v > alignedVotes {
+			alignedVotes = v
+		}
+	}
+
+	return alignedVotes, nil
+}
+
+func votesCompareMapValidation(quorumVotes types.QuorumVotes) map[[32]byte]int {
+	m := make(map[[32]byte]int)
+	for _, quorumTickData := range quorumVotes {
+		val, ok := m[quorumTickData.PreviousComputerDigest]
+		if ok {
+			m[quorumTickData.PreviousComputerDigest] = val + 1
+		} else {
+			m[quorumTickData.PreviousComputerDigest] = 1
+		}
+	}
+
+	return m
 }
 
 func quorumTickSigVerify(ctx context.Context, quorumVotes types.QuorumVotes, computors types.Computors) error {
