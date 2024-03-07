@@ -2,7 +2,7 @@ version: '3'
 
 services:
   qubic-archiver:
-    image: ghcr.io/qubic/qubic-archiver:v0.1.15
+    image: ghcr.io/qubic/qubic-archiver:v0.1.16
     container_name: qubic-archiver
     labels:
       - "traefik.enable=true"
