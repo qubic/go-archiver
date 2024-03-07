@@ -56,7 +56,7 @@ func (v *Validator) ValidateTick(ctx context.Context, tickNumber uint64) error {
 		return errors.Wrap(err, "storing computors")
 	}
 
-	err = quorum.Validate(ctx, quorumVotes, comps)
+	alignedVotes, err := quorum.Validate(ctx, quorumVotes, comps)
 	if err != nil {
 		return errors.Wrap(err, "validating quorum")
 	}
@@ -67,7 +67,7 @@ func (v *Validator) ValidateTick(ctx context.Context, tickNumber uint64) error {
 	//	return nil
 	//}
 
-	log.Println("Quorum validated")
+	log.Printf("Quorum validated. Aligned %d. Misaligned %d.\n", len(alignedVotes), len(quorumVotes)-len(alignedVotes))
 
 	tickData, err := v.qu.GetTickData(ctx, uint32(tickNumber))
 	if err != nil {
@@ -75,7 +75,7 @@ func (v *Validator) ValidateTick(ctx context.Context, tickNumber uint64) error {
 	}
 	log.Println("Got tick data")
 
-	err = tick.Validate(ctx, tickData, quorumVotes[0], comps)
+	err = tick.Validate(ctx, tickData, alignedVotes[0], comps)
 	if err != nil {
 		return errors.Wrap(err, "validating tick data")
 	}

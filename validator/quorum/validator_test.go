@@ -61,7 +61,7 @@ func TestValidateVotes(t *testing.T) {
 		},
 	}
 
-	err := Validate(context.Background(), originalData, types.Computors{})
+	_, err := Validate(context.Background(), originalData, types.Computors{})
 	require.ErrorContains(t, err, "not enough quorum votes")
 
 	cases := []struct {
@@ -239,7 +239,7 @@ func TestValidateVotes(t *testing.T) {
 
 			alignedVotes, err := getAlignedVotes(dataCopy)
 			require.NoError(t, err)
-			require.Equal(t, alignedVotes, tc.expectedVotes)
+			require.Equal(t, len(alignedVotes), tc.expectedVotes)
 		})
 	}
 }

@@ -9,41 +9,29 @@ import (
 	"log"
 )
 
-func Validate(ctx context.Context, quorumVotes types.QuorumVotes, computors types.Computors) error {
+// Validate validates the quorum votes and if success returns the aligned votes back
+func Validate(ctx context.Context, quorumVotes types.QuorumVotes, computors types.Computors) (types.QuorumVotes, error) {
 	if len(quorumVotes) < types.MinimumQuorumVotes {
-		return errors.New("not enough quorum votes")
+		return nil, errors.New("not enough quorum votes")
 	}
 
 	log.Printf("Proceed to validate total quorum votes: %d\n", len(quorumVotes))
 	alignedVotes, err := getAlignedVotes(quorumVotes)
 	if err != nil {
-		return errors.Wrap(err, "quorum votes are not the same between quorum computors")
+		return nil, errors.Wrap(err, "quorum votes are not the same between quorum computors")
 	}
 
-	if alignedVotes < types.MinimumQuorumVotes {
-		return errors.Errorf("Not enough aligned quorum votes. Aligned votes: %d", alignedVotes)
+	if len(alignedVotes) < types.MinimumQuorumVotes {
+		return nil, errors.Errorf("Not enough aligned quorum votes. Aligned votes: %d", alignedVotes)
 	}
 
-	log.Printf("Proceed to validate total quorum sigs: %d\n", len(quorumVotes))
-	err = quorumTickSigVerify(ctx, quorumVotes, computors)
+	log.Printf("Proceed to validate total quorum sigs: %d\n", len(alignedVotes))
+	err = quorumTickSigVerify(ctx, alignedVotes, computors)
 	if err != nil {
-		return errors.Wrap(err, "quorum tick signature verification failed")
+		return nil, errors.Wrap(err, "quorum tick signature verification failed")
 	}
 
-	return nil
-}
-
-func compareVotes(ctx context.Context, quorumVotes types.QuorumVotes, minimumRequiredVotes int) error {
-	alignedVotes, err := getAlignedVotes(quorumVotes)
-	if err != nil {
-		return errors.Wrap(err, "getting aligned votes")
-	}
-
-	if alignedVotes < minimumRequiredVotes {
-		return errors.Errorf("Not enough aligned quorum votes. Aligned votes: %d", alignedVotes)
-	}
-
-	return nil
+	return alignedVotes, nil
 }
 
 type vote struct {
@@ -77,8 +65,8 @@ func (v *vote) digest() ([32]byte, error) {
 	return digest, nil
 }
 
-func getAlignedVotes(quorumVotes types.QuorumVotes) (int, error) {
-	votesHeatMap := make(map[[32]byte]int)
+func getAlignedVotes(quorumVotes types.QuorumVotes) (types.QuorumVotes, error) {
+	votesHeatMap := make(map[[32]byte]types.QuorumVotes)
 	for _, qv := range quorumVotes {
 		v := vote{
 			Epoch:                         qv.Epoch,
@@ -98,37 +86,23 @@ func getAlignedVotes(quorumVotes types.QuorumVotes) (int, error) {
 		}
 		digest, err := v.digest()
 		if err != nil {
-			return 0, errors.Wrap(err, "getting digest")
+			return nil, errors.Wrap(err, "getting digest")
 		}
-		if _, ok := votesHeatMap[digest]; !ok {
-			votesHeatMap[digest] = 1
+		if votes, ok := votesHeatMap[digest]; !ok {
+			votesHeatMap[digest] = types.QuorumVotes{qv}
 		} else {
-			votesHeatMap[digest] += 1
+			votesHeatMap[digest] = append(votes, qv)
 		}
 	}
 
-	alignedVotes := 0
-	for _, v := range votesHeatMap {
-		if v > alignedVotes {
-			alignedVotes = v
+	var alignedVotes types.QuorumVotes
+	for _, votes := range votesHeatMap {
+		if len(votes) > len(alignedVotes) {
+			alignedVotes = votes
 		}
 	}
 
 	return alignedVotes, nil
-}
-
-func votesCompareMapValidation(quorumVotes types.QuorumVotes) map[[32]byte]int {
-	m := make(map[[32]byte]int)
-	for _, quorumTickData := range quorumVotes {
-		val, ok := m[quorumTickData.PreviousComputerDigest]
-		if ok {
-			m[quorumTickData.PreviousComputerDigest] = val + 1
-		} else {
-			m[quorumTickData.PreviousComputerDigest] = 1
-		}
-	}
-
-	return m
 }
 
 func quorumTickSigVerify(ctx context.Context, quorumVotes types.QuorumVotes, computors types.Computors) error {
