@@ -15,10 +15,10 @@ func Validate(ctx context.Context, quorumVotes types.QuorumVotes, computors type
 		return nil, errors.New("not enough quorum votes")
 	}
 
-	log.Printf("Proceed to validate total quorum votes: %d\n", len(quorumVotes))
+	log.Printf("Proceed to filter aligned votes: %d\n", len(quorumVotes))
 	alignedVotes, err := getAlignedVotes(quorumVotes)
 	if err != nil {
-		return nil, errors.Wrap(err, "quorum votes are not the same between quorum computors")
+		return nil, errors.Wrap(err, "getting aligned votes")
 	}
 
 	if len(alignedVotes) < types.MinimumQuorumVotes {
