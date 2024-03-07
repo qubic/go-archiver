@@ -1,3 +1,4 @@
+[![test](.github/badges/test.svg)](https://github.com/qubic/go-archiver/actions/workflows/test.yaml)
 ## High level description:
 The archive system consists of two services:
 - `qubic-archiver` - the archiver processor and HTTP server that provides rpc endpoints to query the archiver

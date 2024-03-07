@@ -4,20 +4,25 @@ services:
   qubic-archiver:
     image: ghcr.io/qubic/qubic-archiver:v0.1.15
     container_name: qubic-archiver
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.qubic-archiver.rule=Host(`testapi.qubic.org`)"
+      - "traefik.http.routers.qubic-archiver.entrypoints=web"
+      - "traefik.http.services.whoami.loadbalancer.server.port=8000"
     ports:
-      - "127.0.0.1:8000:8000"
       - "127.0.0.1:8001:8001"
-    depends_on:
-      qubic-node-fetcher:
-        condition: service_healthy
     environment:
       QUBIC_ARCHIVER_SERVER_HTTP_HOST: "0.0.0.0:8000"
       QUBIC_ARCHIVER_SERVER_GRPC_HOST: "0.0.0.0:8001"
       QUBIC_ARCHIVER_POOL_NODE_FETCHER_URL: "http://qubic-node-fetcher:8080/peers"
+      QUBIC_ARCHIVER_QUBIC_PROCESS_TICK_TIMEOUT: "20s"
     volumes:
       - ./store/archiver:/app/store
     networks:
-      - qubic
+      - traefik
+    depends_on:
+      qubic-node-fetcher:
+        condition: service_healthy
     restart: always
 
   qubic-node-fetcher:
@@ -30,7 +35,7 @@ services:
     volumes:
       - ./store/node-fetcher:/app/store
     networks:
-      - qubic
+      - traefik
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://qubic-node-fetcher:8080/peers"]
       interval: 30s
@@ -38,5 +43,25 @@ services:
       retries: 5
     restart: always
 
+  traefik:
+    image: traefik:v2.5
+    container_name: traefik
+    command:
+      - "--log.level=DEBUG"
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
+      - "127.0.0.1:8081:8080"
+    depends_on:
+      - "qubic-archiver"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - traefik
+    restart: always
+
 networks:
-  qubic:
+  traefik:
