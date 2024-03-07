@@ -371,3 +371,50 @@ func TestSetAndGetLastProcessedTicksPerEpoch(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, map[uint32]uint64{1: 17, 2: 18}, lastProcessedTicksPerEpoch)
 }
+
+func TestGetSetSkippedTicks(t *testing.T) {
+	ctx := context.Background()
+
+	// Setup test environment
+	dbDir, err := os.MkdirTemp("", "pebble_test")
+	assert.NoError(t, err)
+	defer os.RemoveAll(dbDir)
+
+	db, err := pebble.Open(filepath.Join(dbDir, "testdb"), &pebble.Options{})
+	assert.NoError(t, err)
+	defer db.Close()
+
+	logger, _ := zap.NewDevelopment()
+	store := NewPebbleStore(db, logger)
+
+	skippedTicksIntervalOne := pb.SkippedTicksInterval{
+		StartTick: 15,
+		EndTick:   20,
+	}
+	// Set skipped ticks
+	err = store.SetSkippedTicksInterval(ctx, &skippedTicksIntervalOne)
+	assert.NoError(t, err)
+
+	expected := pb.SkippedTicksIntervalList{SkippedTicks: []*pb.SkippedTicksInterval{&skippedTicksIntervalOne}}
+	// Get skipped ticks
+	got, err := store.GetSkippedTicksInterval(ctx)
+	assert.NoError(t, err)
+	if diff := cmp.Diff(&expected, got, cmpopts.IgnoreUnexported(pb.SkippedTicksInterval{}, pb.SkippedTicksIntervalList{})); diff != "" {
+		t.Fatalf("Unexpected result: %v", diff)
+	}
+
+	skippedTicksIntervalTwo := pb.SkippedTicksInterval{
+		StartTick: 25,
+		EndTick:   30,
+	}
+
+	err = store.SetSkippedTicksInterval(ctx, &skippedTicksIntervalTwo)
+	assert.NoError(t, err)
+
+	expected.SkippedTicks = append(expected.SkippedTicks, &skippedTicksIntervalTwo)
+	got, err = store.GetSkippedTicksInterval(ctx)
+	assert.NoError(t, err)
+	if diff := cmp.Diff(&expected, got, cmpopts.IgnoreUnexported(pb.SkippedTicksInterval{}, pb.SkippedTicksIntervalList{})); diff != "" {
+		t.Fatalf("Unexpected result: %v", diff)
+	}
+}

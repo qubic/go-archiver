@@ -282,3 +282,50 @@ func (s *PebbleStore) GetLastProcessedTicksPerEpoch(ctx context.Context) (map[ui
 
 	return ticksPerEpoch, nil
 }
+
+func (s *PebbleStore) SetSkippedTicksInterval(ctx context.Context, skippedTick *protobuff.SkippedTicksInterval) error {
+	newList := protobuff.SkippedTicksIntervalList{}
+	current, err := s.GetSkippedTicksInterval(ctx)
+	if err != nil {
+		if !errors.Is(err, ErrNotFound) {
+			return errors.Wrap(err, "getting skipped tick interval")
+		}
+	} else {
+		newList.SkippedTicks = current.SkippedTicks
+	}
+
+	newList.SkippedTicks = append(newList.SkippedTicks, skippedTick)
+
+	key := skippedTicksIntervalKey()
+	serialized, err := proto.Marshal(&newList)
+	if err != nil {
+		return errors.Wrap(err, "serializing skipped tick proto")
+	}
+
+	err = s.db.Set(key, serialized, &pebble.WriteOptions{Sync: true})
+	if err != nil {
+		return errors.Wrap(err, "setting skipped tick interval")
+	}
+
+	return nil
+}
+
+func (s *PebbleStore) GetSkippedTicksInterval(ctx context.Context) (*protobuff.SkippedTicksIntervalList, error) {
+	key := skippedTicksIntervalKey()
+	value, closer, err := s.db.Get(key)
+	if err != nil {
+		if errors.Is(err, pebble.ErrNotFound) {
+			return nil, ErrNotFound
+		}
+
+		return nil, errors.Wrap(err, "getting skipped tick interval")
+	}
+	defer closer.Close()
+
+	var stil protobuff.SkippedTicksIntervalList
+	if err := proto.Unmarshal(value, &stil); err != nil {
+		return nil, errors.Wrap(err, "unmarshalling skipped tick interval to protobuff type")
+	}
+
+	return &stil, nil
+}

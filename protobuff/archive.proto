@@ -77,6 +77,15 @@ message QuorumTickStructure {
   string tx_digest_hex = 9;
 }
 
+message SkippedTicksInterval {
+  uint32 start_tick = 1;
+  uint32 end_tick = 2;
+}
+
+message SkippedTicksIntervalList {
+  repeated SkippedTicksInterval skipped_ticks = 1;
+}
+
 message QuorumTickData {
   QuorumTickStructure quorum_tick_structure = 1;
   map<uint32, QuorumDiff> quorum_diff_per_computor = 2;
@@ -139,6 +148,12 @@ message SendRawTransactionResponse {
   string message = 1;
 }
 
+message GetSkippedTicksRequest {}
+
+message GetSkippedTicksResponse {
+  repeated SkippedTicksInterval skipped_ticks = 1;
+}
+
 service ArchiveService {
   rpc GetTickData(GetTickDataRequest) returns (GetTickDataResponse);
   rpc GetTickTransactions(GetTickTransactionsRequest) returns (GetTickTransactionsResponse);
@@ -148,4 +163,5 @@ service ArchiveService {
   rpc GetIdentityInfo(GetIdentityInfoRequest) returns (GetIdentityInfoResponse);
   rpc GetLastProcessedTick(GetLastProcessedTickRequest) returns (GetLastProcessedTickResponse);
   rpc SendRawTransaction(SendRawTransactionRequest) returns (SendRawTransactionResponse);
+  rpc GetSkippedTicks(GetSkippedTicksRequest) returns (GetSkippedTicksResponse);
 }

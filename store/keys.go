@@ -11,6 +11,7 @@ const (
 	Transaction               = 0x03
 	LastProcessedTick         = 0x04
 	LastProcessedTickPerEpoch = 0x05
+	SkippedTicksInterval      = 0x06
 )
 
 func tickDataKey(tickNumber uint64) []byte {
@@ -50,4 +51,8 @@ func lastProcessedTickKeyPerEpoch(epochNumber uint32) []byte {
 	key = binary.BigEndian.AppendUint32(key, epochNumber)
 
 	return key
+}
+
+func skippedTicksIntervalKey() []byte {
+	return []byte{SkippedTicksInterval}
 }

@@ -176,6 +176,15 @@ func (s *Server) SendRawTransaction(ctx context.Context, req *protobuff.SendRawT
 	return &protobuff.SendRawTransactionResponse{Message: fmt.Sprintf("Transaction broadcasted to %d peers", nrSuccess)}, nil
 }
 
+func (s *Server) GetSkippedTicks(ctx context.Context, req *protobuff.GetSkippedTicksRequest) (*protobuff.GetSkippedTicksResponse, error) {
+	ticks, err := s.store.GetSkippedTicksInterval(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "getting skipped ticks: %v", err)
+	}
+
+	return &protobuff.GetSkippedTicksResponse{SkippedTicks: ticks.SkippedTicks}, nil
+}
+
 func (s *Server) Start() error {
 	srv := grpc.NewServer(
 		grpc.MaxRecvMsgSize(600*1024*1024),
