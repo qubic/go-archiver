@@ -6,9 +6,12 @@ services:
     container_name: qubic-archiver
     labels:
       - "traefik.enable=true"
+      - "traefik.http.middlewares.qubic-archiver.headers.accesscontrolalloworiginlist=*"
       - "traefik.http.routers.qubic-archiver.rule=Host(`testapi.qubic.org`)"
       - "traefik.http.routers.qubic-archiver.entrypoints=web"
-      - "traefik.http.services.whoami.loadbalancer.server.port=8000"
+      - "traefik.http.routers.qubic-archiver.middlewares=qubic-archiver"
+      - "traefik.http.services.qubic-archiver.loadbalancer.server.port=8000"
+
     ports:
       - "127.0.0.1:8001:8001"
     environment:
