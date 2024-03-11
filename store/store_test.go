@@ -541,3 +541,37 @@ func TestPebbleStore_TransferTransactions(t *testing.T) {
 	_, err = store.GetTransferTransactionsPerTick(ctx, idOne, 14)
 	require.EqualError(t, err, ErrNotFound.Error())
 }
+
+func TestPebbleStore_QChainHash(t *testing.T) {
+	ctx := context.Background()
+
+	// Setup test environment
+	dbDir, err := os.MkdirTemp("", "pebble_test")
+	require.NoError(t, err)
+	defer os.RemoveAll(dbDir)
+
+	db, err := pebble.Open(filepath.Join(dbDir, "testdb"), &pebble.Options{})
+	require.NoError(t, err)
+	defer db.Close()
+
+	logger, _ := zap.NewDevelopment()
+	store := NewPebbleStore(db, logger)
+
+	// Sample QChainHash for testing
+	tickNumber := uint64(12795005)
+	qChainHash := []byte("qChainHash")
+
+	// Set QChainHash
+	err = store.PutQChainDigest(ctx, tickNumber, qChainHash)
+	require.NoError(t, err)
+
+	// Get QChainHash
+	retrievedQChainHash, err := store.GetQChainDigest(ctx, tickNumber)
+	require.NoError(t, err)
+	require.Equal(t, qChainHash, retrievedQChainHash)
+
+	// Test retrieval of non-existent QChainHash
+	_, err = store.GetQChainDigest(ctx, 999) // Assuming 999 is a tick number that wasn't stored
+	require.Error(t, err)
+	require.Equal(t, ErrNotFound, err)
+}
