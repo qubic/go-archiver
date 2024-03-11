@@ -7,12 +7,13 @@ import (
 	"github.com/qubic/go-node-connector/types"
 )
 
-func ComputeAndStore(ctx context.Context, store *store.PebbleStore, tickNumber uint64, quorumVote types.QuorumTickVote) error {
-	lastQChainDigest, err := store.GetQChainDigest(ctx, tickNumber-1)
+func ComputeAndStore(ctx context.Context, store *store.PebbleStore, initialEpochTick, tickNumber uint64, quorumVote types.QuorumTickVote) error {
+	prevDigest, err := getPrevQChainDigest(ctx, store, initialEpochTick, tickNumber)
 	if err != nil {
-		return errors.Wrapf(err, "getting qChain digest for last tick: %d\n", tickNumber-1)
+		return errors.Wrap(err, "getting prev qChain digest")
 	}
-	currentDigest, err := computeCurrentTickDigest(ctx, quorumVote, lastQChainDigest)
+
+	currentDigest, err := computeCurrentTickDigest(ctx, quorumVote, prevDigest)
 	if err != nil {
 		return errors.Wrap(err, "computing current tick digest")
 	}
@@ -25,7 +26,24 @@ func ComputeAndStore(ctx context.Context, store *store.PebbleStore, tickNumber u
 	return nil
 }
 
-func computeCurrentTickDigest(ctx context.Context, vote types.QuorumTickVote, lastQChainDigest []byte) ([32]byte, error) {
+func getPrevQChainDigest(ctx context.Context, store *store.PebbleStore, initialEpochTick, tickNumber uint64) ([32]byte, error) {
+	// if this is the first tick, there is no previous qChain digest, so we are using an empty one
+	if tickNumber == initialEpochTick {
+		return [32]byte{}, nil
+	}
+
+	previousTickQChainDigestStored, err := store.GetQChainDigest(ctx, tickNumber-1)
+	if err != nil {
+		return [32]byte{}, errors.Wrapf(err, "getting qChain digest for last tick: %d\n", tickNumber-1)
+	}
+
+	var previousTickQChainDigest [32]byte
+	copy(previousTickQChainDigest[:], previousTickQChainDigestStored)
+
+	return previousTickQChainDigest, nil
+}
+
+func computeCurrentTickDigest(ctx context.Context, vote types.QuorumTickVote, previousTickQChainDigest [32]byte) ([32]byte, error) {
 	qChain := QChain{
 		ComputorIndex:                 vote.ComputorIndex,
 		Epoch:                         vote.Epoch,
@@ -42,8 +60,8 @@ func computeCurrentTickDigest(ctx context.Context, vote types.QuorumTickVote, la
 		PreviousUniverseDigest:        vote.PreviousUniverseDigest,
 		PreviousComputerDigest:        vote.PreviousComputerDigest,
 		TxDigest:                      vote.TxDigest,
+		PreviousTickQChainDigest:      previousTickQChainDigest,
 	}
-	copy(qChain.PreviousTickQChainDigest[:], lastQChainDigest[:])
 
 	digest, err := qChain.Digest()
 	if err != nil {
