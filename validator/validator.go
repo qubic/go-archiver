@@ -24,7 +24,7 @@ func New(qu *qubic.Client, store *store.PebbleStore) *Validator {
 	return &Validator{qu: qu, store: store}
 }
 
-func (v *Validator) ValidateTick(ctx context.Context, tickNumber uint64) error {
+func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumber uint64) error {
 	quorumVotes, err := v.qu.GetQuorumVotes(ctx, uint32(tickNumber))
 	if err != nil {
 		return errors.Wrap(err, "getting quorum tick data")
@@ -120,7 +120,7 @@ func (v *Validator) ValidateTick(ctx context.Context, tickNumber uint64) error {
 
 	log.Printf("Stored %d transactions\n", len(transactions))
 
-	err = qchain.ComputeAndStore(ctx, v.store, tickNumber, alignedVotes[0])
+	err = qchain.ComputeAndStore(ctx, v.store, initialEpochTick, tickNumber, alignedVotes[0])
 	if err != nil {
 		return errors.Wrap(err, "computing and storing qChain")
 	}

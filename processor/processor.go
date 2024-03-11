@@ -95,7 +95,7 @@ func (p *Processor) processOneByOne() error {
 	}
 
 	val := validator.New(client, p.ps)
-	err = val.ValidateTick(ctx, nextTick)
+	err = val.ValidateTick(ctx, uint64(tickInfo.InitialTick), nextTick)
 	if err != nil {
 		return errors.Wrapf(err, "validating tick %d", nextTick)
 	}
