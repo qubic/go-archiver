@@ -180,6 +180,14 @@ message GetTransferTransactionsPerTickResponse {
   TransferTransactionsPerTick transfer_transactions_per_tick = 1;
 }
 
+message GetQChainHashRequest {
+  uint32 tick_number = 1;
+}
+
+message GetQChainHashResponse {
+  string hex_digest = 1;
+}
+
 service ArchiveService {
   rpc GetTickData(GetTickDataRequest) returns (GetTickDataResponse);
   rpc GetTickTransactions(GetTickTransactionsRequest) returns (GetTickTransactionsResponse);
@@ -192,4 +200,5 @@ service ArchiveService {
   rpc GetSkippedTicks(GetSkippedTicksRequest) returns (GetSkippedTicksResponse);
   rpc GetTransferTransactions(GetTransferTransactionsRequest) returns (GetTransferTransactionsResponse);
   rpc GetTransferTransactionsPerTick(GetTransferTransactionsPerTickRequest) returns (GetTransferTransactionsPerTickResponse);
+  rpc GetQChainHash(GetQChainHashRequest) returns (GetQChainHashResponse);
 }
