@@ -399,3 +399,29 @@ func (s *PebbleStore) GetTransferTransactionsPerTick(ctx context.Context, identi
 
 	return &perTick, nil
 }
+
+func (s *PebbleStore) PutQChainDigest(ctx context.Context, tickNumber uint64, digest []byte) error {
+	key := qChainDigestKey(tickNumber)
+
+	err := s.db.Set(key, digest, pebble.Sync)
+	if err != nil {
+		return errors.Wrap(err, "setting qChain digest")
+	}
+
+	return nil
+}
+
+func (s *PebbleStore) GetQChainDigest(ctx context.Context, tickNumber uint64) ([]byte, error) {
+	key := qChainDigestKey(tickNumber)
+	value, closer, err := s.db.Get(key)
+	if err != nil {
+		if errors.Is(err, pebble.ErrNotFound) {
+			return nil, ErrNotFound
+		}
+
+		return nil, errors.Wrap(err, "getting qChain digest")
+	}
+	defer closer.Close()
+
+	return value, nil
+}

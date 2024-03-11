@@ -207,6 +207,18 @@ func (s *Server) GetTransferTransactionsPerTick(ctx context.Context, req *protob
 	return &protobuff.GetTransferTransactionsPerTickResponse{TransferTransactionsPerTick: txs}, nil
 }
 
+func (s *Server) GetQChainHash(ctx context.Context, req *protobuff.GetQChainHashRequest) (*protobuff.GetQChainHashResponse, error) {
+	hash, err := s.store.GetQChainDigest(ctx, uint64(req.TickNumber))
+	if err != nil {
+		if errors.Cause(err) == store.ErrNotFound {
+			return nil, status.Errorf(codes.NotFound, "qChain hash for specified tick not found")
+		}
+		return nil, status.Errorf(codes.Internal, "getting qChain hash: %v", err)
+	}
+
+	return &protobuff.GetQChainHashResponse{HexDigest: hex.EncodeToString(hash[:])}, nil
+}
+
 func (s *Server) Start() error {
 	srv := grpc.NewServer(
 		grpc.MaxRecvMsgSize(600*1024*1024),

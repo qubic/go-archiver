@@ -30,6 +30,7 @@ const (
 	ArchiveService_GetSkippedTicks_FullMethodName                = "/qubic.archiver.archive.pb.ArchiveService/GetSkippedTicks"
 	ArchiveService_GetTransferTransactions_FullMethodName        = "/qubic.archiver.archive.pb.ArchiveService/GetTransferTransactions"
 	ArchiveService_GetTransferTransactionsPerTick_FullMethodName = "/qubic.archiver.archive.pb.ArchiveService/GetTransferTransactionsPerTick"
+	ArchiveService_GetQChainHash_FullMethodName                  = "/qubic.archiver.archive.pb.ArchiveService/GetQChainHash"
 )
 
 // ArchiveServiceClient is the client API for ArchiveService service.
@@ -47,6 +48,7 @@ type ArchiveServiceClient interface {
 	GetSkippedTicks(ctx context.Context, in *GetSkippedTicksRequest, opts ...grpc.CallOption) (*GetSkippedTicksResponse, error)
 	GetTransferTransactions(ctx context.Context, in *GetTransferTransactionsRequest, opts ...grpc.CallOption) (*GetTransferTransactionsResponse, error)
 	GetTransferTransactionsPerTick(ctx context.Context, in *GetTransferTransactionsPerTickRequest, opts ...grpc.CallOption) (*GetTransferTransactionsPerTickResponse, error)
+	GetQChainHash(ctx context.Context, in *GetQChainHashRequest, opts ...grpc.CallOption) (*GetQChainHashResponse, error)
 }
 
 type archiveServiceClient struct {
@@ -156,6 +158,15 @@ func (c *archiveServiceClient) GetTransferTransactionsPerTick(ctx context.Contex
 	return out, nil
 }
 
+func (c *archiveServiceClient) GetQChainHash(ctx context.Context, in *GetQChainHashRequest, opts ...grpc.CallOption) (*GetQChainHashResponse, error) {
+	out := new(GetQChainHashResponse)
+	err := c.cc.Invoke(ctx, ArchiveService_GetQChainHash_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ArchiveServiceServer is the server API for ArchiveService service.
 // All implementations must embed UnimplementedArchiveServiceServer
 // for forward compatibility
@@ -171,6 +182,7 @@ type ArchiveServiceServer interface {
 	GetSkippedTicks(context.Context, *GetSkippedTicksRequest) (*GetSkippedTicksResponse, error)
 	GetTransferTransactions(context.Context, *GetTransferTransactionsRequest) (*GetTransferTransactionsResponse, error)
 	GetTransferTransactionsPerTick(context.Context, *GetTransferTransactionsPerTickRequest) (*GetTransferTransactionsPerTickResponse, error)
+	GetQChainHash(context.Context, *GetQChainHashRequest) (*GetQChainHashResponse, error)
 	mustEmbedUnimplementedArchiveServiceServer()
 }
 
@@ -210,6 +222,9 @@ func (UnimplementedArchiveServiceServer) GetTransferTransactions(context.Context
 }
 func (UnimplementedArchiveServiceServer) GetTransferTransactionsPerTick(context.Context, *GetTransferTransactionsPerTickRequest) (*GetTransferTransactionsPerTickResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTransferTransactionsPerTick not implemented")
+}
+func (UnimplementedArchiveServiceServer) GetQChainHash(context.Context, *GetQChainHashRequest) (*GetQChainHashResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetQChainHash not implemented")
 }
 func (UnimplementedArchiveServiceServer) mustEmbedUnimplementedArchiveServiceServer() {}
 
@@ -422,6 +437,24 @@ func _ArchiveService_GetTransferTransactionsPerTick_Handler(srv interface{}, ctx
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ArchiveService_GetQChainHash_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetQChainHashRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ArchiveServiceServer).GetQChainHash(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ArchiveService_GetQChainHash_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ArchiveServiceServer).GetQChainHash(ctx, req.(*GetQChainHashRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ArchiveService_ServiceDesc is the grpc.ServiceDesc for ArchiveService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -472,6 +505,10 @@ var ArchiveService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetTransferTransactionsPerTick",
 			Handler:    _ArchiveService_GetTransferTransactionsPerTick_Handler,
+		},
+		{
+			MethodName: "GetQChainHash",
+			Handler:    _ArchiveService_GetQChainHash_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

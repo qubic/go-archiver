@@ -6,6 +6,7 @@ import (
 	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-archiver/utils"
 	"github.com/qubic/go-archiver/validator/computors"
+	"github.com/qubic/go-archiver/validator/qchain"
 	"github.com/qubic/go-archiver/validator/quorum"
 	"github.com/qubic/go-archiver/validator/tick"
 	"github.com/qubic/go-archiver/validator/tx"
@@ -118,6 +119,11 @@ func (v *Validator) ValidateTick(ctx context.Context, tickNumber uint64) error {
 	}
 
 	log.Printf("Stored %d transactions\n", len(transactions))
+
+	err = qchain.ComputeAndStore(ctx, v.store, tickNumber, alignedVotes[0])
+	if err != nil {
+		return errors.Wrap(err, "computing and storing qChain")
+	}
 
 	return nil
 }
