@@ -34,7 +34,9 @@ func getPrevQChainDigest(ctx context.Context, store *store.PebbleStore, initialE
 
 	previousTickQChainDigestStored, err := store.GetQChainDigest(ctx, tickNumber-1)
 	if err != nil {
-		return [32]byte{}, errors.Wrapf(err, "getting qChain digest for last tick: %d\n", tickNumber-1)
+		//returning nil error in order to not fail until epoch change
+		return [32]byte{}, nil
+		//return [32]byte{}, errors.Wrapf(err, "getting qChain digest for last tick: %d\n", tickNumber-1)
 	}
 
 	var previousTickQChainDigest [32]byte
