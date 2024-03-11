@@ -126,6 +126,15 @@ message IdentityInfo {
   repeated string siblings_hex = 10;
 }
 
+message TransferTransactionsPerTick {
+  uint32 tick_number = 1;
+  Transactions transactions = 2;
+}
+
+message TransferTransactions {
+  repeated TransferTransactionsPerTick transfer_transactions_per_tick = 1;
+}
+
 message GetIdentityInfoRequest {
   string identity = 1;
 }
@@ -154,6 +163,23 @@ message GetSkippedTicksResponse {
   repeated SkippedTicksInterval skipped_ticks = 1;
 }
 
+message GetTransferTransactionsRequest {
+  string identity = 1;
+}
+
+message GetTransferTransactionsResponse {
+  TransferTransactions transfer_transactions = 1;
+}
+
+message GetTransferTransactionsPerTickRequest {
+  string identity = 1;
+  uint32 tick_number = 2;
+}
+
+message GetTransferTransactionsPerTickResponse {
+  TransferTransactionsPerTick transfer_transactions_per_tick = 1;
+}
+
 service ArchiveService {
   rpc GetTickData(GetTickDataRequest) returns (GetTickDataResponse);
   rpc GetTickTransactions(GetTickTransactionsRequest) returns (GetTickTransactionsResponse);
@@ -164,4 +190,6 @@ service ArchiveService {
   rpc GetLastProcessedTick(GetLastProcessedTickRequest) returns (GetLastProcessedTickResponse);
   rpc SendRawTransaction(SendRawTransactionRequest) returns (SendRawTransactionResponse);
   rpc GetSkippedTicks(GetSkippedTicksRequest) returns (GetSkippedTicksResponse);
+  rpc GetTransferTransactions(GetTransferTransactionsRequest) returns (GetTransferTransactionsResponse);
+  rpc GetTransferTransactionsPerTick(GetTransferTransactionsPerTickRequest) returns (GetTransferTransactionsPerTickResponse);
 }

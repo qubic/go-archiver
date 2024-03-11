@@ -12,6 +12,8 @@ import (
 	"strconv"
 )
 
+const maxTickNumber = ^uint64(0)
+
 var ErrNotFound = errors.New("store resource not found")
 
 type PebbleStore struct {
@@ -50,7 +52,7 @@ func (s *PebbleStore) SetTickData(ctx context.Context, tickNumber uint64, td *pr
 		return errors.Wrap(err, "serializing td proto")
 	}
 
-	err = s.db.Set(key, serialized, &pebble.WriteOptions{Sync: true})
+	err = s.db.Set(key, serialized, pebble.Sync)
 	if err != nil {
 		return errors.Wrap(err, "setting tick data")
 	}
@@ -85,7 +87,7 @@ func (s *PebbleStore) SetQuorumTickData(ctx context.Context, tickNumber uint64, 
 		return errors.Wrap(err, "serializing qtd proto")
 	}
 
-	err = s.db.Set(key, serialized, &pebble.WriteOptions{Sync: true})
+	err = s.db.Set(key, serialized, pebble.Sync)
 	if err != nil {
 		return errors.Wrap(err, "setting quorum tick data")
 	}
@@ -122,7 +124,7 @@ func (s *PebbleStore) SetComputors(ctx context.Context, epoch uint32, computors 
 		return errors.Wrap(err, "serializing computors proto")
 	}
 
-	err = s.db.Set(key, serialized, &pebble.WriteOptions{Sync: true})
+	err = s.db.Set(key, serialized, pebble.Sync)
 	if err != nil {
 		return errors.Wrap(err, "setting computors")
 	}
@@ -130,7 +132,7 @@ func (s *PebbleStore) SetComputors(ctx context.Context, epoch uint32, computors 
 	return nil
 }
 
-func (s *PebbleStore) SetTickTransactions(ctx context.Context, txs *protobuff.Transactions) error {
+func (s *PebbleStore) SetTransactions(ctx context.Context, txs *protobuff.Transactions) error {
 	batch := s.db.NewBatchWithSize(len(txs.GetTransactions()))
 	defer batch.Close()
 
@@ -255,8 +257,7 @@ func (s *PebbleStore) GetLastProcessedTick(ctx context.Context) (uint64, error) 
 }
 
 func (s *PebbleStore) GetLastProcessedTicksPerEpoch(ctx context.Context) (map[uint32]uint64, error) {
-	maxUint64 := ^uint64(0)
-	upperBound := append([]byte{LastProcessedTickPerEpoch}, []byte(strconv.FormatUint(maxUint64, 10))...)
+	upperBound := append([]byte{LastProcessedTickPerEpoch}, []byte(strconv.FormatUint(maxTickNumber, 10))...)
 	iter, err := s.db.NewIter(&pebble.IterOptions{
 		LowerBound: []byte{LastProcessedTickPerEpoch},
 		UpperBound: upperBound,
@@ -302,7 +303,7 @@ func (s *PebbleStore) SetSkippedTicksInterval(ctx context.Context, skippedTick *
 		return errors.Wrap(err, "serializing skipped tick proto")
 	}
 
-	err = s.db.Set(key, serialized, &pebble.WriteOptions{Sync: true})
+	err = s.db.Set(key, serialized, pebble.Sync)
 	if err != nil {
 		return errors.Wrap(err, "setting skipped tick interval")
 	}
@@ -328,4 +329,73 @@ func (s *PebbleStore) GetSkippedTicksInterval(ctx context.Context) (*protobuff.S
 	}
 
 	return &stil, nil
+}
+
+func (s *PebbleStore) PutTransferTransactionsPerTick(ctx context.Context, identity string, tickNumber uint64, txs *protobuff.TransferTransactionsPerTick) error {
+	key := identityTransferTransactionsPerTickKey(identity, tickNumber)
+
+	serialized, err := protojson.Marshal(txs)
+	if err != nil {
+		return errors.Wrap(err, "serializing tx proto")
+	}
+
+	err = s.db.Set(key, serialized, pebble.Sync)
+	if err != nil {
+		return errors.Wrap(err, "setting transfer tx")
+	}
+
+	return nil
+}
+
+func (s *PebbleStore) GetTransferTransactions(ctx context.Context, identity string) (*protobuff.TransferTransactions, error) {
+	partialKey := identityTransferTransactions(identity)
+	upperBound := append(partialKey, []byte(strconv.FormatUint(maxTickNumber, 10))...)
+	iter, err := s.db.NewIter(&pebble.IterOptions{
+		LowerBound: partialKey,
+		UpperBound: upperBound,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "creating iter")
+	}
+	defer iter.Close()
+
+	transferTxs := make([]*protobuff.TransferTransactionsPerTick, 0)
+
+	for iter.First(); iter.Valid(); iter.Next() {
+		value, err := iter.ValueAndErr()
+		if err != nil {
+			return nil, errors.Wrap(err, "getting value from iter")
+		}
+
+		var perTick protobuff.TransferTransactionsPerTick
+
+		err = protojson.Unmarshal(value, &perTick)
+		if err != nil {
+			return nil, errors.Wrap(err, "unmarshalling transfer tx per tick to protobuff type")
+		}
+
+		transferTxs = append(transferTxs, &perTick)
+	}
+
+	return &protobuff.TransferTransactions{TransferTransactionsPerTick: transferTxs}, nil
+}
+
+func (s *PebbleStore) GetTransferTransactionsPerTick(ctx context.Context, identity string, tickNumber uint64) (*protobuff.TransferTransactionsPerTick, error) {
+	key := identityTransferTransactionsPerTickKey(identity, tickNumber)
+	value, closer, err := s.db.Get(key)
+	if err != nil {
+		if errors.Is(err, pebble.ErrNotFound) {
+			return nil, ErrNotFound
+		}
+
+		return nil, errors.Wrap(err, "getting transfer tx per tick")
+	}
+	defer closer.Close()
+
+	var perTick protobuff.TransferTransactionsPerTick
+	if err := protojson.Unmarshal(value, &perTick); err != nil {
+		return nil, errors.Wrap(err, "unmarshalling transfer tx per tick to protobuff type")
+	}
+
+	return &perTick, nil
 }

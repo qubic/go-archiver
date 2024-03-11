@@ -9,7 +9,7 @@ import (
 	"github.com/qubic/go-node-connector/types"
 )
 
-func Validate(ctx context.Context, computors types.Computors) error {
+func Validate(ctx context.Context, sigVerifierFunc utils.SigVerifierFunc, computors types.Computors) error {
 	arbitratorID := types.Identity(types.ArbitratorIdentity)
 	arbitratorPubKey, err := arbitratorID.ToPubKey(false)
 	if err != nil {
@@ -21,7 +21,7 @@ func Validate(ctx context.Context, computors types.Computors) error {
 		return errors.Wrap(err, "getting digest from computors")
 	}
 
-	err = utils.FourQSigVerify(ctx, arbitratorPubKey, digest, computors.Signature)
+	err = sigVerifierFunc(ctx, arbitratorPubKey, digest, computors.Signature)
 	if err != nil {
 		return errors.Wrap(err, "verifying computors signature")
 	}

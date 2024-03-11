@@ -22,6 +22,8 @@ import (
 	"net/http"
 )
 
+var _ protobuff.ArchiveServiceServer = &Server{}
+
 type Server struct {
 	protobuff.UnimplementedArchiveServiceServer
 	listenAddrGRPC       string
@@ -183,6 +185,26 @@ func (s *Server) GetSkippedTicks(ctx context.Context, req *protobuff.GetSkippedT
 	}
 
 	return &protobuff.GetSkippedTicksResponse{SkippedTicks: ticks.SkippedTicks}, nil
+}
+
+func (s *Server) GetTransferTransactions(ctx context.Context, req *protobuff.GetTransferTransactionsRequest) (*protobuff.GetTransferTransactionsResponse, error) {
+	txs, err := s.store.GetTransferTransactions(ctx, req.Identity)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "getting transfer transactions: %v", err)
+	}
+
+	return &protobuff.GetTransferTransactionsResponse{TransferTransactions: txs}, nil
+}
+func (s *Server) GetTransferTransactionsPerTick(ctx context.Context, req *protobuff.GetTransferTransactionsPerTickRequest) (*protobuff.GetTransferTransactionsPerTickResponse, error) {
+	txs, err := s.store.GetTransferTransactionsPerTick(ctx, req.Identity, uint64(req.TickNumber))
+	if err != nil {
+		if errors.Cause(err) == store.ErrNotFound {
+			return nil, status.Errorf(codes.NotFound, "transfer transactions for specified identity, tick pair not found")
+		}
+		return nil, status.Errorf(codes.Internal, "getting transfer transactions: %v", err)
+	}
+
+	return &protobuff.GetTransferTransactionsPerTickResponse{TransferTransactionsPerTick: txs}, nil
 }
 
 func (s *Server) Start() error {

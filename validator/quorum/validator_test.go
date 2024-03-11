@@ -7,6 +7,10 @@ import (
 	"testing"
 )
 
+var mockSigVerifierFunc = func(ctx context.Context, pubkey [32]byte, digest [32]byte, sig [64]byte) error {
+	return nil
+}
+
 // Sufficient quorum votes.
 // Insufficient quorum votes.
 // Mismatched votes in various fields.
@@ -61,7 +65,7 @@ func TestValidateVotes(t *testing.T) {
 		},
 	}
 
-	_, err := Validate(context.Background(), originalData, types.Computors{})
+	_, err := Validate(context.Background(), mockSigVerifierFunc, originalData, types.Computors{})
 	require.ErrorContains(t, err, "not enough quorum votes")
 
 	cases := []struct {

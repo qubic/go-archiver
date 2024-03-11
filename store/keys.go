@@ -5,13 +5,14 @@ import (
 )
 
 const (
-	TickData                  = 0x00
-	QuorumData                = 0x01
-	ComputorList              = 0x02
-	Transaction               = 0x03
-	LastProcessedTick         = 0x04
-	LastProcessedTickPerEpoch = 0x05
-	SkippedTicksInterval      = 0x06
+	TickData                     = 0x00
+	QuorumData                   = 0x01
+	ComputorList                 = 0x02
+	Transaction                  = 0x03
+	LastProcessedTick            = 0x04
+	LastProcessedTickPerEpoch    = 0x05
+	SkippedTicksInterval         = 0x06
+	IdentityTransferTransactions = 0x07
 )
 
 func tickDataKey(tickNumber uint64) []byte {
@@ -55,4 +56,19 @@ func lastProcessedTickKeyPerEpoch(epochNumber uint32) []byte {
 
 func skippedTicksIntervalKey() []byte {
 	return []byte{SkippedTicksInterval}
+}
+
+func identityTransferTransactionsPerTickKey(identity string, tickNumber uint64) []byte {
+	key := []byte{IdentityTransferTransactions}
+	key = append(key, []byte(identity)...)
+	key = binary.BigEndian.AppendUint64(key, tickNumber)
+
+	return key
+}
+
+func identityTransferTransactions(identity string) []byte {
+	key := []byte{IdentityTransferTransactions}
+	key = append(key, []byte(identity)...)
+
+	return key
 }

@@ -9,7 +9,7 @@ import (
 	"github.com/qubic/go-node-connector/types"
 )
 
-func Validate(ctx context.Context, data types.TickData, quorumTickVote types.QuorumTickVote, comps types.Computors) error {
+func Validate(ctx context.Context, sigVerifierFunc utils.SigVerifierFunc, data types.TickData, quorumTickVote types.QuorumTickVote, comps types.Computors) error {
 	//empty tick with empty quorum tx digest means other verification is not needed
 	if (data.IsEmpty()) && quorumTickVote.TxDigest == [32]byte{} {
 		return nil
@@ -23,7 +23,7 @@ func Validate(ctx context.Context, data types.TickData, quorumTickVote types.Quo
 	}
 
 	// verify tick signature
-	err = utils.FourQSigVerify(ctx, computorPubKey, digest, data.Signature)
+	err = sigVerifierFunc(ctx, computorPubKey, digest, data.Signature)
 	if err != nil {
 		return errors.Wrap(err, "verifying tick signature")
 	}
