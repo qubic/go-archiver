@@ -19,15 +19,17 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	ArchiveService_GetTickData_FullMethodName          = "/qubic.archiver.archive.pb.ArchiveService/GetTickData"
-	ArchiveService_GetTickTransactions_FullMethodName  = "/qubic.archiver.archive.pb.ArchiveService/GetTickTransactions"
-	ArchiveService_GetTransaction_FullMethodName       = "/qubic.archiver.archive.pb.ArchiveService/GetTransaction"
-	ArchiveService_GetQuorumTickData_FullMethodName    = "/qubic.archiver.archive.pb.ArchiveService/GetQuorumTickData"
-	ArchiveService_GetComputors_FullMethodName         = "/qubic.archiver.archive.pb.ArchiveService/GetComputors"
-	ArchiveService_GetIdentityInfo_FullMethodName      = "/qubic.archiver.archive.pb.ArchiveService/GetIdentityInfo"
-	ArchiveService_GetLastProcessedTick_FullMethodName = "/qubic.archiver.archive.pb.ArchiveService/GetLastProcessedTick"
-	ArchiveService_SendRawTransaction_FullMethodName   = "/qubic.archiver.archive.pb.ArchiveService/SendRawTransaction"
-	ArchiveService_GetSkippedTicks_FullMethodName      = "/qubic.archiver.archive.pb.ArchiveService/GetSkippedTicks"
+	ArchiveService_GetTickData_FullMethodName                    = "/qubic.archiver.archive.pb.ArchiveService/GetTickData"
+	ArchiveService_GetTickTransactions_FullMethodName            = "/qubic.archiver.archive.pb.ArchiveService/GetTickTransactions"
+	ArchiveService_GetTransaction_FullMethodName                 = "/qubic.archiver.archive.pb.ArchiveService/GetTransaction"
+	ArchiveService_GetQuorumTickData_FullMethodName              = "/qubic.archiver.archive.pb.ArchiveService/GetQuorumTickData"
+	ArchiveService_GetComputors_FullMethodName                   = "/qubic.archiver.archive.pb.ArchiveService/GetComputors"
+	ArchiveService_GetIdentityInfo_FullMethodName                = "/qubic.archiver.archive.pb.ArchiveService/GetIdentityInfo"
+	ArchiveService_GetLastProcessedTick_FullMethodName           = "/qubic.archiver.archive.pb.ArchiveService/GetLastProcessedTick"
+	ArchiveService_SendRawTransaction_FullMethodName             = "/qubic.archiver.archive.pb.ArchiveService/SendRawTransaction"
+	ArchiveService_GetSkippedTicks_FullMethodName                = "/qubic.archiver.archive.pb.ArchiveService/GetSkippedTicks"
+	ArchiveService_GetTransferTransactions_FullMethodName        = "/qubic.archiver.archive.pb.ArchiveService/GetTransferTransactions"
+	ArchiveService_GetTransferTransactionsPerTick_FullMethodName = "/qubic.archiver.archive.pb.ArchiveService/GetTransferTransactionsPerTick"
 )
 
 // ArchiveServiceClient is the client API for ArchiveService service.
@@ -43,6 +45,8 @@ type ArchiveServiceClient interface {
 	GetLastProcessedTick(ctx context.Context, in *GetLastProcessedTickRequest, opts ...grpc.CallOption) (*GetLastProcessedTickResponse, error)
 	SendRawTransaction(ctx context.Context, in *SendRawTransactionRequest, opts ...grpc.CallOption) (*SendRawTransactionResponse, error)
 	GetSkippedTicks(ctx context.Context, in *GetSkippedTicksRequest, opts ...grpc.CallOption) (*GetSkippedTicksResponse, error)
+	GetTransferTransactions(ctx context.Context, in *GetTransferTransactionsRequest, opts ...grpc.CallOption) (*GetTransferTransactionsResponse, error)
+	GetTransferTransactionsPerTick(ctx context.Context, in *GetTransferTransactionsPerTickRequest, opts ...grpc.CallOption) (*GetTransferTransactionsPerTickResponse, error)
 }
 
 type archiveServiceClient struct {
@@ -134,6 +138,24 @@ func (c *archiveServiceClient) GetSkippedTicks(ctx context.Context, in *GetSkipp
 	return out, nil
 }
 
+func (c *archiveServiceClient) GetTransferTransactions(ctx context.Context, in *GetTransferTransactionsRequest, opts ...grpc.CallOption) (*GetTransferTransactionsResponse, error) {
+	out := new(GetTransferTransactionsResponse)
+	err := c.cc.Invoke(ctx, ArchiveService_GetTransferTransactions_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *archiveServiceClient) GetTransferTransactionsPerTick(ctx context.Context, in *GetTransferTransactionsPerTickRequest, opts ...grpc.CallOption) (*GetTransferTransactionsPerTickResponse, error) {
+	out := new(GetTransferTransactionsPerTickResponse)
+	err := c.cc.Invoke(ctx, ArchiveService_GetTransferTransactionsPerTick_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ArchiveServiceServer is the server API for ArchiveService service.
 // All implementations must embed UnimplementedArchiveServiceServer
 // for forward compatibility
@@ -147,6 +169,8 @@ type ArchiveServiceServer interface {
 	GetLastProcessedTick(context.Context, *GetLastProcessedTickRequest) (*GetLastProcessedTickResponse, error)
 	SendRawTransaction(context.Context, *SendRawTransactionRequest) (*SendRawTransactionResponse, error)
 	GetSkippedTicks(context.Context, *GetSkippedTicksRequest) (*GetSkippedTicksResponse, error)
+	GetTransferTransactions(context.Context, *GetTransferTransactionsRequest) (*GetTransferTransactionsResponse, error)
+	GetTransferTransactionsPerTick(context.Context, *GetTransferTransactionsPerTickRequest) (*GetTransferTransactionsPerTickResponse, error)
 	mustEmbedUnimplementedArchiveServiceServer()
 }
 
@@ -180,6 +204,12 @@ func (UnimplementedArchiveServiceServer) SendRawTransaction(context.Context, *Se
 }
 func (UnimplementedArchiveServiceServer) GetSkippedTicks(context.Context, *GetSkippedTicksRequest) (*GetSkippedTicksResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetSkippedTicks not implemented")
+}
+func (UnimplementedArchiveServiceServer) GetTransferTransactions(context.Context, *GetTransferTransactionsRequest) (*GetTransferTransactionsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTransferTransactions not implemented")
+}
+func (UnimplementedArchiveServiceServer) GetTransferTransactionsPerTick(context.Context, *GetTransferTransactionsPerTickRequest) (*GetTransferTransactionsPerTickResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTransferTransactionsPerTick not implemented")
 }
 func (UnimplementedArchiveServiceServer) mustEmbedUnimplementedArchiveServiceServer() {}
 
@@ -356,6 +386,42 @@ func _ArchiveService_GetSkippedTicks_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ArchiveService_GetTransferTransactions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetTransferTransactionsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ArchiveServiceServer).GetTransferTransactions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ArchiveService_GetTransferTransactions_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ArchiveServiceServer).GetTransferTransactions(ctx, req.(*GetTransferTransactionsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ArchiveService_GetTransferTransactionsPerTick_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetTransferTransactionsPerTickRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ArchiveServiceServer).GetTransferTransactionsPerTick(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ArchiveService_GetTransferTransactionsPerTick_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ArchiveServiceServer).GetTransferTransactionsPerTick(ctx, req.(*GetTransferTransactionsPerTickRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ArchiveService_ServiceDesc is the grpc.ServiceDesc for ArchiveService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -398,6 +464,14 @@ var ArchiveService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetSkippedTicks",
 			Handler:    _ArchiveService_GetSkippedTicks_Handler,
+		},
+		{
+			MethodName: "GetTransferTransactions",
+			Handler:    _ArchiveService_GetTransferTransactions_Handler,
+		},
+		{
+			MethodName: "GetTransferTransactionsPerTick",
+			Handler:    _ArchiveService_GetTransferTransactionsPerTick_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

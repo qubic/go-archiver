@@ -10,7 +10,7 @@ import (
 )
 
 // Validate validates the quorum votes and if success returns the aligned votes back
-func Validate(ctx context.Context, quorumVotes types.QuorumVotes, computors types.Computors) (types.QuorumVotes, error) {
+func Validate(ctx context.Context, sigVerifierFunc utils.SigVerifierFunc, quorumVotes types.QuorumVotes, computors types.Computors) (types.QuorumVotes, error) {
 	if len(quorumVotes) < types.MinimumQuorumVotes {
 		return nil, errors.New("not enough quorum votes")
 	}
@@ -26,7 +26,7 @@ func Validate(ctx context.Context, quorumVotes types.QuorumVotes, computors type
 	}
 
 	log.Printf("Proceed to validate total quorum sigs: %d\n", len(alignedVotes))
-	err = quorumTickSigVerify(ctx, alignedVotes, computors)
+	err = quorumTickSigVerify(ctx, sigVerifierFunc, alignedVotes, computors)
 	if err != nil {
 		return nil, errors.Wrap(err, "quorum tick signature verification failed")
 	}
@@ -105,7 +105,7 @@ func getAlignedVotes(quorumVotes types.QuorumVotes) (types.QuorumVotes, error) {
 	return alignedVotes, nil
 }
 
-func quorumTickSigVerify(ctx context.Context, quorumVotes types.QuorumVotes, computors types.Computors) error {
+func quorumTickSigVerify(ctx context.Context, sigVerifierFunc utils.SigVerifierFunc, quorumVotes types.QuorumVotes, computors types.Computors) error {
 	var successVotes = 0
 	failedIndexes := make([]uint16, 0, 0)
 	failedIdentites := make([]string, 0, 0)
@@ -116,7 +116,7 @@ func quorumTickSigVerify(ctx context.Context, quorumVotes types.QuorumVotes, com
 			return errors.Wrap(err, "getting digest from tick data")
 		}
 		computorPubKey := computors.PubKeys[quorumTickData.ComputorIndex]
-		if err := utils.FourQSigVerify(ctx, computorPubKey, digest, quorumTickData.Signature); err != nil {
+		if err := sigVerifierFunc(ctx, computorPubKey, digest, quorumTickData.Signature); err != nil {
 			//return errors.Wrapf(err, "quorum tick signature verification failed for computor index: %d", quorumTickData.ComputorIndex)
 			//log.Printf("Quorum tick signature verification failed for computor index: %d. Err: %s\n", quorumTickData.ComputorIndex, err.Error())
 			failedIndexes = append(failedIndexes, quorumTickData.ComputorIndex)

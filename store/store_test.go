@@ -4,13 +4,13 @@ import (
 	"context"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/cockroachdb/pebble"
-	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 
 	pb "github.com/qubic/go-archiver/protobuff" // Update the import path to your generated protobuf package
@@ -20,11 +20,11 @@ func TestPebbleStore_TickData(t *testing.T) {
 	ctx := context.Background()
 	// Setup test environment
 	dbDir, err := os.MkdirTemp("", "pebble_test")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer os.RemoveAll(dbDir)
 
 	db, err := pebble.Open(filepath.Join(dbDir, "testdb"), &pebble.Options{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer db.Close()
 
 	logger, _ := zap.NewDevelopment()
@@ -58,21 +58,21 @@ func TestPebbleStore_TickData(t *testing.T) {
 	// Insert TickData records
 	for _, td := range tickDatas {
 		err = store.SetTickData(ctx, uint64(td.TickNumber), td)
-		assert.NoError(t, err, "Failed to store TickData")
+		require.NoError(t, err, "Failed to store TickData")
 	}
 
 	// Retrieve and verify each TickData record
 	for _, tdOriginal := range tickDatas {
 		retrievedTickData, err := store.GetTickData(ctx, uint64(tdOriginal.TickNumber))
-		assert.NoError(t, err, "Failed to retrieve TickData")
+		require.NoError(t, err, "Failed to retrieve TickData")
 		ok := proto.Equal(tdOriginal, retrievedTickData)
-		assert.Equal(t, true, ok, "Retrieved TickData does not match original")
+		require.Equal(t, true, ok, "Retrieved TickData does not match original")
 	}
 
 	// Test error handling for non-existent TickData
 	_, err = store.GetTickData(ctx, 999) // Assuming 999 is a tick number that wasn't stored
-	assert.Error(t, err, "Expected an error for non-existent TickData")
-	assert.Equal(t, ErrNotFound, err, "Expected ErrNotFound for non-existent TickData")
+	require.Error(t, err, "Expected an error for non-existent TickData")
+	require.Equal(t, ErrNotFound, err, "Expected ErrNotFound for non-existent TickData")
 }
 
 func TestPebbleStore_QuorumTickData(t *testing.T) {
@@ -80,11 +80,11 @@ func TestPebbleStore_QuorumTickData(t *testing.T) {
 
 	// Setup test environment
 	dbDir, err := os.MkdirTemp("", "pebble_test")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer os.RemoveAll(dbDir)
 
 	db, err := pebble.Open(filepath.Join(dbDir, "testdb"), &pebble.Options{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer db.Close()
 
 	logger, _ := zap.NewDevelopment()
@@ -122,11 +122,11 @@ func TestPebbleStore_QuorumTickData(t *testing.T) {
 
 	// Set QuorumTickData
 	err = store.SetQuorumTickData(ctx, uint64(quorumData.QuorumTickStructure.TickNumber), quorumData)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Get QuorumTickData
 	retrievedData, err := store.GetQuorumTickData(ctx, uint64(quorumData.QuorumTickStructure.TickNumber))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	if diff := cmp.Diff(quorumData, retrievedData, cmpopts.IgnoreUnexported(pb.QuorumTickData{}, pb.QuorumTickStructure{}, pb.QuorumDiff{})); diff != "" {
 		t.Fatalf("Unexpected result: %v", diff)
@@ -134,8 +134,8 @@ func TestPebbleStore_QuorumTickData(t *testing.T) {
 
 	// Test retrieval of non-existent QuorumTickData
 	_, err = store.GetQuorumTickData(ctx, 999) // Assuming 999 is a tick number that wasn't stored
-	assert.Error(t, err)
-	assert.Equal(t, ErrNotFound, err)
+	require.Error(t, err)
+	require.Equal(t, ErrNotFound, err)
 }
 
 func TestPebbleStore_Computors(t *testing.T) {
@@ -143,11 +143,11 @@ func TestPebbleStore_Computors(t *testing.T) {
 
 	// Setup test environment
 	dbDir, err := os.MkdirTemp("", "pebble_test")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer os.RemoveAll(dbDir)
 
 	db, err := pebble.Open(filepath.Join(dbDir, "testdb"), &pebble.Options{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer db.Close()
 
 	logger, _ := zap.NewDevelopment()
@@ -163,22 +163,22 @@ func TestPebbleStore_Computors(t *testing.T) {
 
 	// Set Computors
 	err = store.SetComputors(ctx, epoch, computors)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Get Computors
 	retrievedComputors, err := store.GetComputors(ctx, epoch)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Validate retrieved data
-	assert.NotNil(t, retrievedComputors)
-	assert.Equal(t, computors.Epoch, retrievedComputors.Epoch)
-	assert.ElementsMatch(t, computors.Identities, retrievedComputors.Identities)
-	assert.Equal(t, computors.SignatureHex, retrievedComputors.SignatureHex)
+	require.NotNil(t, retrievedComputors)
+	require.Equal(t, computors.Epoch, retrievedComputors.Epoch)
+	require.ElementsMatch(t, computors.Identities, retrievedComputors.Identities)
+	require.Equal(t, computors.SignatureHex, retrievedComputors.SignatureHex)
 
 	// Test retrieval of non-existent Computors
 	_, err = store.GetComputors(ctx, 999) // Assuming 999 is an epoch number that wasn't stored
-	assert.Error(t, err)
-	assert.Equal(t, ErrNotFound, err)
+	require.Error(t, err)
+	require.Equal(t, ErrNotFound, err)
 }
 
 func TestPebbleStore_TickTransactions(t *testing.T) {
@@ -186,11 +186,11 @@ func TestPebbleStore_TickTransactions(t *testing.T) {
 
 	// Setup test environment
 	dbDir, err := os.MkdirTemp("", "pebble_test")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer os.RemoveAll(dbDir)
 
 	db, err := pebble.Open(filepath.Join(dbDir, "testdb"), &pebble.Options{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer db.Close()
 
 	logger, _ := zap.NewDevelopment()
@@ -233,32 +233,32 @@ func TestPebbleStore_TickTransactions(t *testing.T) {
 		TransactionIds: []string{"ff01", "cd01"},
 	}
 	err = store.SetTickData(ctx, uint64(tickData.TickNumber), &tickData)
-	assert.NoError(t, err, "Failed to store TickData")
+	require.NoError(t, err, "Failed to store TickData")
 
 	// Sample Transactions for testing
 	tickNumber := uint64(12795005)
 
-	// Assuming SetTickTransactions stores transactions for a tick
-	err = store.SetTickTransactions(ctx, transactions)
-	assert.NoError(t, err)
+	// Assuming SetTransactions stores transactions for a tick
+	err = store.SetTransactions(ctx, transactions)
+	require.NoError(t, err)
 
 	// GetTickTransactions retrieves stored transactions for a tick
 	retrievedTransactions, err := store.GetTickTransactions(ctx, tickNumber)
-	assert.NoError(t, err)
-	assert.NotNil(t, retrievedTransactions)
+	require.NoError(t, err)
+	require.NotNil(t, retrievedTransactions)
 
 	// Validate the retrieved transactions
-	assert.Len(t, retrievedTransactions.Transactions, len(transactions.Transactions))
+	require.Len(t, retrievedTransactions.Transactions, len(transactions.Transactions))
 	for i, tx := range transactions.Transactions {
 		retrievedTx := retrievedTransactions.Transactions[i]
-		assert.Equal(t, tx.SourceId, retrievedTx.SourceId)
+		require.Equal(t, tx.SourceId, retrievedTx.SourceId)
 		// Continue with other fields...
 	}
 
 	// Test retrieval for a non-existent tick
 	_, err = store.GetTickTransactions(ctx, 999) // Assuming 999 is a tick number that wasn't stored
-	assert.Error(t, err)
-	assert.Equal(t, ErrNotFound, err)
+	require.Error(t, err)
+	require.Equal(t, ErrNotFound, err)
 }
 
 func TestPebbleStore_GetTransaction(t *testing.T) {
@@ -266,11 +266,11 @@ func TestPebbleStore_GetTransaction(t *testing.T) {
 
 	// Setup test environment
 	dbDir, err := os.MkdirTemp("", "pebble_test")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer os.RemoveAll(dbDir)
 
 	db, err := pebble.Open(filepath.Join(dbDir, "testdb"), &pebble.Options{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer db.Close()
 
 	logger, _ := zap.NewDevelopment()
@@ -294,27 +294,27 @@ func TestPebbleStore_GetTransaction(t *testing.T) {
 		},
 	}
 
-	// Use SetTickTransactions to store the transactions
-	err = store.SetTickTransactions(ctx, transactions)
-	assert.NoError(t, err)
+	// Use SetTransactions to store the transactions
+	err = store.SetTransactions(ctx, transactions)
+	require.NoError(t, err)
 
 	retrievedTransaction, err := store.GetTransaction(ctx, targetTransaction.TxId)
-	assert.NoError(t, err)
-	assert.NotNil(t, retrievedTransaction)
+	require.NoError(t, err)
+	require.NotNil(t, retrievedTransaction)
 
 	// Validate the retrieved transaction
-	assert.Equal(t, targetTransaction.SourceId, retrievedTransaction.SourceId)
-	assert.Equal(t, targetTransaction.DestId, retrievedTransaction.DestId)
-	assert.Equal(t, targetTransaction.Amount, retrievedTransaction.Amount)
-	assert.Equal(t, targetTransaction.InputType, retrievedTransaction.InputType)
-	assert.Equal(t, targetTransaction.InputSize, retrievedTransaction.InputSize)
-	assert.Equal(t, targetTransaction.InputHex, retrievedTransaction.InputHex)
-	assert.Equal(t, targetTransaction.SignatureHex, retrievedTransaction.SignatureHex)
+	require.Equal(t, targetTransaction.SourceId, retrievedTransaction.SourceId)
+	require.Equal(t, targetTransaction.DestId, retrievedTransaction.DestId)
+	require.Equal(t, targetTransaction.Amount, retrievedTransaction.Amount)
+	require.Equal(t, targetTransaction.InputType, retrievedTransaction.InputType)
+	require.Equal(t, targetTransaction.InputSize, retrievedTransaction.InputSize)
+	require.Equal(t, targetTransaction.InputHex, retrievedTransaction.InputHex)
+	require.Equal(t, targetTransaction.SignatureHex, retrievedTransaction.SignatureHex)
 
 	// Optionally, test retrieval of a non-existent transaction
 	_, err = store.GetTransaction(ctx, "00")
-	assert.Error(t, err)
-	assert.Equal(t, ErrNotFound, err)
+	require.Error(t, err)
+	require.Equal(t, ErrNotFound, err)
 }
 
 func TestSetAndGetLastProcessedTicksPerEpoch(t *testing.T) {
@@ -322,11 +322,11 @@ func TestSetAndGetLastProcessedTicksPerEpoch(t *testing.T) {
 
 	// Setup test environment
 	dbDir, err := os.MkdirTemp("", "pebble_test")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer os.RemoveAll(dbDir)
 
 	db, err := pebble.Open(filepath.Join(dbDir, "testdb"), &pebble.Options{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer db.Close()
 
 	logger, _ := zap.NewDevelopment()
@@ -334,42 +334,42 @@ func TestSetAndGetLastProcessedTicksPerEpoch(t *testing.T) {
 
 	// Set last processed ticks per epoch
 	err = store.SetLastProcessedTick(ctx, 16, 1)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Get last processed tick per epoch
 	lastProcessedTick, err := store.GetLastProcessedTick(ctx)
-	assert.NoError(t, err)
-	assert.Equal(t, uint64(16), lastProcessedTick)
+	require.NoError(t, err)
+	require.Equal(t, uint64(16), lastProcessedTick)
 
 	lastProcessedTicksPerEpoch, err := store.GetLastProcessedTicksPerEpoch(ctx)
-	assert.NoError(t, err)
-	assert.Equal(t, map[uint32]uint64{1: 16}, lastProcessedTicksPerEpoch)
+	require.NoError(t, err)
+	require.Equal(t, map[uint32]uint64{1: 16}, lastProcessedTicksPerEpoch)
 
 	// Set last processed ticks per epoch
 	err = store.SetLastProcessedTick(ctx, 17, 1)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Get last processed tick per epoch
 	lastProcessedTick, err = store.GetLastProcessedTick(ctx)
-	assert.NoError(t, err)
-	assert.Equal(t, uint64(17), lastProcessedTick)
+	require.NoError(t, err)
+	require.Equal(t, uint64(17), lastProcessedTick)
 
 	lastProcessedTicksPerEpoch, err = store.GetLastProcessedTicksPerEpoch(ctx)
-	assert.NoError(t, err)
-	assert.Equal(t, map[uint32]uint64{1: 17}, lastProcessedTicksPerEpoch)
+	require.NoError(t, err)
+	require.Equal(t, map[uint32]uint64{1: 17}, lastProcessedTicksPerEpoch)
 
 	// Set last processed ticks per epoch
 	err = store.SetLastProcessedTick(ctx, 18, 2)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Get last processed tick per epoch
 	lastProcessedTick, err = store.GetLastProcessedTick(ctx)
-	assert.NoError(t, err)
-	assert.Equal(t, uint64(18), lastProcessedTick)
+	require.NoError(t, err)
+	require.Equal(t, uint64(18), lastProcessedTick)
 
 	lastProcessedTicksPerEpoch, err = store.GetLastProcessedTicksPerEpoch(ctx)
-	assert.NoError(t, err)
-	assert.Equal(t, map[uint32]uint64{1: 17, 2: 18}, lastProcessedTicksPerEpoch)
+	require.NoError(t, err)
+	require.Equal(t, map[uint32]uint64{1: 17, 2: 18}, lastProcessedTicksPerEpoch)
 }
 
 func TestGetSetSkippedTicks(t *testing.T) {
@@ -377,11 +377,11 @@ func TestGetSetSkippedTicks(t *testing.T) {
 
 	// Setup test environment
 	dbDir, err := os.MkdirTemp("", "pebble_test")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer os.RemoveAll(dbDir)
 
 	db, err := pebble.Open(filepath.Join(dbDir, "testdb"), &pebble.Options{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer db.Close()
 
 	logger, _ := zap.NewDevelopment()
@@ -393,12 +393,12 @@ func TestGetSetSkippedTicks(t *testing.T) {
 	}
 	// Set skipped ticks
 	err = store.SetSkippedTicksInterval(ctx, &skippedTicksIntervalOne)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	expected := pb.SkippedTicksIntervalList{SkippedTicks: []*pb.SkippedTicksInterval{&skippedTicksIntervalOne}}
 	// Get skipped ticks
 	got, err := store.GetSkippedTicksInterval(ctx)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	if diff := cmp.Diff(&expected, got, cmpopts.IgnoreUnexported(pb.SkippedTicksInterval{}, pb.SkippedTicksIntervalList{})); diff != "" {
 		t.Fatalf("Unexpected result: %v", diff)
 	}
@@ -409,12 +409,135 @@ func TestGetSetSkippedTicks(t *testing.T) {
 	}
 
 	err = store.SetSkippedTicksInterval(ctx, &skippedTicksIntervalTwo)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	expected.SkippedTicks = append(expected.SkippedTicks, &skippedTicksIntervalTwo)
 	got, err = store.GetSkippedTicksInterval(ctx)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	if diff := cmp.Diff(&expected, got, cmpopts.IgnoreUnexported(pb.SkippedTicksInterval{}, pb.SkippedTicksIntervalList{})); diff != "" {
 		t.Fatalf("Unexpected result: %v", diff)
 	}
+}
+
+func TestPebbleStore_TransferTransactions(t *testing.T) {
+	ctx := context.Background()
+
+	// Setup test environment
+	dbDir, err := os.MkdirTemp("", "pebble_test")
+	require.NoError(t, err)
+	defer os.RemoveAll(dbDir)
+
+	db, err := pebble.Open(filepath.Join(dbDir, "testdb"), &pebble.Options{})
+	require.NoError(t, err)
+	defer db.Close()
+
+	logger, _ := zap.NewDevelopment()
+	store := NewPebbleStore(db, logger)
+
+	// Sample Transactions for testing
+	forTickOne := pb.TransferTransactionsPerTick{
+		TickNumber: 12,
+		Transactions: &pb.Transactions{
+			Transactions: []*pb.Transaction{
+				{
+					SourceId:     "aaaaa",
+					DestId:       "bbbbb",
+					Amount:       15,
+					TickNumber:   12,
+					InputType:    87,
+					InputSize:    122,
+					InputHex:     "dddd",
+					SignatureHex: "ffff",
+					TxId:         "eeee",
+				},
+				{
+					SourceId:     "bbbbb",
+					DestId:       "aaaaa",
+					Amount:       25,
+					TickNumber:   12,
+					InputType:    65,
+					InputSize:    24,
+					InputHex:     "ffff",
+					SignatureHex: "dddd",
+					TxId:         "cccc",
+				},
+			},
+		},
+	}
+
+	forTickTwo := pb.TransferTransactionsPerTick{
+		TickNumber: 15,
+		Transactions: &pb.Transactions{
+			Transactions: []*pb.Transaction{
+				{
+					SourceId:     "aaaaa",
+					DestId:       "bbbbb",
+					Amount:       15,
+					TickNumber:   15,
+					InputType:    87,
+					InputSize:    122,
+					InputHex:     "dddd",
+					SignatureHex: "ffff",
+					TxId:         "eeee",
+				},
+				{
+					SourceId:     "bbbbb",
+					DestId:       "aaaaa",
+					Amount:       25,
+					TickNumber:   15,
+					InputType:    65,
+					InputSize:    24,
+					InputHex:     "ffff",
+					SignatureHex: "dddd",
+					TxId:         "cccc",
+				},
+			},
+		},
+	}
+
+	idOne := "QJRRSSKMJRDKUDTYVNYGAMQPULKAMILQQYOWBEXUDEUWQUMNGDHQYLOAJMEB"
+	idTwo := "IXTSDANOXIVIWGNDCNZVWSAVAEPBGLGSQTLSVHHBWEGKSEKPRQGWIJJCTUZB"
+	idThree := "QJRRSSKMJRDKUDTYVNYGAMQPULKAMILQQYOWBEXUDEUWQUMNGDHQYLOAJMXB"
+
+	err = store.PutTransferTransactionsPerTick(ctx, idOne, 12, &forTickOne)
+	require.NoError(t, err)
+	got, err := store.GetTransferTransactionsPerTick(ctx, idOne, 12)
+	require.NoError(t, err)
+	diff := cmp.Diff(&forTickOne, got, cmpopts.IgnoreUnexported(pb.TransferTransactionsPerTick{}, pb.Transaction{}, pb.Transactions{}))
+	require.Equal(t, "", diff, "comparing first TransferTransactionsPerTick for idOne, forTickOne")
+
+	err = store.PutTransferTransactionsPerTick(ctx, idTwo, 15, &forTickTwo)
+	require.NoError(t, err)
+	got, err = store.GetTransferTransactionsPerTick(ctx, idTwo, 15)
+	require.NoError(t, err)
+	diff = cmp.Diff(&forTickTwo, got, cmpopts.IgnoreUnexported(pb.TransferTransactionsPerTick{}, pb.Transaction{}, pb.Transactions{}))
+	require.Equal(t, "", diff, "comparing TransferTransactionsPerTick for idTwo, forTickTwo")
+
+	err = store.PutTransferTransactionsPerTick(ctx, idOne, 13, &forTickOne)
+	require.NoError(t, err)
+	got, err = store.GetTransferTransactionsPerTick(ctx, idOne, 13)
+	require.NoError(t, err)
+	diff = cmp.Diff(&forTickOne, got, cmpopts.IgnoreUnexported(pb.TransferTransactionsPerTick{}, pb.Transaction{}, pb.Transactions{}))
+	require.Equal(t, "", diff, "comparing second TransferTransactionsPerTick for idOne, forTickOne")
+
+	perIdentityTx, err := store.GetTransferTransactions(ctx, idOne)
+	require.NoError(t, err)
+	require.Equal(t, 2, len(perIdentityTx.TransferTransactionsPerTick))
+
+	expected := pb.TransferTransactions{TransferTransactionsPerTick: []*pb.TransferTransactionsPerTick{&forTickOne, &forTickOne}}
+	require.NoError(t, err)
+	diff = cmp.Diff(&expected, perIdentityTx, cmpopts.IgnoreUnexported(pb.TransferTransactionsPerTick{}, pb.Transaction{}, pb.Transactions{}, pb.TransferTransactions{}))
+	require.Equal(t, "", diff, "comparing perIdentityTx")
+
+	// not existing identity means no transfers
+	perIdentityTx, err = store.GetTransferTransactions(ctx, idThree)
+	require.NoError(t, err)
+	diff = cmp.Diff(&pb.TransferTransactions{
+		TransferTransactionsPerTick: []*pb.TransferTransactionsPerTick{},
+	}, perIdentityTx, cmpopts.IgnoreUnexported(pb.TransferTransactions{}, pb.TransferTransactionsPerTick{}, pb.Transaction{}, pb.Transactions{}))
+	require.Equal(t, "", diff, "comparison of perIdentityTx for idThree")
+
+	// not existing tick means ErrNotFound
+	_, err = store.GetTransferTransactionsPerTick(ctx, idOne, 14)
+	require.EqualError(t, err, ErrNotFound.Error())
 }

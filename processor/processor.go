@@ -128,7 +128,7 @@ func (p *Processor) getLastProcessedTick(ctx context.Context, currentTickInfo ty
 	lastTick, err := p.ps.GetLastProcessedTick(ctx)
 	if err != nil {
 		//handles first run of the archiver where there is nothing in storage
-		// in this case we start from the initial tick of the current epoch
+		// in this case we last tick is the initial tick of the current epoch - 1
 		if errors.Is(err, store.ErrNotFound) {
 			return uint64(currentTickInfo.InitialTick - 1), nil
 		}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/store"
+	"github.com/qubic/go-archiver/utils"
 	"github.com/qubic/go-archiver/validator/computors"
 	"github.com/qubic/go-archiver/validator/quorum"
 	"github.com/qubic/go-archiver/validator/tick"
@@ -47,7 +48,7 @@ func (v *Validator) ValidateTick(ctx context.Context, tickNumber uint64) error {
 		}
 	}
 
-	err = computors.Validate(ctx, comps)
+	err = computors.Validate(ctx, utils.FourQSigVerify, comps)
 	if err != nil {
 		return errors.Wrap(err, "validating comps")
 	}
@@ -56,7 +57,7 @@ func (v *Validator) ValidateTick(ctx context.Context, tickNumber uint64) error {
 		return errors.Wrap(err, "storing computors")
 	}
 
-	alignedVotes, err := quorum.Validate(ctx, quorumVotes, comps)
+	alignedVotes, err := quorum.Validate(ctx, utils.FourQSigVerify, quorumVotes, comps)
 	if err != nil {
 		return errors.Wrap(err, "validating quorum")
 	}
@@ -75,7 +76,7 @@ func (v *Validator) ValidateTick(ctx context.Context, tickNumber uint64) error {
 	}
 	log.Println("Got tick data")
 
-	err = tick.Validate(ctx, tickData, alignedVotes[0], comps)
+	err = tick.Validate(ctx, utils.FourQSigVerify, tickData, alignedVotes[0], comps)
 	if err != nil {
 		return errors.Wrap(err, "validating tick data")
 	}
@@ -89,7 +90,7 @@ func (v *Validator) ValidateTick(ctx context.Context, tickNumber uint64) error {
 
 	log.Printf("Validating %d transactions\n", len(transactions))
 
-	validTxs, err := tx.Validate(ctx, transactions, tickData)
+	validTxs, err := tx.Validate(ctx, utils.FourQSigVerify, transactions, tickData)
 	if err != nil {
 		return errors.Wrap(err, "validating transactions")
 	}
@@ -111,7 +112,7 @@ func (v *Validator) ValidateTick(ctx context.Context, tickNumber uint64) error {
 
 	log.Printf("Stored tick data\n")
 
-	err = tx.Store(ctx, v.store, validTxs)
+	err = tx.Store(ctx, v.store, tickNumber, validTxs)
 	if err != nil {
 		return errors.Wrap(err, "storing transactions")
 	}
