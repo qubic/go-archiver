@@ -5,7 +5,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 	"os"
 	"path/filepath"
 	"testing"
@@ -30,49 +29,93 @@ func TestPebbleStore_TickData(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 	store := NewPebbleStore(db, logger)
 
-	// Create multiple TickData records
-	tickDatas := []*pb.TickData{
+	tcs := []struct {
+		name       string
+		td         *pb.TickData
+		exp        *pb.TickData
+		tickNumber uint64
+	}{
 		{
-			ComputorIndex: 1,
-			Epoch:         1,
-			TickNumber:    101,
-			Timestamp:     1596240001,
-			SignatureHex:  "signature1",
+			name:       "TestTickData_1",
+			tickNumber: 101,
+			td: &pb.TickData{
+				ComputorIndex: 1,
+				Epoch:         1,
+				TickNumber:    101,
+				Timestamp:     1596240001,
+				SignatureHex:  "signature1",
+			},
+			exp: &pb.TickData{
+				ComputorIndex: 1,
+				Epoch:         1,
+				TickNumber:    101,
+				Timestamp:     1596240001,
+				SignatureHex:  "signature1",
+			},
 		},
 		{
-			ComputorIndex: 2,
-			Epoch:         2,
-			TickNumber:    102,
-			Timestamp:     1596240002,
-			SignatureHex:  "signature2",
+			name:       "TestTickData_2",
+			tickNumber: 102,
+			td: &pb.TickData{
+				ComputorIndex: 2,
+				Epoch:         2,
+				TickNumber:    102,
+				Timestamp:     1596240002,
+				SignatureHex:  "signature2",
+			},
+			exp: &pb.TickData{
+				ComputorIndex: 2,
+				Epoch:         2,
+				TickNumber:    102,
+				Timestamp:     1596240002,
+				SignatureHex:  "signature2",
+			},
 		},
 		{
-			ComputorIndex: 3,
-			Epoch:         3,
-			TickNumber:    103,
-			Timestamp:     1596240003,
-			SignatureHex:  "signature3",
+			name:       "TestTickData_3",
+			tickNumber: 103,
+			td: &pb.TickData{
+				ComputorIndex: 3,
+				Epoch:         3,
+				TickNumber:    103,
+				Timestamp:     1596240003,
+				SignatureHex:  "signature3",
+			},
+			exp: &pb.TickData{
+				ComputorIndex: 3,
+				Epoch:         3,
+				TickNumber:    103,
+				Timestamp:     1596240003,
+				SignatureHex:  "signature3",
+			},
+		},
+		{
+			name:       "TestTickData_nil",
+			tickNumber: 104,
+			td:         nil,
+			exp:        &pb.TickData{},
 		},
 	}
 
-	// Insert TickData records
-	for _, td := range tickDatas {
-		err = store.SetTickData(ctx, uint64(td.TickNumber), td)
-		require.NoError(t, err, "Failed to store TickData")
-	}
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			err := store.SetTickData(ctx, tc.tickNumber, tc.td)
+			require.NoError(t, err)
 
-	// Retrieve and verify each TickData record
-	for _, tdOriginal := range tickDatas {
-		retrievedTickData, err := store.GetTickData(ctx, uint64(tdOriginal.TickNumber))
-		require.NoError(t, err, "Failed to retrieve TickData")
-		ok := proto.Equal(tdOriginal, retrievedTickData)
-		require.Equal(t, true, ok, "Retrieved TickData does not match original")
+			retrievedTickData, err := store.GetTickData(ctx, tc.tickNumber)
+			require.NoError(t, err)
+
+			if diff := cmp.Diff(tc.exp, retrievedTickData, cmpopts.IgnoreUnexported(pb.TickData{})); diff != "" {
+				t.Fatalf("Unexpected result: %v", diff)
+			}
+		})
 	}
 
 	// Test error handling for non-existent TickData
 	_, err = store.GetTickData(ctx, 999) // Assuming 999 is a tick number that wasn't stored
 	require.Error(t, err, "Expected an error for non-existent TickData")
 	require.Equal(t, ErrNotFound, err, "Expected ErrNotFound for non-existent TickData")
+
 }
 
 func TestPebbleStore_QuorumTickData(t *testing.T) {

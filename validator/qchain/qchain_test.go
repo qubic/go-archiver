@@ -25,3 +25,25 @@ func TestQChain_Digest(t *testing.T) {
 	_, err := qChain.Digest()
 	require.NoError(t, err)
 }
+
+func TestQChain_MarshallBinary(t *testing.T) {
+	qChain := QChain{
+		Epoch:                         20,
+		Tick:                          30,
+		Millisecond:                   40,
+		Second:                        50,
+		Minute:                        60,
+		Hour:                          70,
+		Day:                           80,
+		Month:                         90,
+		Year:                          10,
+		PreviousResourceTestingDigest: 13423432,
+		PreviousSpectrumDigest:        [32]byte{},
+		PreviousUniverseDigest:        [32]byte{},
+		PreviousComputerDigest:        [32]byte{},
+		TxDigest:                      [32]byte{},
+	}
+	b, err := qChain.MarshallBinary()
+	require.NoError(t, err)
+	require.Equal(t, len(b), 184)
+}
