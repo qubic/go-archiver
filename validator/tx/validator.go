@@ -140,7 +140,7 @@ func storeTransferTransactions(ctx context.Context, store *store.PebbleStore, ti
 	return nil
 }
 
-func removeNonTransferTransactionsAndConvert(transactions []types.Transaction) (*protobuff.Transactions, error) {
+func removeNonTransferTransactionsAndConvert(transactions []types.Transaction) ([]*protobuff.Transaction, error) {
 	transferTransactions := make([]*protobuff.Transaction, 0)
 	for _, tx := range transactions {
 		if tx.Amount == 0 {
@@ -155,28 +155,24 @@ func removeNonTransferTransactionsAndConvert(transactions []types.Transaction) (
 		transferTransactions = append(transferTransactions, protoTx)
 	}
 
-	return &protobuff.Transactions{Transactions: transferTransactions}, nil
+	return transferTransactions, nil
 }
 
-func createTransferTransactionsIdentityMap(ctx context.Context, txs *protobuff.Transactions) (map[string]*protobuff.Transactions, error) {
-	txsPerIdentity := make(map[string]*protobuff.Transactions)
-	for _, tx := range txs.Transactions {
+func createTransferTransactionsIdentityMap(ctx context.Context, txs []*protobuff.Transaction) (map[string][]*protobuff.Transaction, error) {
+	txsPerIdentity := make(map[string][]*protobuff.Transaction)
+	for _, tx := range txs {
 		_, ok := txsPerIdentity[tx.DestId]
 		if !ok {
-			txsPerIdentity[tx.DestId] = &protobuff.Transactions{
-				Transactions: make([]*protobuff.Transaction, 0),
-			}
+			txsPerIdentity[tx.DestId] = make([]*protobuff.Transaction, 0)
 		}
 
 		_, ok = txsPerIdentity[tx.SourceId]
 		if !ok {
-			txsPerIdentity[tx.SourceId] = &protobuff.Transactions{
-				Transactions: make([]*protobuff.Transaction, 0),
-			}
+			txsPerIdentity[tx.SourceId] = make([]*protobuff.Transaction, 0)
 		}
 
-		txsPerIdentity[tx.DestId].Transactions = append(txsPerIdentity[tx.DestId].Transactions, tx)
-		txsPerIdentity[tx.SourceId].Transactions = append(txsPerIdentity[tx.SourceId].Transactions, tx)
+		txsPerIdentity[tx.DestId] = append(txsPerIdentity[tx.DestId], tx)
+		txsPerIdentity[tx.SourceId] = append(txsPerIdentity[tx.SourceId], tx)
 	}
 
 	return txsPerIdentity, nil

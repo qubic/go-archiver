@@ -55,30 +55,28 @@ func TestQubicToProto(t *testing.T) {
 		t.Fatalf("idTwo.FromPubKey() unexpected error: %v", err)
 	}
 
-	expectedProtoTxs := &protobuff.Transactions{
-		Transactions: []*protobuff.Transaction{
-			&protobuff.Transaction{
-				SourceId:     "QJRRSSKMJRDKUDTYVNYGAMQPULKAMILQQYOWBEXUDEUWQUMNGDHQYLOAJMEB",
-				DestId:       "IXTSDANOXIVIWGNDCNZVWSAVAEPBGLGSQTLSVHHBWEGKSEKPRQGWIJJCTUZB",
-				Amount:       100,
-				TickNumber:   20,
-				InputType:    0,
-				InputSize:    100,
-				InputHex:     hex.EncodeToString(qubicTransactions[0].Input[:]),
-				SignatureHex: "01020304050607080910010203040506070809100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-				TxId:         idOne.String(),
-			},
-			&protobuff.Transaction{
-				SourceId:     "IXTSDANOXIVIWGNDCNZVWSAVAEPBGLGSQTLSVHHBWEGKSEKPRQGWIJJCTUZB",
-				DestId:       "QJRRSSKMJRDKUDTYVNYGAMQPULKAMILQQYOWBEXUDEUWQUMNGDHQYLOAJMEB",
-				Amount:       15,
-				TickNumber:   20,
-				InputType:    0,
-				InputSize:    120,
-				InputHex:     hex.EncodeToString(qubicTransactions[1].Input[:]),
-				SignatureHex: "01020304ff0607080910010203040506070809100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-				TxId:         idTwo.String(),
-			},
+	expectedProtoTxs := []*protobuff.Transaction{
+		{
+			SourceId:     "QJRRSSKMJRDKUDTYVNYGAMQPULKAMILQQYOWBEXUDEUWQUMNGDHQYLOAJMEB",
+			DestId:       "IXTSDANOXIVIWGNDCNZVWSAVAEPBGLGSQTLSVHHBWEGKSEKPRQGWIJJCTUZB",
+			Amount:       100,
+			TickNumber:   20,
+			InputType:    0,
+			InputSize:    100,
+			InputHex:     hex.EncodeToString(qubicTransactions[0].Input[:]),
+			SignatureHex: "01020304050607080910010203040506070809100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+			TxId:         idOne.String(),
+		},
+		{
+			SourceId:     "IXTSDANOXIVIWGNDCNZVWSAVAEPBGLGSQTLSVHHBWEGKSEKPRQGWIJJCTUZB",
+			DestId:       "QJRRSSKMJRDKUDTYVNYGAMQPULKAMILQQYOWBEXUDEUWQUMNGDHQYLOAJMEB",
+			Amount:       15,
+			TickNumber:   20,
+			InputType:    0,
+			InputSize:    120,
+			InputHex:     hex.EncodeToString(qubicTransactions[1].Input[:]),
+			SignatureHex: "01020304ff0607080910010203040506070809100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+			TxId:         idTwo.String(),
 		},
 	}
 
@@ -86,7 +84,7 @@ func TestQubicToProto(t *testing.T) {
 	if err != nil {
 		t.Fatalf("qubicToProto() unexpected error: %v", err)
 	}
-	if diff := cmp.Diff(got, expectedProtoTxs, cmpopts.IgnoreUnexported(protobuff.Transactions{}, protobuff.Transaction{})); diff != "" {
+	if diff := cmp.Diff(got, expectedProtoTxs, cmpopts.IgnoreUnexported(protobuff.Transaction{})); diff != "" {
 		t.Fatalf("qubicToProto() mismatch (-got +want):\n%s", diff)
 	}
 }

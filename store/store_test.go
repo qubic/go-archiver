@@ -195,31 +195,28 @@ func TestPebbleStore_TickTransactions(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 	store := NewPebbleStore(db, logger)
 
-	transactions := &pb.Transactions{
-		Transactions: []*pb.Transaction{
-			{
-				SourceId:     "QJRRSSKMJRDKUDTYVNYGAMQPULKAMILQQYOWBEXUDEUWQUMNGDHQYLOAJMEB",
-				DestId:       "IXTSDANOXIVIWGNDCNZVWSAVAEPBGLGSQTLSVHHBWEGKSEKPRQGWIJJCTUZB",
-				Amount:       100,
-				TickNumber:   101,
-				InputType:    1,
-				InputSize:    256,
-				InputHex:     "input1",
-				SignatureHex: "signature1",
-				TxId:         "ff01",
-			},
-			{
-				SourceId:     "IXTSDANOXIVIWGNDCNZVWSAVAEPBGLGSQTLSVHHBWEGKSEKPRQGWIJJCTUZB",
-				DestId:       "QJRRSSKMJRDKUDTYVNYGAMQPULKAMILQQYOWBEXUDEUWQUMNGDHQYLOAJMEB",
-				Amount:       100,
-				TickNumber:   101,
-				InputType:    1,
-				InputSize:    256,
-				InputHex:     "input1",
-				SignatureHex: "signature2",
-				TxId:         "cd01",
-			},
-			// Add more transactions as needed
+	transactions := []*pb.Transaction{
+		{
+			SourceId:     "QJRRSSKMJRDKUDTYVNYGAMQPULKAMILQQYOWBEXUDEUWQUMNGDHQYLOAJMEB",
+			DestId:       "IXTSDANOXIVIWGNDCNZVWSAVAEPBGLGSQTLSVHHBWEGKSEKPRQGWIJJCTUZB",
+			Amount:       100,
+			TickNumber:   101,
+			InputType:    1,
+			InputSize:    256,
+			InputHex:     "input1",
+			SignatureHex: "signature1",
+			TxId:         "ff01",
+		},
+		{
+			SourceId:     "IXTSDANOXIVIWGNDCNZVWSAVAEPBGLGSQTLSVHHBWEGKSEKPRQGWIJJCTUZB",
+			DestId:       "QJRRSSKMJRDKUDTYVNYGAMQPULKAMILQQYOWBEXUDEUWQUMNGDHQYLOAJMEB",
+			Amount:       100,
+			TickNumber:   101,
+			InputType:    1,
+			InputSize:    256,
+			InputHex:     "input1",
+			SignatureHex: "signature2",
+			TxId:         "cd01",
 		},
 	}
 
@@ -247,9 +244,9 @@ func TestPebbleStore_TickTransactions(t *testing.T) {
 	require.NotNil(t, retrievedTransactions)
 
 	// Validate the retrieved transactions
-	require.Len(t, retrievedTransactions.Transactions, len(transactions.Transactions))
-	for i, tx := range transactions.Transactions {
-		retrievedTx := retrievedTransactions.Transactions[i]
+	require.Len(t, retrievedTransactions, len(transactions))
+	for i, tx := range transactions {
+		retrievedTx := retrievedTransactions[i]
 		require.Equal(t, tx.SourceId, retrievedTx.SourceId)
 		// Continue with other fields...
 	}
@@ -286,12 +283,7 @@ func TestPebbleStore_GetTransaction(t *testing.T) {
 		SignatureHex: "signature_target",
 		TxId:         "cd01",
 	}
-	transactions := &pb.Transactions{
-		Transactions: []*pb.Transaction{
-			targetTransaction,
-			// Additional transactions as needed
-		},
-	}
+	transactions := []*pb.Transaction{targetTransaction}
 
 	// Use SetTransactions to store the transactions
 	err = store.SetTransactions(ctx, transactions)
@@ -441,30 +433,28 @@ func TestPebbleStore_TransferTransactions(t *testing.T) {
 	forTickOne := pb.TransferTransactionsPerTick{
 		TickNumber: 12,
 		Identity:   idOne,
-		Transactions: &pb.Transactions{
-			Transactions: []*pb.Transaction{
-				{
-					SourceId:     "aaaaa",
-					DestId:       "bbbbb",
-					Amount:       15,
-					TickNumber:   12,
-					InputType:    87,
-					InputSize:    122,
-					InputHex:     "dddd",
-					SignatureHex: "ffff",
-					TxId:         "eeee",
-				},
-				{
-					SourceId:     "bbbbb",
-					DestId:       "aaaaa",
-					Amount:       25,
-					TickNumber:   12,
-					InputType:    65,
-					InputSize:    24,
-					InputHex:     "ffff",
-					SignatureHex: "dddd",
-					TxId:         "cccc",
-				},
+		Transactions: []*pb.Transaction{
+			{
+				SourceId:     "aaaaa",
+				DestId:       "bbbbb",
+				Amount:       15,
+				TickNumber:   12,
+				InputType:    87,
+				InputSize:    122,
+				InputHex:     "dddd",
+				SignatureHex: "ffff",
+				TxId:         "eeee",
+			},
+			{
+				SourceId:     "bbbbb",
+				DestId:       "aaaaa",
+				Amount:       25,
+				TickNumber:   12,
+				InputType:    65,
+				InputSize:    24,
+				InputHex:     "ffff",
+				SignatureHex: "dddd",
+				TxId:         "cccc",
 			},
 		},
 	}
@@ -472,30 +462,28 @@ func TestPebbleStore_TransferTransactions(t *testing.T) {
 	forTickTwo := pb.TransferTransactionsPerTick{
 		TickNumber: 15,
 		Identity:   idTwo,
-		Transactions: &pb.Transactions{
-			Transactions: []*pb.Transaction{
-				{
-					SourceId:     "aaaaa",
-					DestId:       "bbbbb",
-					Amount:       15,
-					TickNumber:   15,
-					InputType:    87,
-					InputSize:    122,
-					InputHex:     "dddd",
-					SignatureHex: "ffff",
-					TxId:         "eeee",
-				},
-				{
-					SourceId:     "bbbbb",
-					DestId:       "aaaaa",
-					Amount:       25,
-					TickNumber:   15,
-					InputType:    65,
-					InputSize:    24,
-					InputHex:     "ffff",
-					SignatureHex: "dddd",
-					TxId:         "cccc",
-				},
+		Transactions: []*pb.Transaction{
+			{
+				SourceId:     "aaaaa",
+				DestId:       "bbbbb",
+				Amount:       15,
+				TickNumber:   15,
+				InputType:    87,
+				InputSize:    122,
+				InputHex:     "dddd",
+				SignatureHex: "ffff",
+				TxId:         "eeee",
+			},
+			{
+				SourceId:     "bbbbb",
+				DestId:       "aaaaa",
+				Amount:       25,
+				TickNumber:   15,
+				InputType:    65,
+				InputSize:    24,
+				InputHex:     "ffff",
+				SignatureHex: "dddd",
+				TxId:         "cccc",
 			},
 		},
 	}
@@ -508,43 +496,42 @@ func TestPebbleStore_TransferTransactions(t *testing.T) {
 
 	got, err := store.GetTransferTransactions(ctx, idOne, 12, 12)
 	require.NoError(t, err)
-	diff := cmp.Diff([]*pb.TransferTransactionsPerTick{&forTickOne}, got, cmpopts.IgnoreUnexported(pb.TransferTransactionsPerTick{}, pb.Transaction{}, pb.Transactions{}))
+	diff := cmp.Diff([]*pb.TransferTransactionsPerTick{&forTickOne}, got, cmpopts.IgnoreUnexported(pb.TransferTransactionsPerTick{}, pb.Transaction{}))
 	require.Equal(t, "", diff, "comparing first TransferTransactionsPerTick for idOne, forTickOne")
 
 	got, err = store.GetTransferTransactions(ctx, idOne, 13, 13)
 	require.NoError(t, err)
-	diff = cmp.Diff([]*pb.TransferTransactionsPerTick{&forTickOne}, got, cmpopts.IgnoreUnexported(pb.TransferTransactionsPerTick{}, pb.Transaction{}, pb.Transactions{}))
+	diff = cmp.Diff([]*pb.TransferTransactionsPerTick{&forTickOne}, got, cmpopts.IgnoreUnexported(pb.TransferTransactionsPerTick{}, pb.Transaction{}))
 	require.Equal(t, "", diff, "comparing second TransferTransactionsPerTick for idOne, forTickOne")
 
 	err = store.PutTransferTransactionsPerTick(ctx, idTwo, 15, &forTickTwo)
 	require.NoError(t, err)
 	got, err = store.GetTransferTransactions(ctx, idTwo, 15, 15)
 	require.NoError(t, err)
-	diff = cmp.Diff([]*pb.TransferTransactionsPerTick{&forTickTwo}, got, cmpopts.IgnoreUnexported(pb.TransferTransactionsPerTick{}, pb.Transaction{}, pb.Transactions{}))
+	diff = cmp.Diff([]*pb.TransferTransactionsPerTick{&forTickTwo}, got, cmpopts.IgnoreUnexported(pb.TransferTransactionsPerTick{}, pb.Transaction{}))
 	require.Equal(t, "", diff, "comparing TransferTransactionsPerTick for idTwo, forTickTwo")
-	
+
 	perIdentityTx, err := store.GetTransferTransactions(ctx, idOne, 12, 13)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(perIdentityTx))
 
 	expected := []*pb.TransferTransactionsPerTick{&forTickOne, &forTickOne}
 	require.NoError(t, err)
-	diff = cmp.Diff(expected, perIdentityTx, cmpopts.IgnoreUnexported(pb.TransferTransactionsPerTick{}, pb.Transaction{}, pb.Transactions{}))
+	diff = cmp.Diff(expected, perIdentityTx, cmpopts.IgnoreUnexported(pb.TransferTransactionsPerTick{}, pb.Transaction{}))
 	require.Equal(t, "", diff, "comparing perIdentityTx")
 
 	// not existing identity means no transfers
 	perIdentityTx, err = store.GetTransferTransactions(ctx, idThree, 1, 20)
 	require.NoError(t, err)
-	diff = cmp.Diff([]*pb.TransferTransactionsPerTick{}, perIdentityTx, cmpopts.IgnoreUnexported(pb.TransferTransactionsPerTick{}, pb.Transaction{}, pb.Transactions{}))
+	diff = cmp.Diff([]*pb.TransferTransactionsPerTick{}, perIdentityTx, cmpopts.IgnoreUnexported(pb.TransferTransactionsPerTick{}, pb.Transaction{}))
 	require.Equal(t, "", diff, "comparison of perIdentityTx for idThree")
 
 	// not existing tick means no transfers
 	perTickTx, err := store.GetTransferTransactions(ctx, idOne, 14, 14)
 	require.NoError(t, err)
-	diff = cmp.Diff([]*pb.TransferTransactionsPerTick{}, perTickTx, cmpopts.IgnoreUnexported(pb.TransferTransactionsPerTick{}, pb.Transaction{}, pb.Transactions{}))
+	diff = cmp.Diff([]*pb.TransferTransactionsPerTick{}, perTickTx, cmpopts.IgnoreUnexported(pb.TransferTransactionsPerTick{}, pb.Transaction{}))
 	require.Equal(t, "", diff, "comparison of perTickTx for idOne and tick 14")
 }
-
 func TestPebbleStore_QChainHash(t *testing.T) {
 	ctx := context.Background()
 
