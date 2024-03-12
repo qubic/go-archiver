@@ -63,7 +63,7 @@ func (s *Server) GetTickTransactions(ctx context.Context, req *protobuff.GetTick
 		return nil, status.Errorf(codes.Internal, "getting tick transactions: %v", err)
 	}
 
-	return &protobuff.GetTickTransactionsResponse{Transactions: txs.Transactions}, nil
+	return &protobuff.GetTickTransactionsResponse{Transactions: txs}, nil
 }
 func (s *Server) GetTransaction(ctx context.Context, req *protobuff.GetTransactionRequest) (*protobuff.GetTransactionResponse, error) {
 	tx, err := s.store.GetTransaction(ctx, req.TxId)

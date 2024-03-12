@@ -132,11 +132,11 @@ func (s *PebbleStore) SetComputors(ctx context.Context, epoch uint32, computors 
 	return nil
 }
 
-func (s *PebbleStore) SetTransactions(ctx context.Context, txs *protobuff.Transactions) error {
-	batch := s.db.NewBatchWithSize(len(txs.GetTransactions()))
+func (s *PebbleStore) SetTransactions(ctx context.Context, txs []*protobuff.Transaction) error {
+	batch := s.db.NewBatchWithSize(len(txs))
 	defer batch.Close()
 
-	for _, tx := range txs.GetTransactions() {
+	for _, tx := range txs {
 		key, err := tickTxKey(tx.TxId)
 		if err != nil {
 			return errors.Wrapf(err, "creating tx key for id: %s", tx.TxId)
@@ -160,7 +160,7 @@ func (s *PebbleStore) SetTransactions(ctx context.Context, txs *protobuff.Transa
 	return nil
 }
 
-func (s *PebbleStore) GetTickTransactions(ctx context.Context, tickNumber uint64) (*protobuff.Transactions, error) {
+func (s *PebbleStore) GetTickTransactions(ctx context.Context, tickNumber uint64) ([]*protobuff.Transaction, error) {
 	td, err := s.GetTickData(ctx, tickNumber)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
@@ -184,7 +184,7 @@ func (s *PebbleStore) GetTickTransactions(ctx context.Context, tickNumber uint64
 		txs = append(txs, tx)
 	}
 
-	return &protobuff.Transactions{Transactions: txs}, nil
+	return txs, nil
 }
 
 func (s *PebbleStore) GetTransaction(ctx context.Context, txID string) (*protobuff.Transaction, error) {

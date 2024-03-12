@@ -44,10 +44,6 @@ message GetTransactionResponse{
   Transaction transaction = 1;
 }
 
-message Transactions {
-  repeated Transaction transactions = 1;
-}
-
 message GetTickTransactionsRequest {
   uint32 tick_number = 1;
 }
@@ -128,7 +124,7 @@ message IdentityInfo {
 message TransferTransactionsPerTick {
   uint32 tick_number = 1;
   string identity = 2;
-  Transactions transactions = 3;
+  repeated Transaction transactions = 3;
 }
 
 message GetIdentityInfoRequest {
