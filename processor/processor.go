@@ -8,7 +8,6 @@ import (
 	"github.com/qubic/go-archiver/validator"
 	qubic "github.com/qubic/go-node-connector"
 	"github.com/qubic/go-node-connector/types"
-	"github.com/silenceper/pool"
 	"log"
 	"time"
 )
@@ -27,14 +26,14 @@ func (e *TickInTheFutureError) Error() string {
 }
 
 type Processor struct {
-	pool               pool.Pool
+	pool               *qubic.Pool
 	ps                 *store.PebbleStore
 	processTickTimeout time.Duration
 }
 
-func NewProcessor(pool pool.Pool, ps *store.PebbleStore, processTickTimeout time.Duration) *Processor {
+func NewProcessor(p *qubic.Pool, ps *store.PebbleStore, processTickTimeout time.Duration) *Processor {
 	return &Processor{
-		pool:               pool,
+		pool:               p,
 		ps:                 ps,
 		processTickTimeout: processTickTimeout,
 	}
@@ -55,11 +54,10 @@ func (p *Processor) processOneByOne() error {
 	defer cancel()
 
 	var err error
-	qcv, err := p.pool.Get()
+	client, err := p.pool.Get()
 	if err != nil {
 		return errors.Wrap(err, "getting qubic pooled client connection")
 	}
-	client := qcv.(*qubic.Client)
 	defer func() {
 		if err == nil {
 			log.Printf("Putting conn back to pool")

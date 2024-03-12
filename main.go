@@ -5,11 +5,10 @@ import (
 	"github.com/ardanlabs/conf"
 	"github.com/cockroachdb/pebble"
 	"github.com/pkg/errors"
-	"github.com/qubic/go-archiver/factory"
 	"github.com/qubic/go-archiver/processor"
 	"github.com/qubic/go-archiver/rpc"
 	"github.com/qubic/go-archiver/store"
-	"github.com/silenceper/pool"
+	qubic "github.com/qubic/go-node-connector"
 	"log"
 	"os"
 	"os/signal"
@@ -84,33 +83,28 @@ func run() error {
 
 	ps := store.NewPebbleStore(db, nil)
 
-	fact := factory.NewQubicConnection(cfg.Pool.NodeFetcherTimeout, cfg.Pool.NodeFetcherUrl)
-	poolConfig := pool.Config{
-		InitialCap: cfg.Pool.InitialCap,
-		MaxIdle:    cfg.Pool.MaxIdle,
-		MaxCap:     cfg.Pool.MaxCap,
-		Factory:    fact.Connect,
-		Close:      fact.Close,
-		//The maximum idle time of the connection, the connection exceeding this time will be closed, which can avoid the problem of automatic failure when connecting to EOF when idle
-		IdleTimeout: cfg.Pool.IdleTimeout,
-	}
-	chPool, err := pool.NewChannelPool(&poolConfig)
-	if err != nil {
-		return errors.Wrap(err, "creating new connection pool")
-	}
+	p, err := qubic.NewPoolConnection(qubic.PoolConfig{
+		InitialCap:         cfg.Pool.InitialCap,
+		MaxCap:             cfg.Pool.MaxCap,
+		MaxIdle:            cfg.Pool.MaxIdle,
+		IdleTimeout:        cfg.Pool.IdleTimeout,
+		NodeFetcherUrl:     cfg.Pool.NodeFetcherUrl,
+		NodeFetcherTimeout: cfg.Pool.NodeFetcherTimeout,
+		NodePort:           cfg.Qubic.NodePort,
+	})
 
-	rpcServer := rpc.NewServer(cfg.Server.GrpcHost, cfg.Server.HttpHost, ps, chPool, cfg.Qubic.NrPeersToBroadcastTx)
+	rpcServer := rpc.NewServer(cfg.Server.GrpcHost, cfg.Server.HttpHost, ps, p, cfg.Qubic.NrPeersToBroadcastTx)
 	rpcServer.Start()
 
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
 
-	p := processor.NewProcessor(chPool, ps, cfg.Qubic.ProcessTickTimeout)
+	proc := processor.NewProcessor(p, ps, cfg.Qubic.ProcessTickTimeout)
 	archiveErrors := make(chan error, 1)
 
 	// Start the service listening for requests.
 	go func() {
-		archiveErrors <- p.Start()
+		archiveErrors <- proc.Start()
 	}()
 
 	for {

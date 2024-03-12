@@ -10,7 +10,6 @@ import (
 	"github.com/qubic/go-archiver/store"
 	qubic "github.com/qubic/go-node-connector"
 	"github.com/qubic/go-node-connector/types"
-	"github.com/silenceper/pool"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
@@ -31,11 +30,11 @@ type Server struct {
 	listenAddrGRPC       string
 	listenAddrHTTP       string
 	store                *store.PebbleStore
-	pool                 pool.Pool
+	pool                 *qubic.Pool
 	nrPeersToBroadcastTx int
 }
 
-func NewServer(listenAddrGRPC, listenAddrHTTP string, store *store.PebbleStore, p pool.Pool, nrPeersToBroadcastTx int) *Server {
+func NewServer(listenAddrGRPC, listenAddrHTTP string, store *store.PebbleStore, p *qubic.Pool, nrPeersToBroadcastTx int) *Server {
 	return &Server{
 		listenAddrGRPC:       listenAddrGRPC,
 		listenAddrHTTP:       listenAddrHTTP,
@@ -105,13 +104,12 @@ func (s *Server) GetComputors(ctx context.Context, req *protobuff.GetComputorsRe
 	return &protobuff.GetComputorsResponse{Computors: computors}, nil
 }
 func (s *Server) GetIdentityInfo(ctx context.Context, req *protobuff.GetIdentityInfoRequest) (*protobuff.GetIdentityInfoResponse, error) {
-	qcv, err := s.pool.Get()
+	client, err := s.pool.Get()
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "getting qubic pooled client connection: %v", err)
 	}
-	defer s.pool.Put(qcv)
+	defer s.pool.Put(client)
 
-	client := qcv.(*qubic.Client)
 	addr, err := client.GetIdentity(ctx, req.Identity)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "getting identity info: %v", err)
@@ -162,13 +160,11 @@ func (s *Server) SendRawTransaction(ctx context.Context, req *protobuff.SendRawT
 	nrSuccess := 0
 	for i := 0; i < s.nrPeersToBroadcastTx; i++ {
 		func() {
-			qcv, err := s.pool.Get()
+			client, err := s.pool.Get()
 			if err != nil {
 				return
 			}
-			defer s.pool.Put(qcv)
-
-			client := qcv.(*qubic.Client)
+			defer s.pool.Put(client)
 			err = client.SendRawTransaction(ctx, []byte(req.SignedTx))
 			if err != nil {
 				return
