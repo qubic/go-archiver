@@ -66,7 +66,6 @@ message QuorumDiff {
 }
 
 message QuorumTickStructure {
-  uint32 computor_index = 1;
   uint32 epoch = 2;
   uint32 tick_number = 3;
   uint64 timestamp = 4;
@@ -128,11 +127,8 @@ message IdentityInfo {
 
 message TransferTransactionsPerTick {
   uint32 tick_number = 1;
-  Transactions transactions = 2;
-}
-
-message TransferTransactions {
-  repeated TransferTransactionsPerTick transfer_transactions_per_tick = 1;
+  string identity = 2;
+  Transactions transactions = 3;
 }
 
 message GetIdentityInfoRequest {
@@ -163,21 +159,14 @@ message GetSkippedTicksResponse {
   repeated SkippedTicksInterval skipped_ticks = 1;
 }
 
-message GetTransferTransactionsRequest {
-  string identity = 1;
-}
-
-message GetTransferTransactionsResponse {
-  TransferTransactions transfer_transactions = 1;
-}
-
 message GetTransferTransactionsPerTickRequest {
   string identity = 1;
-  uint32 tick_number = 2;
+  uint32 start_tick = 2;
+  uint32 end_tick = 3;
 }
 
 message GetTransferTransactionsPerTickResponse {
-  TransferTransactionsPerTick transfer_transactions_per_tick = 1;
+  repeated TransferTransactionsPerTick transfer_transactions_per_tick = 1;
 }
 
 message GetQChainHashRequest {
@@ -198,7 +187,6 @@ service ArchiveService {
   rpc GetLastProcessedTick(GetLastProcessedTickRequest) returns (GetLastProcessedTickResponse);
   rpc SendRawTransaction(SendRawTransactionRequest) returns (SendRawTransactionResponse);
   rpc GetSkippedTicks(GetSkippedTicksRequest) returns (GetSkippedTicksResponse);
-  rpc GetTransferTransactions(GetTransferTransactionsRequest) returns (GetTransferTransactionsResponse);
   rpc GetTransferTransactionsPerTick(GetTransferTransactionsPerTickRequest) returns (GetTransferTransactionsPerTickResponse);
   rpc GetQChainHash(GetQChainHashRequest) returns (GetQChainHashResponse);
 }

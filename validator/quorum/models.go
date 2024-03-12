@@ -26,7 +26,6 @@ func qubicTickStructureToProto(tickVote types.QuorumTickVote) *protobuff.QuorumT
 	date := time.Date(2000+int(tickVote.Year), time.Month(tickVote.Month), int(tickVote.Day), int(tickVote.Hour), int(tickVote.Minute), int(tickVote.Second), 0, time.UTC)
 	timestamp := date.UnixMilli() + int64(tickVote.Millisecond)
 	protoQuorumTickStructure := protobuff.QuorumTickStructure{
-		ComputorIndex:                uint32(tickVote.ComputorIndex),
 		Epoch:                        uint32(tickVote.Epoch),
 		TickNumber:                   tickVote.Tick,
 		Timestamp:                    uint64(timestamp),

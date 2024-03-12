@@ -153,8 +153,9 @@ func TestStore(t *testing.T) {
 	err = Store(ctx, s, 1, firstTick)
 	require.NoError(t, err)
 
-	expectedFirstTick := &protobuff.TransferTransactionsPerTick{
+	expectedFirstTickFirstID := &protobuff.TransferTransactionsPerTick{
 		TickNumber: 1,
+		Identity:   "QJRRSSKMJRDKUDTYVNYGAMQPULKAMILQQYOWBEXUDEUWQUMNGDHQYLOAJMEB",
 		Transactions: &protobuff.Transactions{Transactions: []*protobuff.Transaction{
 			{
 				SourceId:     "QJRRSSKMJRDKUDTYVNYGAMQPULKAMILQQYOWBEXUDEUWQUMNGDHQYLOAJMEB",
@@ -171,21 +172,41 @@ func TestStore(t *testing.T) {
 		}},
 	}
 
-	got, err := s.GetTransferTransactionsPerTick(ctx, "QJRRSSKMJRDKUDTYVNYGAMQPULKAMILQQYOWBEXUDEUWQUMNGDHQYLOAJMEB", 1)
+	expectedFirstTickSecondID := &protobuff.TransferTransactionsPerTick{
+		TickNumber: 1,
+		Identity:   "IXTSDANOXIVIWGNDCNZVWSAVAEPBGLGSQTLSVHHBWEGKSEKPRQGWIJJCTUZB",
+		Transactions: &protobuff.Transactions{Transactions: []*protobuff.Transaction{
+			{
+				SourceId:     "QJRRSSKMJRDKUDTYVNYGAMQPULKAMILQQYOWBEXUDEUWQUMNGDHQYLOAJMEB",
+				DestId:       "IXTSDANOXIVIWGNDCNZVWSAVAEPBGLGSQTLSVHHBWEGKSEKPRQGWIJJCTUZB",
+				Amount:       15,
+				SignatureHex: "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+			},
+			{
+				SourceId:     "IXTSDANOXIVIWGNDCNZVWSAVAEPBGLGSQTLSVHHBWEGKSEKPRQGWIJJCTUZB",
+				DestId:       "QJRRSSKMJRDKUDTYVNYGAMQPULKAMILQQYOWBEXUDEUWQUMNGDHQYLOAJMEB",
+				Amount:       20,
+				SignatureHex: "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+			},
+		}},
+	}
+
+	got, err := s.GetTransferTransactions(ctx, "QJRRSSKMJRDKUDTYVNYGAMQPULKAMILQQYOWBEXUDEUWQUMNGDHQYLOAJMEB", 1, 1)
 	require.NoError(t, err)
-	diff := cmp.Diff(got, expectedFirstTick, cmpopts.IgnoreFields(protobuff.Transaction{}, "TxId"), cmpopts.IgnoreUnexported(protobuff.TransferTransactionsPerTick{}, protobuff.Transactions{}, protobuff.Transaction{}))
+	diff := cmp.Diff(got, []*protobuff.TransferTransactionsPerTick{expectedFirstTickFirstID}, cmpopts.IgnoreFields(protobuff.Transaction{}, "TxId"), cmpopts.IgnoreUnexported(protobuff.TransferTransactionsPerTick{}, protobuff.Transactions{}, protobuff.Transaction{}))
 	require.Empty(t, diff)
 
-	got, err = s.GetTransferTransactionsPerTick(ctx, "IXTSDANOXIVIWGNDCNZVWSAVAEPBGLGSQTLSVHHBWEGKSEKPRQGWIJJCTUZB", 1)
+	got, err = s.GetTransferTransactions(ctx, "IXTSDANOXIVIWGNDCNZVWSAVAEPBGLGSQTLSVHHBWEGKSEKPRQGWIJJCTUZB", 1, 1)
 	require.NoError(t, err)
-	diff = cmp.Diff(got, expectedFirstTick, cmpopts.IgnoreFields(protobuff.Transaction{}, "TxId"), cmpopts.IgnoreUnexported(protobuff.TransferTransactionsPerTick{}, protobuff.Transactions{}, protobuff.Transaction{}))
+	diff = cmp.Diff(got, []*protobuff.TransferTransactionsPerTick{expectedFirstTickSecondID}, cmpopts.IgnoreFields(protobuff.Transaction{}, "TxId"), cmpopts.IgnoreUnexported(protobuff.TransferTransactionsPerTick{}, protobuff.Transactions{}, protobuff.Transaction{}))
 	require.Empty(t, diff)
 
 	err = Store(ctx, s, 2, secondTick)
 	require.NoError(t, err)
 
-	expectedSecondTick := &protobuff.TransferTransactionsPerTick{
+	expectedSecondTickFirstID := &protobuff.TransferTransactionsPerTick{
 		TickNumber: 2,
+		Identity:   "QJRRSSKMJRDKUDTYVNYGAMQPULKAMILQQYOWBEXUDEUWQUMNGDHQYLOAJMEB",
 		Transactions: &protobuff.Transactions{Transactions: []*protobuff.Transaction{
 			{
 				SourceId:     "QJRRSSKMJRDKUDTYVNYGAMQPULKAMILQQYOWBEXUDEUWQUMNGDHQYLOAJMEB",
@@ -202,25 +223,45 @@ func TestStore(t *testing.T) {
 		}},
 	}
 
-	got, err = s.GetTransferTransactionsPerTick(ctx, "QJRRSSKMJRDKUDTYVNYGAMQPULKAMILQQYOWBEXUDEUWQUMNGDHQYLOAJMEB", 2)
+	expectedSecondTickSecondID := &protobuff.TransferTransactionsPerTick{
+		TickNumber: 2,
+		Identity:   "IXTSDANOXIVIWGNDCNZVWSAVAEPBGLGSQTLSVHHBWEGKSEKPRQGWIJJCTUZB",
+		Transactions: &protobuff.Transactions{Transactions: []*protobuff.Transaction{
+			{
+				SourceId:     "QJRRSSKMJRDKUDTYVNYGAMQPULKAMILQQYOWBEXUDEUWQUMNGDHQYLOAJMEB",
+				DestId:       "IXTSDANOXIVIWGNDCNZVWSAVAEPBGLGSQTLSVHHBWEGKSEKPRQGWIJJCTUZB",
+				Amount:       25,
+				SignatureHex: "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+			},
+			{
+				SourceId:     "IXTSDANOXIVIWGNDCNZVWSAVAEPBGLGSQTLSVHHBWEGKSEKPRQGWIJJCTUZB",
+				DestId:       "QJRRSSKMJRDKUDTYVNYGAMQPULKAMILQQYOWBEXUDEUWQUMNGDHQYLOAJMEB",
+				Amount:       30,
+				SignatureHex: "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+			},
+		}},
+	}
+
+	got, err = s.GetTransferTransactions(ctx, "QJRRSSKMJRDKUDTYVNYGAMQPULKAMILQQYOWBEXUDEUWQUMNGDHQYLOAJMEB", 2, 2)
 	require.NoError(t, err)
-	diff = cmp.Diff(got, expectedSecondTick, cmpopts.IgnoreFields(protobuff.Transaction{}, "TxId"), cmpopts.IgnoreUnexported(protobuff.TransferTransactionsPerTick{}, protobuff.Transactions{}, protobuff.Transaction{}))
+	diff = cmp.Diff(got, []*protobuff.TransferTransactionsPerTick{expectedSecondTickFirstID}, cmpopts.IgnoreFields(protobuff.Transaction{}, "TxId"), cmpopts.IgnoreUnexported(protobuff.TransferTransactionsPerTick{}, protobuff.Transactions{}, protobuff.Transaction{}))
 	require.Empty(t, diff)
 
-	got, err = s.GetTransferTransactionsPerTick(ctx, "IXTSDANOXIVIWGNDCNZVWSAVAEPBGLGSQTLSVHHBWEGKSEKPRQGWIJJCTUZB", 2)
+	got, err = s.GetTransferTransactions(ctx, "IXTSDANOXIVIWGNDCNZVWSAVAEPBGLGSQTLSVHHBWEGKSEKPRQGWIJJCTUZB", 2, 2)
 	require.NoError(t, err)
-	diff = cmp.Diff(got, expectedSecondTick, cmpopts.IgnoreFields(protobuff.Transaction{}, "TxId"), cmpopts.IgnoreUnexported(protobuff.TransferTransactionsPerTick{}, protobuff.Transactions{}, protobuff.Transaction{}))
+	diff = cmp.Diff(got, []*protobuff.TransferTransactionsPerTick{expectedSecondTickSecondID}, cmpopts.IgnoreFields(protobuff.Transaction{}, "TxId"), cmpopts.IgnoreUnexported(protobuff.TransferTransactionsPerTick{}, protobuff.Transactions{}, protobuff.Transaction{}))
 	require.Empty(t, diff)
 
-	expectedCombined := &protobuff.TransferTransactions{TransferTransactionsPerTick: []*protobuff.TransferTransactionsPerTick{expectedFirstTick, expectedSecondTick}}
-	gotCombined, err := s.GetTransferTransactions(ctx, "QJRRSSKMJRDKUDTYVNYGAMQPULKAMILQQYOWBEXUDEUWQUMNGDHQYLOAJMEB")
+	expectedCombined := []*protobuff.TransferTransactionsPerTick{expectedFirstTickFirstID, expectedSecondTickFirstID}
+	gotCombined, err := s.GetTransferTransactions(ctx, "QJRRSSKMJRDKUDTYVNYGAMQPULKAMILQQYOWBEXUDEUWQUMNGDHQYLOAJMEB", 1, 2)
 	require.NoError(t, err)
-	diff = cmp.Diff(gotCombined, expectedCombined, cmpopts.IgnoreFields(protobuff.Transaction{}, "TxId"), cmpopts.IgnoreUnexported(protobuff.TransferTransactions{}, protobuff.TransferTransactionsPerTick{}, protobuff.Transactions{}, protobuff.Transaction{}))
+	diff = cmp.Diff(gotCombined, expectedCombined, cmpopts.IgnoreFields(protobuff.Transaction{}, "TxId"), cmpopts.IgnoreUnexported(protobuff.TransferTransactionsPerTick{}, protobuff.Transactions{}, protobuff.Transaction{}))
 	require.Empty(t, diff)
 
-	gotCombined, err = s.GetTransferTransactions(ctx, "IXTSDANOXIVIWGNDCNZVWSAVAEPBGLGSQTLSVHHBWEGKSEKPRQGWIJJCTUZB")
+	expectedCombined = []*protobuff.TransferTransactionsPerTick{expectedFirstTickSecondID, expectedSecondTickSecondID}
+	gotCombined, err = s.GetTransferTransactions(ctx, "IXTSDANOXIVIWGNDCNZVWSAVAEPBGLGSQTLSVHHBWEGKSEKPRQGWIJJCTUZB", 1, 2)
 	require.NoError(t, err)
-	diff = cmp.Diff(gotCombined, expectedCombined, cmpopts.IgnoreFields(protobuff.Transaction{}, "TxId"), cmpopts.IgnoreUnexported(protobuff.TransferTransactions{}, protobuff.TransferTransactionsPerTick{}, protobuff.Transactions{}, protobuff.Transaction{}))
+	diff = cmp.Diff(gotCombined, expectedCombined, cmpopts.IgnoreFields(protobuff.Transaction{}, "TxId"), cmpopts.IgnoreUnexported(protobuff.TransferTransactionsPerTick{}, protobuff.Transactions{}, protobuff.Transaction{}))
 	require.Empty(t, diff)
 }
 

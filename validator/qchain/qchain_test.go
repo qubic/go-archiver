@@ -7,7 +7,6 @@ import (
 
 func TestQChain_Digest(t *testing.T) {
 	qChain := QChain{
-		ComputorIndex:                 1,
 		Epoch:                         20,
 		Tick:                          30,
 		Millisecond:                   40,
