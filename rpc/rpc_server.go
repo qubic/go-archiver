@@ -24,6 +24,8 @@ import (
 
 var _ protobuff.ArchiveServiceServer = &Server{}
 
+var emptyTd = &protobuff.TickData{}
+
 type Server struct {
 	protobuff.UnimplementedArchiveServiceServer
 	listenAddrGRPC       string
@@ -50,6 +52,10 @@ func (s *Server) GetTickData(ctx context.Context, req *protobuff.GetTickDataRequ
 			return nil, status.Errorf(codes.NotFound, "tick data not found")
 		}
 		return nil, status.Errorf(codes.Internal, "getting tick data: %v", err)
+	}
+
+	if tickData == emptyTd {
+		tickData = nil
 	}
 
 	return &protobuff.GetTickDataResponse{TickData: tickData}, nil

@@ -6,6 +6,7 @@ import (
 )
 
 type QChain struct {
+	_                             uint16 //padding
 	Epoch                         uint16
 	Tick                          uint32
 	Millisecond                   uint16
@@ -25,7 +26,7 @@ type QChain struct {
 }
 
 func (q *QChain) Digest() ([32]byte, error) {
-	b, err := utils.BinarySerialize(q)
+	b, err := q.MarshallBinary()
 	if err != nil {
 		return [32]byte{}, errors.Wrap(err, "serializing vote")
 	}
@@ -36,4 +37,13 @@ func (q *QChain) Digest() ([32]byte, error) {
 	}
 
 	return digest, nil
+}
+
+func (q *QChain) MarshallBinary() ([]byte, error) {
+	b, err := utils.BinarySerialize(q)
+	if err != nil {
+		return nil, errors.Wrap(err, "serializing vote")
+	}
+
+	return b, nil
 }

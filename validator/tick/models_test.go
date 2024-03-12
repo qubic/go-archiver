@@ -95,6 +95,14 @@ func TestQubicToProto(t *testing.T) {
 	if diff := cmp.Diff(got, &expectedProtoTickData, cmpopts.IgnoreUnexported(protobuff.TickData{})); diff != "" {
 		t.Fatalf("qubicToProto() mismatch (-got +want):\n%s", diff)
 	}
+
+	got, err = qubicToProto(types.TickData{})
+	if err != nil {
+		t.Fatalf("qubicToProto() unexpected error: %v", err)
+	}
+	if got != nil {
+		t.Fatalf("should have get a nil proto model for an empty tick data")
+	}
 }
 
 func fillStringTo(nrChars int, value string) string {

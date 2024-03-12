@@ -38,7 +38,7 @@ func (s *PebbleStore) GetTickData(ctx context.Context, tickNumber uint64) (*prot
 	defer closer.Close()
 
 	var td protobuff.TickData
-	if err := proto.Unmarshal(value, &td); err != nil {
+	if err := protojson.Unmarshal(value, &td); err != nil {
 		return nil, errors.Wrap(err, "unmarshalling tick data to protobuff type")
 	}
 
@@ -47,7 +47,7 @@ func (s *PebbleStore) GetTickData(ctx context.Context, tickNumber uint64) (*prot
 
 func (s *PebbleStore) SetTickData(ctx context.Context, tickNumber uint64, td *protobuff.TickData) error {
 	key := tickDataKey(tickNumber)
-	serialized, err := proto.Marshal(td)
+	serialized, err := protojson.Marshal(td)
 	if err != nil {
 		return errors.Wrap(err, "serializing td proto")
 	}

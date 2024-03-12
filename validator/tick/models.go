@@ -9,6 +9,10 @@ import (
 )
 
 func qubicToProto(tickData types.TickData) (*protobuff.TickData, error) {
+	if tickData.IsEmpty() {
+		return nil, nil
+	}
+
 	date := time.Date(2000+int(tickData.Year), time.Month(tickData.Month), int(tickData.Day), int(tickData.Hour), int(tickData.Minute), int(tickData.Second), 0, time.UTC)
 	timestamp := date.UnixMilli() + int64(tickData.Millisecond)
 	transactionIds, err := digestsToIdentities(tickData.TransactionDigests)
