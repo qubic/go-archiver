@@ -6,7 +6,6 @@ import (
 )
 
 type QChain struct {
-	ComputorIndex                 uint16
 	Epoch                         uint16
 	Tick                          uint32
 	Millisecond                   uint16

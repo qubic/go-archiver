@@ -47,7 +47,6 @@ func getPrevQChainDigest(ctx context.Context, store *store.PebbleStore, initialE
 
 func computeCurrentTickDigest(ctx context.Context, vote types.QuorumTickVote, previousTickQChainDigest [32]byte) ([32]byte, error) {
 	qChain := QChain{
-		ComputorIndex:                 vote.ComputorIndex,
 		Epoch:                         vote.Epoch,
 		Tick:                          vote.Tick,
 		Millisecond:                   vote.Millisecond,

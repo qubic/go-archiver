@@ -93,7 +93,6 @@ func TestPebbleStore_QuorumTickData(t *testing.T) {
 	// Sample QuorumTickData for testing
 	quorumData := &pb.QuorumTickData{
 		QuorumTickStructure: &pb.QuorumTickStructure{
-			ComputorIndex:         1,
 			Epoch:                 1,
 			TickNumber:            101,
 			Timestamp:             1596240001,
@@ -434,9 +433,14 @@ func TestPebbleStore_TransferTransactions(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 	store := NewPebbleStore(db, logger)
 
+	idOne := "QJRRSSKMJRDKUDTYVNYGAMQPULKAMILQQYOWBEXUDEUWQUMNGDHQYLOAJMEB"
+	idTwo := "IXTSDANOXIVIWGNDCNZVWSAVAEPBGLGSQTLSVHHBWEGKSEKPRQGWIJJCTUZB"
+	idThree := "QJRRSSKMJRDKUDTYVNYGAMQPULKAMILQQYOWBEXUDEUWQUMNGDHQYLOAJMXB"
+
 	// Sample Transactions for testing
 	forTickOne := pb.TransferTransactionsPerTick{
 		TickNumber: 12,
+		Identity:   idOne,
 		Transactions: &pb.Transactions{
 			Transactions: []*pb.Transaction{
 				{
@@ -467,6 +471,7 @@ func TestPebbleStore_TransferTransactions(t *testing.T) {
 
 	forTickTwo := pb.TransferTransactionsPerTick{
 		TickNumber: 15,
+		Identity:   idTwo,
 		Transactions: &pb.Transactions{
 			Transactions: []*pb.Transaction{
 				{
@@ -495,51 +500,49 @@ func TestPebbleStore_TransferTransactions(t *testing.T) {
 		},
 	}
 
-	idOne := "QJRRSSKMJRDKUDTYVNYGAMQPULKAMILQQYOWBEXUDEUWQUMNGDHQYLOAJMEB"
-	idTwo := "IXTSDANOXIVIWGNDCNZVWSAVAEPBGLGSQTLSVHHBWEGKSEKPRQGWIJJCTUZB"
-	idThree := "QJRRSSKMJRDKUDTYVNYGAMQPULKAMILQQYOWBEXUDEUWQUMNGDHQYLOAJMXB"
-
 	err = store.PutTransferTransactionsPerTick(ctx, idOne, 12, &forTickOne)
 	require.NoError(t, err)
-	got, err := store.GetTransferTransactionsPerTick(ctx, idOne, 12)
-	require.NoError(t, err)
-	diff := cmp.Diff(&forTickOne, got, cmpopts.IgnoreUnexported(pb.TransferTransactionsPerTick{}, pb.Transaction{}, pb.Transactions{}))
-	require.Equal(t, "", diff, "comparing first TransferTransactionsPerTick for idOne, forTickOne")
-
-	err = store.PutTransferTransactionsPerTick(ctx, idTwo, 15, &forTickTwo)
-	require.NoError(t, err)
-	got, err = store.GetTransferTransactionsPerTick(ctx, idTwo, 15)
-	require.NoError(t, err)
-	diff = cmp.Diff(&forTickTwo, got, cmpopts.IgnoreUnexported(pb.TransferTransactionsPerTick{}, pb.Transaction{}, pb.Transactions{}))
-	require.Equal(t, "", diff, "comparing TransferTransactionsPerTick for idTwo, forTickTwo")
 
 	err = store.PutTransferTransactionsPerTick(ctx, idOne, 13, &forTickOne)
 	require.NoError(t, err)
-	got, err = store.GetTransferTransactionsPerTick(ctx, idOne, 13)
+
+	got, err := store.GetTransferTransactions(ctx, idOne, 12, 12)
 	require.NoError(t, err)
-	diff = cmp.Diff(&forTickOne, got, cmpopts.IgnoreUnexported(pb.TransferTransactionsPerTick{}, pb.Transaction{}, pb.Transactions{}))
+	diff := cmp.Diff([]*pb.TransferTransactionsPerTick{&forTickOne}, got, cmpopts.IgnoreUnexported(pb.TransferTransactionsPerTick{}, pb.Transaction{}, pb.Transactions{}))
+	require.Equal(t, "", diff, "comparing first TransferTransactionsPerTick for idOne, forTickOne")
+
+	got, err = store.GetTransferTransactions(ctx, idOne, 13, 13)
+	require.NoError(t, err)
+	diff = cmp.Diff([]*pb.TransferTransactionsPerTick{&forTickOne}, got, cmpopts.IgnoreUnexported(pb.TransferTransactionsPerTick{}, pb.Transaction{}, pb.Transactions{}))
 	require.Equal(t, "", diff, "comparing second TransferTransactionsPerTick for idOne, forTickOne")
 
-	perIdentityTx, err := store.GetTransferTransactions(ctx, idOne)
+	err = store.PutTransferTransactionsPerTick(ctx, idTwo, 15, &forTickTwo)
 	require.NoError(t, err)
-	require.Equal(t, 2, len(perIdentityTx.TransferTransactionsPerTick))
+	got, err = store.GetTransferTransactions(ctx, idTwo, 15, 15)
+	require.NoError(t, err)
+	diff = cmp.Diff([]*pb.TransferTransactionsPerTick{&forTickTwo}, got, cmpopts.IgnoreUnexported(pb.TransferTransactionsPerTick{}, pb.Transaction{}, pb.Transactions{}))
+	require.Equal(t, "", diff, "comparing TransferTransactionsPerTick for idTwo, forTickTwo")
+	
+	perIdentityTx, err := store.GetTransferTransactions(ctx, idOne, 12, 13)
+	require.NoError(t, err)
+	require.Equal(t, 2, len(perIdentityTx))
 
-	expected := pb.TransferTransactions{TransferTransactionsPerTick: []*pb.TransferTransactionsPerTick{&forTickOne, &forTickOne}}
+	expected := []*pb.TransferTransactionsPerTick{&forTickOne, &forTickOne}
 	require.NoError(t, err)
-	diff = cmp.Diff(&expected, perIdentityTx, cmpopts.IgnoreUnexported(pb.TransferTransactionsPerTick{}, pb.Transaction{}, pb.Transactions{}, pb.TransferTransactions{}))
+	diff = cmp.Diff(expected, perIdentityTx, cmpopts.IgnoreUnexported(pb.TransferTransactionsPerTick{}, pb.Transaction{}, pb.Transactions{}))
 	require.Equal(t, "", diff, "comparing perIdentityTx")
 
 	// not existing identity means no transfers
-	perIdentityTx, err = store.GetTransferTransactions(ctx, idThree)
+	perIdentityTx, err = store.GetTransferTransactions(ctx, idThree, 1, 20)
 	require.NoError(t, err)
-	diff = cmp.Diff(&pb.TransferTransactions{
-		TransferTransactionsPerTick: []*pb.TransferTransactionsPerTick{},
-	}, perIdentityTx, cmpopts.IgnoreUnexported(pb.TransferTransactions{}, pb.TransferTransactionsPerTick{}, pb.Transaction{}, pb.Transactions{}))
+	diff = cmp.Diff([]*pb.TransferTransactionsPerTick{}, perIdentityTx, cmpopts.IgnoreUnexported(pb.TransferTransactionsPerTick{}, pb.Transaction{}, pb.Transactions{}))
 	require.Equal(t, "", diff, "comparison of perIdentityTx for idThree")
 
-	// not existing tick means ErrNotFound
-	_, err = store.GetTransferTransactionsPerTick(ctx, idOne, 14)
-	require.EqualError(t, err, ErrNotFound.Error())
+	// not existing tick means no transfers
+	perTickTx, err := store.GetTransferTransactions(ctx, idOne, 14, 14)
+	require.NoError(t, err)
+	diff = cmp.Diff([]*pb.TransferTransactionsPerTick{}, perTickTx, cmpopts.IgnoreUnexported(pb.TransferTransactionsPerTick{}, pb.Transaction{}, pb.Transactions{}))
+	require.Equal(t, "", diff, "comparison of perTickTx for idOne and tick 14")
 }
 
 func TestPebbleStore_QChainHash(t *testing.T) {

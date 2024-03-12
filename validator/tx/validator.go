@@ -131,7 +131,7 @@ func storeTransferTransactions(ctx context.Context, store *store.PebbleStore, ti
 	}
 
 	for id, txs := range txsPerIdentity {
-		err = store.PutTransferTransactionsPerTick(ctx, id, tickNumber, &protobuff.TransferTransactionsPerTick{TickNumber: uint32(tickNumber), Transactions: txs})
+		err = store.PutTransferTransactionsPerTick(ctx, id, tickNumber, &protobuff.TransferTransactionsPerTick{TickNumber: uint32(tickNumber), Identity: id, Transactions: txs})
 		if err != nil {
 			return errors.Wrap(err, "storing transfer transactions")
 		}

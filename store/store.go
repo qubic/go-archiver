@@ -347,12 +347,11 @@ func (s *PebbleStore) PutTransferTransactionsPerTick(ctx context.Context, identi
 	return nil
 }
 
-func (s *PebbleStore) GetTransferTransactions(ctx context.Context, identity string) (*protobuff.TransferTransactions, error) {
+func (s *PebbleStore) GetTransferTransactions(ctx context.Context, identity string, startTick, endTick uint64) ([]*protobuff.TransferTransactionsPerTick, error) {
 	partialKey := identityTransferTransactions(identity)
-	upperBound := append(partialKey, []byte(strconv.FormatUint(maxTickNumber, 10))...)
 	iter, err := s.db.NewIter(&pebble.IterOptions{
-		LowerBound: partialKey,
-		UpperBound: upperBound,
+		LowerBound: binary.BigEndian.AppendUint64(partialKey, startTick),
+		UpperBound: binary.BigEndian.AppendUint64(partialKey, endTick+1),
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "creating iter")
@@ -377,27 +376,7 @@ func (s *PebbleStore) GetTransferTransactions(ctx context.Context, identity stri
 		transferTxs = append(transferTxs, &perTick)
 	}
 
-	return &protobuff.TransferTransactions{TransferTransactionsPerTick: transferTxs}, nil
-}
-
-func (s *PebbleStore) GetTransferTransactionsPerTick(ctx context.Context, identity string, tickNumber uint64) (*protobuff.TransferTransactionsPerTick, error) {
-	key := identityTransferTransactionsPerTickKey(identity, tickNumber)
-	value, closer, err := s.db.Get(key)
-	if err != nil {
-		if errors.Is(err, pebble.ErrNotFound) {
-			return nil, ErrNotFound
-		}
-
-		return nil, errors.Wrap(err, "getting transfer tx per tick")
-	}
-	defer closer.Close()
-
-	var perTick protobuff.TransferTransactionsPerTick
-	if err := protojson.Unmarshal(value, &perTick); err != nil {
-		return nil, errors.Wrap(err, "unmarshalling transfer tx per tick to protobuff type")
-	}
-
-	return &perTick, nil
+	return transferTxs, nil
 }
 
 func (s *PebbleStore) PutQChainDigest(ctx context.Context, tickNumber uint64, digest []byte) error {

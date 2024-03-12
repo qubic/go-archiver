@@ -65,7 +65,6 @@ func TestQubicModelToProto(t *testing.T) {
 	// Setup expected output data
 	expectedProtoQuorumTickData := &protobuff.QuorumTickData{
 		QuorumTickStructure: &protobuff.QuorumTickStructure{
-			ComputorIndex:                1,
 			Epoch:                        2,
 			TickNumber:                   3,
 			Timestamp:                    uint64(time.Date(2021, 1, 2, 3, 4, 5, 600*1000000, time.UTC).UnixMilli()),
