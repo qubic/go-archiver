@@ -1,12 +1,12 @@
-package qchain
+package chain
 
 import (
 	"github.com/stretchr/testify/require"
 	"testing"
 )
 
-func TestQChain_Digest(t *testing.T) {
-	qChain := QChain{
+func TestChain_Digest(t *testing.T) {
+	chain := Chain{
 		Epoch:                         20,
 		Tick:                          30,
 		Millisecond:                   40,
@@ -22,12 +22,12 @@ func TestQChain_Digest(t *testing.T) {
 		PreviousComputerDigest:        [32]byte{},
 		TxDigest:                      [32]byte{},
 	}
-	_, err := qChain.Digest()
+	_, err := chain.Digest()
 	require.NoError(t, err)
 }
 
-func TestQChain_MarshallBinary(t *testing.T) {
-	qChain := QChain{
+func TestChain_MarshallBinary(t *testing.T) {
+	chain := Chain{
 		Epoch:                         20,
 		Tick:                          30,
 		Millisecond:                   40,
@@ -43,7 +43,7 @@ func TestQChain_MarshallBinary(t *testing.T) {
 		PreviousComputerDigest:        [32]byte{},
 		TxDigest:                      [32]byte{},
 	}
-	b, err := qChain.MarshallBinary()
+	b, err := chain.MarshallBinary()
 	require.NoError(t, err)
 	require.Equal(t, len(b), 184)
 }
