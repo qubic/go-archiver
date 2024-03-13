@@ -3,19 +3,17 @@ package rpc
 import (
 	"context"
 	"encoding/hex"
-	"fmt"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-archiver/store"
-	qubic "github.com/qubic/go-node-connector"
-	"github.com/qubic/go-node-connector/types"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/emptypb"
 	"log"
 	"net"
 	"net/http"
@@ -27,20 +25,16 @@ var emptyTd = &protobuff.TickData{}
 
 type Server struct {
 	protobuff.UnimplementedArchiveServiceServer
-	listenAddrGRPC       string
-	listenAddrHTTP       string
-	store                *store.PebbleStore
-	pool                 *qubic.Pool
-	nrPeersToBroadcastTx int
+	listenAddrGRPC string
+	listenAddrHTTP string
+	store          *store.PebbleStore
 }
 
-func NewServer(listenAddrGRPC, listenAddrHTTP string, store *store.PebbleStore, p *qubic.Pool, nrPeersToBroadcastTx int) *Server {
+func NewServer(listenAddrGRPC, listenAddrHTTP string, store *store.PebbleStore) *Server {
 	return &Server{
-		listenAddrGRPC:       listenAddrGRPC,
-		listenAddrHTTP:       listenAddrHTTP,
-		store:                store,
-		pool:                 p,
-		nrPeersToBroadcastTx: nrPeersToBroadcastTx,
+		listenAddrGRPC: listenAddrGRPC,
+		listenAddrHTTP: listenAddrHTTP,
+		store:          store,
 	}
 }
 
@@ -103,46 +97,8 @@ func (s *Server) GetComputors(ctx context.Context, req *protobuff.GetComputorsRe
 
 	return &protobuff.GetComputorsResponse{Computors: computors}, nil
 }
-func (s *Server) GetIdentityInfo(ctx context.Context, req *protobuff.GetIdentityInfoRequest) (*protobuff.GetIdentityInfoResponse, error) {
-	client, err := s.pool.Get()
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "getting qubic pooled client connection: %v", err)
-	}
-	defer s.pool.Put(client)
 
-	addr, err := client.GetIdentity(ctx, req.Identity)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "getting identity info: %v", err)
-	}
-
-	siblings := make([]string, 0)
-	for _, sibling := range addr.Siblings {
-		if sibling == [32]byte{} {
-			continue
-		}
-		siblings = append(siblings, hex.EncodeToString(sibling[:]))
-	}
-
-	var addrID types.Identity
-	addrID, err = addrID.FromPubKey(addr.AddressData.PublicKey, false)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "getting address id: %v", err)
-	}
-	return &protobuff.GetIdentityInfoResponse{IdentityInfo: &protobuff.IdentityInfo{
-		Id:                         addrID.String(),
-		TickNumber:                 addr.Tick,
-		Balance:                    addr.AddressData.IncomingAmount - addr.AddressData.OutgoingAmount,
-		IncomingAmount:             addr.AddressData.IncomingAmount,
-		OutgoingAmount:             addr.AddressData.OutgoingAmount,
-		NrIncomingTransfers:        addr.AddressData.NumberOfIncomingTransfers,
-		NrOutgoingTransfers:        addr.AddressData.NumberOfOutgoingTransfers,
-		LatestIncomingTransferTick: addr.AddressData.LatestIncomingTransferTick,
-		LatestOutgoingTransferTick: addr.AddressData.LatestOutgoingTransferTick,
-		SiblingsHex:                siblings,
-	}}, nil
-}
-
-func (s *Server) GetLastProcessedTick(ctx context.Context, req *protobuff.GetLastProcessedTickRequest) (*protobuff.GetLastProcessedTickResponse, error) {
+func (s *Server) GetStatus(ctx context.Context, _ *emptypb.Empty) (*protobuff.GetStatusResponse, error) {
 	tick, err := s.store.GetLastProcessedTick(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "getting last processed tick: %v", err)
@@ -153,40 +109,12 @@ func (s *Server) GetLastProcessedTick(ctx context.Context, req *protobuff.GetLas
 		return nil, status.Errorf(codes.Internal, "getting last processed tick: %v", err)
 	}
 
-	return &protobuff.GetLastProcessedTickResponse{LastProcessedTick: uint32(tick), LastProcessedTicksPerEpoch: lastProcessedTicksPerEpoch}, nil
-}
-
-func (s *Server) SendRawTransaction(ctx context.Context, req *protobuff.SendRawTransactionRequest) (*protobuff.SendRawTransactionResponse, error) {
-	nrSuccess := 0
-	for i := 0; i < s.nrPeersToBroadcastTx; i++ {
-		func() {
-			client, err := s.pool.Get()
-			if err != nil {
-				return
-			}
-			defer s.pool.Put(client)
-			err = client.SendRawTransaction(ctx, []byte(req.SignedTx))
-			if err != nil {
-				return
-			}
-			nrSuccess++
-		}()
-	}
-
-	if nrSuccess == 0 {
-		return nil, status.Errorf(codes.Internal, "broadcasting tx failed for all peers")
-	}
-
-	return &protobuff.SendRawTransactionResponse{Message: fmt.Sprintf("Transaction broadcasted to %d peers", nrSuccess)}, nil
-}
-
-func (s *Server) GetSkippedTicks(ctx context.Context, req *protobuff.GetSkippedTicksRequest) (*protobuff.GetSkippedTicksResponse, error) {
-	ticks, err := s.store.GetSkippedTicksInterval(ctx)
+	skippedTicks, err := s.store.GetSkippedTicksInterval(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "getting skipped ticks: %v", err)
 	}
 
-	return &protobuff.GetSkippedTicksResponse{SkippedTicks: ticks.SkippedTicks}, nil
+	return &protobuff.GetStatusResponse{LastProcessedTick: uint32(tick), LastProcessedTicksPerEpoch: lastProcessedTicksPerEpoch, SkippedTicks: skippedTicks.SkippedTicks}, nil
 }
 
 func (s *Server) GetTransferTransactionsPerTick(ctx context.Context, req *protobuff.GetTransferTransactionsPerTickRequest) (*protobuff.GetTransferTransactionsPerTickResponse, error) {
@@ -198,16 +126,16 @@ func (s *Server) GetTransferTransactionsPerTick(ctx context.Context, req *protob
 	return &protobuff.GetTransferTransactionsPerTickResponse{TransferTransactionsPerTick: txs}, nil
 }
 
-func (s *Server) GetQChainHash(ctx context.Context, req *protobuff.GetQChainHashRequest) (*protobuff.GetQChainHashResponse, error) {
-	hash, err := s.store.GetQChainDigest(ctx, uint64(req.TickNumber))
+func (s *Server) GetChainHash(ctx context.Context, req *protobuff.GetChainHashRequest) (*protobuff.GetChainHashResponse, error) {
+	hash, err := s.store.GetChainDigest(ctx, uint64(req.TickNumber))
 	if err != nil {
 		if errors.Cause(err) == store.ErrNotFound {
-			return nil, status.Errorf(codes.NotFound, "qChain hash for specified tick not found")
+			return nil, status.Errorf(codes.NotFound, "chain hash for specified tick not found")
 		}
-		return nil, status.Errorf(codes.Internal, "getting qChain hash: %v", err)
+		return nil, status.Errorf(codes.Internal, "getting chain hash: %v", err)
 	}
 
-	return &protobuff.GetQChainHashResponse{HexDigest: hex.EncodeToString(hash[:])}, nil
+	return &protobuff.GetChainHashResponse{HexDigest: hex.EncodeToString(hash[:])}, nil
 }
 
 func (s *Server) Start() error {

@@ -1,4 +1,4 @@
-package qchain
+package chain
 
 import (
 	"context"
@@ -8,9 +8,9 @@ import (
 )
 
 func ComputeAndStore(ctx context.Context, store *store.PebbleStore, initialEpochTick, tickNumber uint64, quorumVote types.QuorumTickVote) error {
-	prevDigest, err := getPrevQChainDigest(ctx, store, initialEpochTick, tickNumber)
+	prevDigest, err := getPrevChainDigest(ctx, store, initialEpochTick, tickNumber)
 	if err != nil {
-		return errors.Wrap(err, "getting prev qChain digest")
+		return errors.Wrap(err, "getting prev chain digest")
 	}
 
 	currentDigest, err := computeCurrentTickDigest(ctx, quorumVote, prevDigest)
@@ -18,35 +18,35 @@ func ComputeAndStore(ctx context.Context, store *store.PebbleStore, initialEpoch
 		return errors.Wrap(err, "computing current tick digest")
 	}
 
-	err = store.PutQChainDigest(ctx, tickNumber, currentDigest[:])
+	err = store.PutChainDigest(ctx, tickNumber, currentDigest[:])
 	if err != nil {
-		return errors.Wrapf(err, "storing qChain digest for tick: %d\n", tickNumber)
+		return errors.Wrapf(err, "storing chain digest for tick: %d\n", tickNumber)
 	}
 
 	return nil
 }
 
-func getPrevQChainDigest(ctx context.Context, store *store.PebbleStore, initialEpochTick, tickNumber uint64) ([32]byte, error) {
-	// if this is the first tick, there is no previous qChain digest, so we are using an empty one
+func getPrevChainDigest(ctx context.Context, store *store.PebbleStore, initialEpochTick, tickNumber uint64) ([32]byte, error) {
+	// if this is the first tick, there is no previous chain digest, so we are using an empty one
 	if tickNumber == initialEpochTick {
 		return [32]byte{}, nil
 	}
 
-	previousTickQChainDigestStored, err := store.GetQChainDigest(ctx, tickNumber-1)
+	previousTickChainDigestStored, err := store.GetChainDigest(ctx, tickNumber-1)
 	if err != nil {
 		//returning nil error in order to not fail until epoch change
 		return [32]byte{}, nil
-		//return [32]byte{}, errors.Wrapf(err, "getting qChain digest for last tick: %d\n", tickNumber-1)
+		//return [32]byte{}, errors.Wrapf(err, "getting chain digest for last tick: %d\n", tickNumber-1)
 	}
 
-	var previousTickQChainDigest [32]byte
-	copy(previousTickQChainDigest[:], previousTickQChainDigestStored)
+	var previousTickChainDigest [32]byte
+	copy(previousTickChainDigest[:], previousTickChainDigestStored)
 
-	return previousTickQChainDigest, nil
+	return previousTickChainDigest, nil
 }
 
-func computeCurrentTickDigest(ctx context.Context, vote types.QuorumTickVote, previousTickQChainDigest [32]byte) ([32]byte, error) {
-	qChain := QChain{
+func computeCurrentTickDigest(ctx context.Context, vote types.QuorumTickVote, previousTickChainDigest [32]byte) ([32]byte, error) {
+	chain := Chain{
 		Epoch:                         vote.Epoch,
 		Tick:                          vote.Tick,
 		Millisecond:                   vote.Millisecond,
@@ -61,12 +61,12 @@ func computeCurrentTickDigest(ctx context.Context, vote types.QuorumTickVote, pr
 		PreviousUniverseDigest:        vote.PreviousUniverseDigest,
 		PreviousComputerDigest:        vote.PreviousComputerDigest,
 		TxDigest:                      vote.TxDigest,
-		PreviousTickQChainDigest:      previousTickQChainDigest,
+		PreviousTickChainDigest:       previousTickChainDigest,
 	}
 
-	digest, err := qChain.Digest()
+	digest, err := chain.Digest()
 	if err != nil {
-		return [32]byte{}, errors.Wrap(err, "computing qChain digest")
+		return [32]byte{}, errors.Wrap(err, "computing chain digest")
 	}
 	return digest, nil
 }

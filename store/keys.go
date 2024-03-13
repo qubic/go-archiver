@@ -13,7 +13,7 @@ const (
 	LastProcessedTickPerEpoch    = 0x05
 	SkippedTicksInterval         = 0x06
 	IdentityTransferTransactions = 0x07
-	QChainDigest                 = 0x08
+	ChainDigest                  = 0x08
 )
 
 func tickDataKey(tickNumber uint64) []byte {
@@ -74,8 +74,8 @@ func identityTransferTransactions(identity string) []byte {
 	return key
 }
 
-func qChainDigestKey(tickNumber uint64) []byte {
-	key := []byte{QChainDigest}
+func chainDigestKey(tickNumber uint64) []byte {
+	key := []byte{ChainDigest}
 	key = binary.BigEndian.AppendUint64(key, tickNumber)
 
 	return key

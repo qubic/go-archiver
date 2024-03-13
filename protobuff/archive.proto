@@ -3,6 +3,8 @@ syntax = "proto3";
 package qubic.archiver.archive.pb;
 
 option go_package = "github.com/qubic/go-archiver/protobuff/";
+import "google/api/annotations.proto";
+import "google/protobuf/empty.proto";
 
 message TickData {
   uint32 computor_index = 1;
@@ -108,51 +110,16 @@ message GetComputorsResponse {
   Computors computors = 1;
 }
 
-message IdentityInfo {
-  string id = 1;
-  uint32 tick_number = 2;
-  int64 balance = 3;
-  int64 incoming_amount = 4;
-  int64 outgoing_amount = 5;
-  uint32 nr_incoming_transfers = 6;
-  uint32 nr_outgoing_transfers = 7;
-  uint32 latest_incoming_transfer_tick = 8;
-  uint32 latest_outgoing_transfer_tick = 9;
-  repeated string siblings_hex = 10;
-}
-
 message TransferTransactionsPerTick {
   uint32 tick_number = 1;
   string identity = 2;
   repeated Transaction transactions = 3;
 }
 
-message GetIdentityInfoRequest {
-  string identity = 1;
-}
-
-message GetIdentityInfoResponse {
-  IdentityInfo identity_info = 1;
-}
-
-message GetLastProcessedTickRequest {}
-message GetLastProcessedTickResponse{
+message GetStatusResponse {
   uint32 last_processed_tick = 1;
   map<uint32, uint64> last_processed_ticks_per_epoch = 2;
-}
-
-message SendRawTransactionRequest {
-  string signed_tx = 1;
-}
-
-message SendRawTransactionResponse {
-  string message = 1;
-}
-
-message GetSkippedTicksRequest {}
-
-message GetSkippedTicksResponse {
-  repeated SkippedTicksInterval skipped_ticks = 1;
+  repeated SkippedTicksInterval skipped_ticks = 3;
 }
 
 message GetTransferTransactionsPerTickRequest {
@@ -165,24 +132,57 @@ message GetTransferTransactionsPerTickResponse {
   repeated TransferTransactionsPerTick transfer_transactions_per_tick = 1;
 }
 
-message GetQChainHashRequest {
+message GetChainHashRequest {
   uint32 tick_number = 1;
 }
 
-message GetQChainHashResponse {
+message GetChainHashResponse {
   string hex_digest = 1;
 }
 
 service ArchiveService {
-  rpc GetTickData(GetTickDataRequest) returns (GetTickDataResponse);
-  rpc GetTickTransactions(GetTickTransactionsRequest) returns (GetTickTransactionsResponse);
-  rpc GetTransaction(GetTransactionRequest) returns (GetTransactionResponse);
-  rpc GetQuorumTickData(GetQuorumTickDataRequest) returns (GetQuorumTickDataResponse);
-  rpc GetComputors(GetComputorsRequest) returns (GetComputorsResponse);
-  rpc GetIdentityInfo(GetIdentityInfoRequest) returns (GetIdentityInfoResponse);
-  rpc GetLastProcessedTick(GetLastProcessedTickRequest) returns (GetLastProcessedTickResponse);
-  rpc SendRawTransaction(SendRawTransactionRequest) returns (SendRawTransactionResponse);
-  rpc GetSkippedTicks(GetSkippedTicksRequest) returns (GetSkippedTicksResponse);
-  rpc GetTransferTransactionsPerTick(GetTransferTransactionsPerTickRequest) returns (GetTransferTransactionsPerTickResponse);
-  rpc GetQChainHash(GetQChainHashRequest) returns (GetQChainHashResponse);
+  rpc GetTickData(GetTickDataRequest) returns (GetTickDataResponse){
+    option (google.api.http) = {
+      get: "/tick/{tick_number}/tick-data"
+    };
+  };
+  rpc GetQuorumTickData(GetQuorumTickDataRequest) returns (GetQuorumTickDataResponse) {
+    option (google.api.http) = {
+      get: "/tick/{tick_number}/quorum-tick-data"
+    };
+  };
+  rpc GetTickTransactions(GetTickTransactionsRequest) returns (GetTickTransactionsResponse) {
+    option (google.api.http) = {
+      get: "/tick/{tick_number}/transactions"
+    };
+  };
+  rpc GetChainHash(GetChainHashRequest) returns (GetChainHashResponse) {
+    option (google.api.http) = {
+      get: "/tick/{tick_number}/chain-hash"
+    };
+  };
+
+  rpc GetTransaction(GetTransactionRequest) returns (GetTransactionResponse) {
+    option (google.api.http) = {
+      get: "/transaction/{tx_id}"
+    };
+  };
+
+  rpc GetTransferTransactionsPerTick(GetTransferTransactionsPerTickRequest) returns (GetTransferTransactionsPerTickResponse) {
+    option (google.api.http) = {
+      get: "/identity/{identity}/transfer-tx"
+    };
+  };
+
+  rpc GetComputors(GetComputorsRequest) returns (GetComputorsResponse) {
+    option (google.api.http) = {
+      get: "/epoch/{epoch}/computors"
+    };
+  };
+
+  rpc GetStatus(google.protobuf.Empty) returns (GetStatusResponse) {
+    option (google.api.http) = {
+      get: "/status"
+    };
+  };
 }
