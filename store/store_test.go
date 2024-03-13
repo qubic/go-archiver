@@ -575,7 +575,7 @@ func TestPebbleStore_TransferTransactions(t *testing.T) {
 	diff = cmp.Diff([]*pb.TransferTransactionsPerTick{}, perTickTx, cmpopts.IgnoreUnexported(pb.TransferTransactionsPerTick{}, pb.Transaction{}))
 	require.Equal(t, "", diff, "comparison of perTickTx for idOne and tick 14")
 }
-func TestPebbleStore_QChainHash(t *testing.T) {
+func TestPebbleStore_ChainHash(t *testing.T) {
 	ctx := context.Background()
 
 	// Setup test environment
@@ -590,21 +590,21 @@ func TestPebbleStore_QChainHash(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 	store := NewPebbleStore(db, logger)
 
-	// Sample QChainHash for testing
+	// Sample ChainHash for testing
 	tickNumber := uint64(12795005)
 	qChainHash := []byte("qChainHash")
 
-	// Set QChainHash
-	err = store.PutQChainDigest(ctx, tickNumber, qChainHash)
+	// Set ChainHash
+	err = store.PutChainDigest(ctx, tickNumber, qChainHash)
 	require.NoError(t, err)
 
-	// Get QChainHash
-	retrievedQChainHash, err := store.GetQChainDigest(ctx, tickNumber)
+	// Get ChainHash
+	retrievedChainHash, err := store.GetChainDigest(ctx, tickNumber)
 	require.NoError(t, err)
-	require.Equal(t, qChainHash, retrievedQChainHash)
+	require.Equal(t, qChainHash, retrievedChainHash)
 
-	// Test retrieval of non-existent QChainHash
-	_, err = store.GetQChainDigest(ctx, 999) // Assuming 999 is a tick number that wasn't stored
+	// Test retrieval of non-existent ChainHash
+	_, err = store.GetChainDigest(ctx, 999) // Assuming 999 is a tick number that wasn't stored
 	require.Error(t, err)
 	require.Equal(t, ErrNotFound, err)
 }

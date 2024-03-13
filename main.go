@@ -42,10 +42,9 @@ func run() error {
 			IdleTimeout        time.Duration `conf:"default:15s"`
 		}
 		Qubic struct {
-			NodePort             string        `conf:"default:21841"`
-			StorageFolder        string        `conf:"default:store"`
-			ProcessTickTimeout   time.Duration `conf:"default:5s"`
-			NrPeersToBroadcastTx int           `conf:"default:2"`
+			NodePort           string        `conf:"default:21841"`
+			StorageFolder      string        `conf:"default:store"`
+			ProcessTickTimeout time.Duration `conf:"default:5s"`
 		}
 	}
 
@@ -92,8 +91,11 @@ func run() error {
 		NodeFetcherTimeout: cfg.Pool.NodeFetcherTimeout,
 		NodePort:           cfg.Qubic.NodePort,
 	})
+	if err != nil {
+		return errors.Wrap(err, "creating qubic pool")
+	}
 
-	rpcServer := rpc.NewServer(cfg.Server.GrpcHost, cfg.Server.HttpHost, ps, p, cfg.Qubic.NrPeersToBroadcastTx)
+	rpcServer := rpc.NewServer(cfg.Server.GrpcHost, cfg.Server.HttpHost, ps)
 	rpcServer.Start()
 
 	shutdown := make(chan os.Signal, 1)

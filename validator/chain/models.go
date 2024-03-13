@@ -1,11 +1,11 @@
-package qchain
+package chain
 
 import (
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/utils"
 )
 
-type QChain struct {
+type Chain struct {
 	_                             uint16 //padding
 	Epoch                         uint16
 	Tick                          uint32
@@ -22,11 +22,11 @@ type QChain struct {
 	PreviousComputerDigest        [32]byte
 	TxDigest                      [32]byte
 
-	PreviousTickQChainDigest [32]byte
+	PreviousTickChainDigest [32]byte
 }
 
-func (q *QChain) Digest() ([32]byte, error) {
-	b, err := q.MarshallBinary()
+func (c *Chain) Digest() ([32]byte, error) {
+	b, err := c.MarshallBinary()
 	if err != nil {
 		return [32]byte{}, errors.Wrap(err, "serializing vote")
 	}
@@ -39,8 +39,8 @@ func (q *QChain) Digest() ([32]byte, error) {
 	return digest, nil
 }
 
-func (q *QChain) MarshallBinary() ([]byte, error) {
-	b, err := utils.BinarySerialize(q)
+func (c *Chain) MarshallBinary() ([]byte, error) {
+	b, err := utils.BinarySerialize(c)
 	if err != nil {
 		return nil, errors.Wrap(err, "serializing vote")
 	}

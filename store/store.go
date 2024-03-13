@@ -379,26 +379,26 @@ func (s *PebbleStore) GetTransferTransactions(ctx context.Context, identity stri
 	return transferTxs, nil
 }
 
-func (s *PebbleStore) PutQChainDigest(ctx context.Context, tickNumber uint64, digest []byte) error {
-	key := qChainDigestKey(tickNumber)
+func (s *PebbleStore) PutChainDigest(ctx context.Context, tickNumber uint64, digest []byte) error {
+	key := chainDigestKey(tickNumber)
 
 	err := s.db.Set(key, digest, pebble.Sync)
 	if err != nil {
-		return errors.Wrap(err, "setting qChain digest")
+		return errors.Wrap(err, "setting chain digest")
 	}
 
 	return nil
 }
 
-func (s *PebbleStore) GetQChainDigest(ctx context.Context, tickNumber uint64) ([]byte, error) {
-	key := qChainDigestKey(tickNumber)
+func (s *PebbleStore) GetChainDigest(ctx context.Context, tickNumber uint64) ([]byte, error) {
+	key := chainDigestKey(tickNumber)
 	value, closer, err := s.db.Get(key)
 	if err != nil {
 		if errors.Is(err, pebble.ErrNotFound) {
 			return nil, ErrNotFound
 		}
 
-		return nil, errors.Wrap(err, "getting qChain digest")
+		return nil, errors.Wrap(err, "getting chain digest")
 	}
 	defer closer.Close()
 

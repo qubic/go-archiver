@@ -10,7 +10,7 @@ import (
 	"os/exec"
 )
 
-var debug = false
+var debug = true
 
 type SigVerifierFunc = func(ctx context.Context, pubkey [32]byte, digest [32]byte, sig [64]byte) error
 
