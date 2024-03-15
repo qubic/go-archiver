@@ -23,6 +23,7 @@ const (
 	ArchiveService_GetTickData_FullMethodName                    = "/qubic.archiver.archive.pb.ArchiveService/GetTickData"
 	ArchiveService_GetQuorumTickData_FullMethodName              = "/qubic.archiver.archive.pb.ArchiveService/GetQuorumTickData"
 	ArchiveService_GetTickTransactions_FullMethodName            = "/qubic.archiver.archive.pb.ArchiveService/GetTickTransactions"
+	ArchiveService_GetTickTransferTransactions_FullMethodName    = "/qubic.archiver.archive.pb.ArchiveService/GetTickTransferTransactions"
 	ArchiveService_GetChainHash_FullMethodName                   = "/qubic.archiver.archive.pb.ArchiveService/GetChainHash"
 	ArchiveService_GetTransaction_FullMethodName                 = "/qubic.archiver.archive.pb.ArchiveService/GetTransaction"
 	ArchiveService_GetTransferTransactionsPerTick_FullMethodName = "/qubic.archiver.archive.pb.ArchiveService/GetTransferTransactionsPerTick"
@@ -37,6 +38,7 @@ type ArchiveServiceClient interface {
 	GetTickData(ctx context.Context, in *GetTickDataRequest, opts ...grpc.CallOption) (*GetTickDataResponse, error)
 	GetQuorumTickData(ctx context.Context, in *GetQuorumTickDataRequest, opts ...grpc.CallOption) (*GetQuorumTickDataResponse, error)
 	GetTickTransactions(ctx context.Context, in *GetTickTransactionsRequest, opts ...grpc.CallOption) (*GetTickTransactionsResponse, error)
+	GetTickTransferTransactions(ctx context.Context, in *GetTickTransactionsRequest, opts ...grpc.CallOption) (*GetTickTransactionsResponse, error)
 	GetChainHash(ctx context.Context, in *GetChainHashRequest, opts ...grpc.CallOption) (*GetChainHashResponse, error)
 	GetTransaction(ctx context.Context, in *GetTransactionRequest, opts ...grpc.CallOption) (*GetTransactionResponse, error)
 	GetTransferTransactionsPerTick(ctx context.Context, in *GetTransferTransactionsPerTickRequest, opts ...grpc.CallOption) (*GetTransferTransactionsPerTickResponse, error)
@@ -73,6 +75,15 @@ func (c *archiveServiceClient) GetQuorumTickData(ctx context.Context, in *GetQuo
 func (c *archiveServiceClient) GetTickTransactions(ctx context.Context, in *GetTickTransactionsRequest, opts ...grpc.CallOption) (*GetTickTransactionsResponse, error) {
 	out := new(GetTickTransactionsResponse)
 	err := c.cc.Invoke(ctx, ArchiveService_GetTickTransactions_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *archiveServiceClient) GetTickTransferTransactions(ctx context.Context, in *GetTickTransactionsRequest, opts ...grpc.CallOption) (*GetTickTransactionsResponse, error) {
+	out := new(GetTickTransactionsResponse)
+	err := c.cc.Invoke(ctx, ArchiveService_GetTickTransferTransactions_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -131,6 +142,7 @@ type ArchiveServiceServer interface {
 	GetTickData(context.Context, *GetTickDataRequest) (*GetTickDataResponse, error)
 	GetQuorumTickData(context.Context, *GetQuorumTickDataRequest) (*GetQuorumTickDataResponse, error)
 	GetTickTransactions(context.Context, *GetTickTransactionsRequest) (*GetTickTransactionsResponse, error)
+	GetTickTransferTransactions(context.Context, *GetTickTransactionsRequest) (*GetTickTransactionsResponse, error)
 	GetChainHash(context.Context, *GetChainHashRequest) (*GetChainHashResponse, error)
 	GetTransaction(context.Context, *GetTransactionRequest) (*GetTransactionResponse, error)
 	GetTransferTransactionsPerTick(context.Context, *GetTransferTransactionsPerTickRequest) (*GetTransferTransactionsPerTickResponse, error)
@@ -151,6 +163,9 @@ func (UnimplementedArchiveServiceServer) GetQuorumTickData(context.Context, *Get
 }
 func (UnimplementedArchiveServiceServer) GetTickTransactions(context.Context, *GetTickTransactionsRequest) (*GetTickTransactionsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTickTransactions not implemented")
+}
+func (UnimplementedArchiveServiceServer) GetTickTransferTransactions(context.Context, *GetTickTransactionsRequest) (*GetTickTransactionsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTickTransferTransactions not implemented")
 }
 func (UnimplementedArchiveServiceServer) GetChainHash(context.Context, *GetChainHashRequest) (*GetChainHashResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetChainHash not implemented")
@@ -230,6 +245,24 @@ func _ArchiveService_GetTickTransactions_Handler(srv interface{}, ctx context.Co
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ArchiveServiceServer).GetTickTransactions(ctx, req.(*GetTickTransactionsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ArchiveService_GetTickTransferTransactions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetTickTransactionsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ArchiveServiceServer).GetTickTransferTransactions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ArchiveService_GetTickTransferTransactions_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ArchiveServiceServer).GetTickTransferTransactions(ctx, req.(*GetTickTransactionsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -342,6 +375,10 @@ var ArchiveService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetTickTransactions",
 			Handler:    _ArchiveService_GetTickTransactions_Handler,
+		},
+		{
+			MethodName: "GetTickTransferTransactions",
+			Handler:    _ArchiveService_GetTickTransferTransactions_Handler,
 		},
 		{
 			MethodName: "GetChainHash",

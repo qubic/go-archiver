@@ -187,6 +187,36 @@ func (s *PebbleStore) GetTickTransactions(ctx context.Context, tickNumber uint64
 	return txs, nil
 }
 
+func (s *PebbleStore) GetTickTransferTransactions(ctx context.Context, tickNumber uint64) ([]*protobuff.Transaction, error) {
+	td, err := s.GetTickData(ctx, tickNumber)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return nil, ErrNotFound
+		}
+
+		return nil, errors.Wrap(err, "getting tick data")
+	}
+
+	txs := make([]*protobuff.Transaction, 0, len(td.TransactionIds))
+	for _, txID := range td.TransactionIds {
+		tx, err := s.GetTransaction(ctx, txID)
+		if err != nil {
+			if errors.Is(err, ErrNotFound) {
+				return nil, ErrNotFound
+			}
+
+			return nil, errors.Wrapf(err, "getting tx for id: %s", txID)
+		}
+		if tx.Amount <= 0 {
+			continue
+		}
+
+		txs = append(txs, tx)
+	}
+
+	return txs, nil
+}
+
 func (s *PebbleStore) GetTransaction(ctx context.Context, txID string) (*protobuff.Transaction, error) {
 	key, err := tickTxKey(txID)
 	if err != nil {

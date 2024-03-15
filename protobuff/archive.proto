@@ -143,40 +143,45 @@ message GetChainHashResponse {
 service ArchiveService {
   rpc GetTickData(GetTickDataRequest) returns (GetTickDataResponse){
     option (google.api.http) = {
-      get: "/tick/{tick_number}/tick-data"
+      get: "/ticks/{tick_number}/tick-data"
     };
   };
   rpc GetQuorumTickData(GetQuorumTickDataRequest) returns (GetQuorumTickDataResponse) {
     option (google.api.http) = {
-      get: "/tick/{tick_number}/quorum-tick-data"
+      get: "/ticks/{tick_number}/quorum-tick-data"
     };
   };
   rpc GetTickTransactions(GetTickTransactionsRequest) returns (GetTickTransactionsResponse) {
     option (google.api.http) = {
-      get: "/tick/{tick_number}/transactions"
+      get: "/ticks/{tick_number}/transactions"
+    };
+  };
+  rpc GetTickTransferTransactions(GetTickTransactionsRequest) returns (GetTickTransactionsResponse) {
+    option (google.api.http) = {
+      get: "/ticks/{tick_number}/transfer-transactions"
     };
   };
   rpc GetChainHash(GetChainHashRequest) returns (GetChainHashResponse) {
     option (google.api.http) = {
-      get: "/tick/{tick_number}/chain-hash"
+      get: "/ticks/{tick_number}/chain-hash"
     };
   };
 
   rpc GetTransaction(GetTransactionRequest) returns (GetTransactionResponse) {
     option (google.api.http) = {
-      get: "/transaction/{tx_id}"
+      get: "/transactions/{tx_id}"
     };
   };
 
   rpc GetTransferTransactionsPerTick(GetTransferTransactionsPerTickRequest) returns (GetTransferTransactionsPerTickResponse) {
     option (google.api.http) = {
-      get: "/identity/{identity}/transfer-tx"
+      get: "/identities/{identity}/transfer-tx"
     };
   };
 
   rpc GetComputors(GetComputorsRequest) returns (GetComputorsResponse) {
     option (google.api.http) = {
-      get: "/epoch/{epoch}/computors"
+      get: "/epochs/{epoch}/computors"
     };
   };
 
