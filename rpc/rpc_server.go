@@ -64,6 +64,18 @@ func (s *Server) GetTickTransactions(ctx context.Context, req *protobuff.GetTick
 
 	return &protobuff.GetTickTransactionsResponse{Transactions: txs}, nil
 }
+
+func (s *Server) GetTickTransferTransactions(ctx context.Context, req *protobuff.GetTickTransactionsRequest) (*protobuff.GetTickTransactionsResponse, error) {
+	txs, err := s.store.GetTickTransferTransactions(ctx, uint64(req.TickNumber))
+	if err != nil {
+		if errors.Cause(err) == store.ErrNotFound {
+			return nil, status.Errorf(codes.NotFound, "tick transfer transactions for specified tick not found")
+		}
+		return nil, status.Errorf(codes.Internal, "getting tick transactions: %v", err)
+	}
+
+	return &protobuff.GetTickTransactionsResponse{Transactions: txs}, nil
+}
 func (s *Server) GetTransaction(ctx context.Context, req *protobuff.GetTransactionRequest) (*protobuff.GetTransactionResponse, error) {
 	tx, err := s.store.GetTransaction(ctx, req.TxId)
 	if err != nil {

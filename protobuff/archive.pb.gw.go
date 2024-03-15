@@ -188,6 +188,58 @@ func local_request_ArchiveService_GetTickTransactions_0(ctx context.Context, mar
 
 }
 
+func request_ArchiveService_GetTickTransferTransactions_0(ctx context.Context, marshaler runtime.Marshaler, client ArchiveServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq GetTickTransactionsRequest
+	var metadata runtime.ServerMetadata
+
+	var (
+		val string
+		ok  bool
+		err error
+		_   = err
+	)
+
+	val, ok = pathParams["tick_number"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "tick_number")
+	}
+
+	protoReq.TickNumber, err = runtime.Uint32(val)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "tick_number", err)
+	}
+
+	msg, err := client.GetTickTransferTransactions(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+
+}
+
+func local_request_ArchiveService_GetTickTransferTransactions_0(ctx context.Context, marshaler runtime.Marshaler, server ArchiveServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq GetTickTransactionsRequest
+	var metadata runtime.ServerMetadata
+
+	var (
+		val string
+		ok  bool
+		err error
+		_   = err
+	)
+
+	val, ok = pathParams["tick_number"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "tick_number")
+	}
+
+	protoReq.TickNumber, err = runtime.Uint32(val)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "tick_number", err)
+	}
+
+	msg, err := server.GetTickTransferTransactions(ctx, &protoReq)
+	return msg, metadata, err
+
+}
+
 func request_ArchiveService_GetChainHash_0(ctx context.Context, marshaler runtime.Marshaler, client ArchiveServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq GetChainHashRequest
 	var metadata runtime.ServerMetadata
@@ -446,7 +498,7 @@ func RegisterArchiveServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/qubic.archiver.archive.pb.ArchiveService/GetTickData", runtime.WithHTTPPathPattern("/tick/{tick_number}/tick-data"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/qubic.archiver.archive.pb.ArchiveService/GetTickData", runtime.WithHTTPPathPattern("/ticks/{tick_number}/tick-data"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -471,7 +523,7 @@ func RegisterArchiveServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/qubic.archiver.archive.pb.ArchiveService/GetQuorumTickData", runtime.WithHTTPPathPattern("/tick/{tick_number}/quorum-tick-data"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/qubic.archiver.archive.pb.ArchiveService/GetQuorumTickData", runtime.WithHTTPPathPattern("/ticks/{tick_number}/quorum-tick-data"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -496,7 +548,7 @@ func RegisterArchiveServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/qubic.archiver.archive.pb.ArchiveService/GetTickTransactions", runtime.WithHTTPPathPattern("/tick/{tick_number}/transactions"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/qubic.archiver.archive.pb.ArchiveService/GetTickTransactions", runtime.WithHTTPPathPattern("/ticks/{tick_number}/transactions"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -513,6 +565,31 @@ func RegisterArchiveServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 
 	})
 
+	mux.Handle("GET", pattern_ArchiveService_GetTickTransferTransactions_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		var stream runtime.ServerTransportStream
+		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		var err error
+		var annotatedContext context.Context
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/qubic.archiver.archive.pb.ArchiveService/GetTickTransferTransactions", runtime.WithHTTPPathPattern("/ticks/{tick_number}/transfer-transactions"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := local_request_ArchiveService_GetTickTransferTransactions_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_ArchiveService_GetTickTransferTransactions_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
 	mux.Handle("GET", pattern_ArchiveService_GetChainHash_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
@@ -521,7 +598,7 @@ func RegisterArchiveServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/qubic.archiver.archive.pb.ArchiveService/GetChainHash", runtime.WithHTTPPathPattern("/tick/{tick_number}/chain-hash"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/qubic.archiver.archive.pb.ArchiveService/GetChainHash", runtime.WithHTTPPathPattern("/ticks/{tick_number}/chain-hash"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -546,7 +623,7 @@ func RegisterArchiveServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/qubic.archiver.archive.pb.ArchiveService/GetTransaction", runtime.WithHTTPPathPattern("/transaction/{tx_id}"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/qubic.archiver.archive.pb.ArchiveService/GetTransaction", runtime.WithHTTPPathPattern("/transactions/{tx_id}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -571,7 +648,7 @@ func RegisterArchiveServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/qubic.archiver.archive.pb.ArchiveService/GetTransferTransactionsPerTick", runtime.WithHTTPPathPattern("/identity/{identity}/transfer-tx"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/qubic.archiver.archive.pb.ArchiveService/GetTransferTransactionsPerTick", runtime.WithHTTPPathPattern("/identities/{identity}/transfer-tx"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -596,7 +673,7 @@ func RegisterArchiveServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/qubic.archiver.archive.pb.ArchiveService/GetComputors", runtime.WithHTTPPathPattern("/epoch/{epoch}/computors"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/qubic.archiver.archive.pb.ArchiveService/GetComputors", runtime.WithHTTPPathPattern("/epochs/{epoch}/computors"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -685,7 +762,7 @@ func RegisterArchiveServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/qubic.archiver.archive.pb.ArchiveService/GetTickData", runtime.WithHTTPPathPattern("/tick/{tick_number}/tick-data"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/qubic.archiver.archive.pb.ArchiveService/GetTickData", runtime.WithHTTPPathPattern("/ticks/{tick_number}/tick-data"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -707,7 +784,7 @@ func RegisterArchiveServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/qubic.archiver.archive.pb.ArchiveService/GetQuorumTickData", runtime.WithHTTPPathPattern("/tick/{tick_number}/quorum-tick-data"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/qubic.archiver.archive.pb.ArchiveService/GetQuorumTickData", runtime.WithHTTPPathPattern("/ticks/{tick_number}/quorum-tick-data"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -729,7 +806,7 @@ func RegisterArchiveServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/qubic.archiver.archive.pb.ArchiveService/GetTickTransactions", runtime.WithHTTPPathPattern("/tick/{tick_number}/transactions"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/qubic.archiver.archive.pb.ArchiveService/GetTickTransactions", runtime.WithHTTPPathPattern("/ticks/{tick_number}/transactions"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -745,13 +822,35 @@ func RegisterArchiveServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 
 	})
 
+	mux.Handle("GET", pattern_ArchiveService_GetTickTransferTransactions_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		var err error
+		var annotatedContext context.Context
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/qubic.archiver.archive.pb.ArchiveService/GetTickTransferTransactions", runtime.WithHTTPPathPattern("/ticks/{tick_number}/transfer-transactions"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_ArchiveService_GetTickTransferTransactions_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_ArchiveService_GetTickTransferTransactions_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
 	mux.Handle("GET", pattern_ArchiveService_GetChainHash_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/qubic.archiver.archive.pb.ArchiveService/GetChainHash", runtime.WithHTTPPathPattern("/tick/{tick_number}/chain-hash"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/qubic.archiver.archive.pb.ArchiveService/GetChainHash", runtime.WithHTTPPathPattern("/ticks/{tick_number}/chain-hash"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -773,7 +872,7 @@ func RegisterArchiveServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/qubic.archiver.archive.pb.ArchiveService/GetTransaction", runtime.WithHTTPPathPattern("/transaction/{tx_id}"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/qubic.archiver.archive.pb.ArchiveService/GetTransaction", runtime.WithHTTPPathPattern("/transactions/{tx_id}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -795,7 +894,7 @@ func RegisterArchiveServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/qubic.archiver.archive.pb.ArchiveService/GetTransferTransactionsPerTick", runtime.WithHTTPPathPattern("/identity/{identity}/transfer-tx"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/qubic.archiver.archive.pb.ArchiveService/GetTransferTransactionsPerTick", runtime.WithHTTPPathPattern("/identities/{identity}/transfer-tx"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -817,7 +916,7 @@ func RegisterArchiveServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/qubic.archiver.archive.pb.ArchiveService/GetComputors", runtime.WithHTTPPathPattern("/epoch/{epoch}/computors"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/qubic.archiver.archive.pb.ArchiveService/GetComputors", runtime.WithHTTPPathPattern("/epochs/{epoch}/computors"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -859,19 +958,21 @@ func RegisterArchiveServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 }
 
 var (
-	pattern_ArchiveService_GetTickData_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 1, 0, 4, 1, 5, 1, 2, 2}, []string{"tick", "tick_number", "tick-data"}, ""))
+	pattern_ArchiveService_GetTickData_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 1, 0, 4, 1, 5, 1, 2, 2}, []string{"ticks", "tick_number", "tick-data"}, ""))
 
-	pattern_ArchiveService_GetQuorumTickData_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 1, 0, 4, 1, 5, 1, 2, 2}, []string{"tick", "tick_number", "quorum-tick-data"}, ""))
+	pattern_ArchiveService_GetQuorumTickData_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 1, 0, 4, 1, 5, 1, 2, 2}, []string{"ticks", "tick_number", "quorum-tick-data"}, ""))
 
-	pattern_ArchiveService_GetTickTransactions_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 1, 0, 4, 1, 5, 1, 2, 2}, []string{"tick", "tick_number", "transactions"}, ""))
+	pattern_ArchiveService_GetTickTransactions_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 1, 0, 4, 1, 5, 1, 2, 2}, []string{"ticks", "tick_number", "transactions"}, ""))
 
-	pattern_ArchiveService_GetChainHash_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 1, 0, 4, 1, 5, 1, 2, 2}, []string{"tick", "tick_number", "chain-hash"}, ""))
+	pattern_ArchiveService_GetTickTransferTransactions_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 1, 0, 4, 1, 5, 1, 2, 2}, []string{"ticks", "tick_number", "transfer-transactions"}, ""))
 
-	pattern_ArchiveService_GetTransaction_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 1, 0, 4, 1, 5, 1}, []string{"transaction", "tx_id"}, ""))
+	pattern_ArchiveService_GetChainHash_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 1, 0, 4, 1, 5, 1, 2, 2}, []string{"ticks", "tick_number", "chain-hash"}, ""))
 
-	pattern_ArchiveService_GetTransferTransactionsPerTick_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 1, 0, 4, 1, 5, 0, 2, 1}, []string{"identity", "transfer-tx"}, ""))
+	pattern_ArchiveService_GetTransaction_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 1, 0, 4, 1, 5, 1}, []string{"transactions", "tx_id"}, ""))
 
-	pattern_ArchiveService_GetComputors_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 1, 0, 4, 1, 5, 0, 2, 1}, []string{"epoch", "computors"}, ""))
+	pattern_ArchiveService_GetTransferTransactionsPerTick_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 1, 0, 4, 1, 5, 1, 2, 2}, []string{"identities", "identity", "transfer-tx"}, ""))
+
+	pattern_ArchiveService_GetComputors_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 1, 0, 4, 1, 5, 1, 2, 2}, []string{"epochs", "epoch", "computors"}, ""))
 
 	pattern_ArchiveService_GetStatus_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0}, []string{"status"}, ""))
 )
@@ -882,6 +983,8 @@ var (
 	forward_ArchiveService_GetQuorumTickData_0 = runtime.ForwardResponseMessage
 
 	forward_ArchiveService_GetTickTransactions_0 = runtime.ForwardResponseMessage
+
+	forward_ArchiveService_GetTickTransferTransactions_0 = runtime.ForwardResponseMessage
 
 	forward_ArchiveService_GetChainHash_0 = runtime.ForwardResponseMessage
 
