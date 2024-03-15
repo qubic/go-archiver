@@ -13,6 +13,11 @@ all: $(GO)
     --proto_path=/opt/homebrew/Cellar/protobuf/25.3_1/include \
 		--go_out=paths=source_relative:. *.proto
 
+openapi: archive.proto
+		protoc --openapiv2_out=logtostderr=true:. \
+			   --proto_path=.:/opt/homebrew/Cellar/protobuf/25.3_1/include \
+			   archive.proto
+
 clean:
 		rm -f *.pb.go
 		rm -f *.go
