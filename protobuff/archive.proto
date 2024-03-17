@@ -175,7 +175,7 @@ service ArchiveService {
 
   rpc GetTransferTransactionsPerTick(GetTransferTransactionsPerTickRequest) returns (GetTransferTransactionsPerTickResponse) {
     option (google.api.http) = {
-      get: "/identities/{identity}/transfer-tx"
+      get: "/identities/{identity}/transfer-transactions"
     };
   };
 
