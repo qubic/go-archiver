@@ -1,6 +1,52 @@
 version: '3'
 
 services:
+  qubic-http:
+    image: ghcr.io/qubic/qubic-http:dev
+    container_name: qubic-http
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.middlewares.qubic-http.headers.accesscontrolalloworiginlist=*"
+      - "traefik.http.routers.qubic-http.rule=Host(`testapi.qubic.org`) && (PathPrefix(`/broadcast-transaction`) || PathPrefix(`/balances`) || PathPrefix(`/tick-info`))"
+      - "traefik.http.routers.qubic-http.entrypoints=web"
+      - "traefik.http.routers.qubic-http.middlewares=qubic-http"
+      - "traefik.http.services.qubic-http.loadbalancer.server.port=8000"
+    environment:
+      QUBIC_API_SIDECAR_SERVER_HTTP_HOST: "0.0.0.0:8000"
+      QUBIC_API_SIDECAR_SERVER_GRPC_HOST: "0.0.0.0:8001"
+      QUBIC_API_SIDECAR_POOL_NODE_FETCHER_URL: "http://qubic-node-fetcher:8080/peers"
+      QUBIC_API_SIDECAR_POOL_NODE_FETCHER_TIMEOUT: "20s"
+    networks:
+      - traefik
+    depends_on:
+      qubic-node-fetcher:
+        condition: service_healthy
+    restart: always
+
+  qubic-tx-status:
+    image: ghcr.io/qubic/qubic-tx-status:v0.1.0
+    container_name: qubic-tx-status
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.middlewares.qubic-tx-status.headers.accesscontrolalloworiginlist=*"
+      - "traefik.http.routers.qubic-tx-status.rule=Host(`testapi.qubic.org`) && PathPrefix(`/tx-status`)"
+      - "traefik.http.routers.qubic-tx-status.entrypoints=web"
+      - "traefik.http.routers.qubic-tx-status.middlewares=qubic-tx-status"
+      - "traefik.http.services.qubic-tx-status.loadbalancer.server.port=8000"
+    environment:
+      QUBIC_TX_STATUS_PROCESSOR_SERVER_HTTP_HOST: "0.0.0.0:8000"
+      QUBIC_TX_STATUS_PROCESSOR_SERVER_GRPC_HOST: "0.0.0.0:8001"
+      QUBIC_TX_STATUS_PROCESSOR_POOL_NODE_FETCHER_URL: "http://qubic-node-fetcher:8080/peers"
+      QUBIC_TX_STATUS_PROCESSOR_QUBIC_PROCESS_TICK_TIMEOUT: "20s"
+    volumes:
+      - ./store/tx-status:/app/store
+    networks:
+      - traefik
+    depends_on:
+      qubic-node-fetcher:
+        condition: service_healthy
+    restart: always
+
   qubic-archiver:
     image: ghcr.io/qubic/qubic-archiver:v0.1.18
     container_name: qubic-archiver
@@ -11,9 +57,6 @@ services:
       - "traefik.http.routers.qubic-archiver.entrypoints=web"
       - "traefik.http.routers.qubic-archiver.middlewares=qubic-archiver"
       - "traefik.http.services.qubic-archiver.loadbalancer.server.port=8000"
-
-    ports:
-      - "127.0.0.1:8001:8001"
     environment:
       QUBIC_ARCHIVER_SERVER_HTTP_HOST: "0.0.0.0:8000"
       QUBIC_ARCHIVER_SERVER_GRPC_HOST: "0.0.0.0:8001"
@@ -52,7 +95,10 @@ services:
     command:
       - "--log.level=DEBUG"
       - "--api.insecure=true"
+      - "--metrics.prometheus=true"
+      - "--metrics.prometheus.buckets=0.1,0.3,1.2,5.0"
       - "--providers.docker=true"
+      - "--providers.docker.watch"
       - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:80"
     ports:

@@ -5,6 +5,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 	"os"
 	"path/filepath"
 	"testing"
@@ -33,7 +34,7 @@ func TestPebbleStore_TickData(t *testing.T) {
 		name       string
 		td         *pb.TickData
 		exp        *pb.TickData
-		tickNumber uint64
+		tickNumber uint32
 	}{
 		{
 			name:       "TestTickData_1",
@@ -163,11 +164,11 @@ func TestPebbleStore_QuorumTickData(t *testing.T) {
 	}
 
 	// Set QuorumTickData
-	err = store.SetQuorumTickData(ctx, uint64(quorumData.QuorumTickStructure.TickNumber), quorumData)
+	err = store.SetQuorumTickData(ctx, quorumData.QuorumTickStructure.TickNumber, quorumData)
 	require.NoError(t, err)
 
 	// Get QuorumTickData
-	retrievedData, err := store.GetQuorumTickData(ctx, uint64(quorumData.QuorumTickStructure.TickNumber))
+	retrievedData, err := store.GetQuorumTickData(ctx, quorumData.QuorumTickStructure.TickNumber)
 	require.NoError(t, err)
 
 	if diff := cmp.Diff(quorumData, retrievedData, cmpopts.IgnoreUnexported(pb.QuorumTickData{}, pb.QuorumTickStructure{}, pb.QuorumDiff{})); diff != "" {
@@ -271,11 +272,11 @@ func TestPebbleStore_TickTransactions(t *testing.T) {
 		SignatureHex:   "signature1",
 		TransactionIds: []string{"ff01", "cd01"},
 	}
-	err = store.SetTickData(ctx, uint64(tickData.TickNumber), &tickData)
+	err = store.SetTickData(ctx, tickData.TickNumber, &tickData)
 	require.NoError(t, err, "Failed to store TickData")
 
 	// Sample Transactions for testing
-	tickNumber := uint64(12795005)
+	tickNumber := uint32(12795005)
 
 	// Assuming SetTransactions stores transactions for a tick
 	err = store.SetTransactions(ctx, transactions)
@@ -367,43 +368,43 @@ func TestSetAndGetLastProcessedTicksPerEpoch(t *testing.T) {
 	store := NewPebbleStore(db, logger)
 
 	// Set last processed ticks per epoch
-	err = store.SetLastProcessedTick(ctx, 16, 1)
+	err = store.SetLastProcessedTick(ctx, &pb.LastProcessedTick{TickNumber: 16, Epoch: 1})
 	require.NoError(t, err)
 
 	// Get last processed tick per epoch
-	lastProcessedTick, err := store.GetLastProcessedTick(ctx)
+	got, err := store.GetLastProcessedTick(ctx)
 	require.NoError(t, err)
-	require.Equal(t, uint64(16), lastProcessedTick)
+	require.True(t, proto.Equal(&pb.LastProcessedTick{TickNumber: 16, Epoch: 1}, got))
 
 	lastProcessedTicksPerEpoch, err := store.GetLastProcessedTicksPerEpoch(ctx)
 	require.NoError(t, err)
-	require.Equal(t, map[uint32]uint64{1: 16}, lastProcessedTicksPerEpoch)
+	require.Equal(t, map[uint32]uint32{1: 16}, lastProcessedTicksPerEpoch)
 
 	// Set last processed ticks per epoch
-	err = store.SetLastProcessedTick(ctx, 17, 1)
+	err = store.SetLastProcessedTick(ctx, &pb.LastProcessedTick{TickNumber: 17, Epoch: 1})
 	require.NoError(t, err)
 
 	// Get last processed tick per epoch
-	lastProcessedTick, err = store.GetLastProcessedTick(ctx)
+	got, err = store.GetLastProcessedTick(ctx)
 	require.NoError(t, err)
-	require.Equal(t, uint64(17), lastProcessedTick)
+	require.True(t, proto.Equal(&pb.LastProcessedTick{TickNumber: 17, Epoch: 1}, got))
 
 	lastProcessedTicksPerEpoch, err = store.GetLastProcessedTicksPerEpoch(ctx)
 	require.NoError(t, err)
-	require.Equal(t, map[uint32]uint64{1: 17}, lastProcessedTicksPerEpoch)
+	require.Equal(t, map[uint32]uint32{1: 17}, lastProcessedTicksPerEpoch)
 
 	// Set last processed ticks per epoch
-	err = store.SetLastProcessedTick(ctx, 18, 2)
+	err = store.SetLastProcessedTick(ctx, &pb.LastProcessedTick{TickNumber: 18, Epoch: 2})
 	require.NoError(t, err)
 
 	// Get last processed tick per epoch
-	lastProcessedTick, err = store.GetLastProcessedTick(ctx)
+	got, err = store.GetLastProcessedTick(ctx)
 	require.NoError(t, err)
-	require.Equal(t, uint64(18), lastProcessedTick)
+	require.True(t, proto.Equal(&pb.LastProcessedTick{TickNumber: 18, Epoch: 2}, got))
 
 	lastProcessedTicksPerEpoch, err = store.GetLastProcessedTicksPerEpoch(ctx)
 	require.NoError(t, err)
-	require.Equal(t, map[uint32]uint64{1: 17, 2: 18}, lastProcessedTicksPerEpoch)
+	require.Equal(t, map[uint32]uint32{1: 17, 2: 18}, lastProcessedTicksPerEpoch)
 }
 
 func TestGetSetSkippedTicks(t *testing.T) {
@@ -591,7 +592,7 @@ func TestPebbleStore_ChainHash(t *testing.T) {
 	store := NewPebbleStore(db, logger)
 
 	// Sample ChainHash for testing
-	tickNumber := uint64(12795005)
+	tickNumber := uint32(12795005)
 	qChainHash := []byte("qChainHash")
 
 	// Set ChainHash

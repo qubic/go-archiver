@@ -5,7 +5,7 @@ WORKDIR /src
 COPY . /src
 
 RUN go mod tidy
-RUN go build -o "/src/bin/go-archiver"
+RUN go build -o "/src/bin/go-archiver" --ldflags="-X 'github.com/qubic/go-archiver/utils.debug=false'"
 
 # We don't need golang to run binaries, just use alpine.
 FROM ubuntu:22.04

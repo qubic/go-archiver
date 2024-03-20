@@ -16,16 +16,16 @@ const (
 	ChainDigest                  = 0x08
 )
 
-func tickDataKey(tickNumber uint64) []byte {
+func tickDataKey(tickNumber uint32) []byte {
 	key := []byte{TickData}
-	key = binary.BigEndian.AppendUint64(key, tickNumber)
+	key = binary.BigEndian.AppendUint64(key, uint64(tickNumber))
 
 	return key
 }
 
-func quorumTickDataKey(tickNumber uint64) []byte {
+func quorumTickDataKey(tickNumber uint32) []byte {
 	key := []byte{QuorumData}
-	key = binary.BigEndian.AppendUint64(key, tickNumber)
+	key = binary.BigEndian.AppendUint64(key, uint64(tickNumber))
 
 	return key
 }
@@ -59,10 +59,10 @@ func skippedTicksIntervalKey() []byte {
 	return []byte{SkippedTicksInterval}
 }
 
-func identityTransferTransactionsPerTickKey(identity string, tickNumber uint64) []byte {
+func identityTransferTransactionsPerTickKey(identity string, tickNumber uint32) []byte {
 	key := []byte{IdentityTransferTransactions}
 	key = append(key, []byte(identity)...)
-	key = binary.BigEndian.AppendUint64(key, tickNumber)
+	key = binary.BigEndian.AppendUint64(key, uint64(tickNumber))
 
 	return key
 }
@@ -74,9 +74,9 @@ func identityTransferTransactions(identity string) []byte {
 	return key
 }
 
-func chainDigestKey(tickNumber uint64) []byte {
+func chainDigestKey(tickNumber uint32) []byte {
 	key := []byte{ChainDigest}
-	key = binary.BigEndian.AppendUint64(key, tickNumber)
+	key = binary.BigEndian.AppendUint64(key, uint64(tickNumber))
 
 	return key
 }

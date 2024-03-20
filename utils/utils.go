@@ -7,10 +7,11 @@ import (
 	"encoding/hex"
 	"github.com/cloudflare/circl/xof/k12"
 	"github.com/pkg/errors"
+	"log"
 	"os/exec"
 )
 
-var debug = true
+var debug = "false"
 
 type SigVerifierFunc = func(ctx context.Context, pubkey [32]byte, digest [32]byte, sig [64]byte) error
 
@@ -19,8 +20,8 @@ func FourQSigVerify(ctx context.Context, pubkey [32]byte, digest [32]byte, sig [
 	digestHex := hex.EncodeToString(digest[:])
 	sigHex := hex.EncodeToString(sig[:])
 
-	if debug {
-		//log.Println("Skipping fourq_verify. Debug mode enabled.")
+	if debug == "true" {
+		log.Println("Skipping fourq_verify. Debug mode enabled.")
 		return nil
 	}
 

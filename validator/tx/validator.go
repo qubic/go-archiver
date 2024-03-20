@@ -92,7 +92,7 @@ func createTxDigestsMap(tickData types.TickData) map[string]struct{} {
 	return digestsMap
 }
 
-func Store(ctx context.Context, store *store.PebbleStore, tickNumber uint64, transactions types.Transactions) error {
+func Store(ctx context.Context, store *store.PebbleStore, tickNumber uint32, transactions types.Transactions) error {
 	err := storeTickTransactions(ctx, store, transactions)
 	if err != nil {
 		return errors.Wrap(err, "storing tick transactions")
@@ -120,7 +120,7 @@ func storeTickTransactions(ctx context.Context, store *store.PebbleStore, transa
 	return nil
 }
 
-func storeTransferTransactions(ctx context.Context, store *store.PebbleStore, tickNumber uint64, transactions types.Transactions) error {
+func storeTransferTransactions(ctx context.Context, store *store.PebbleStore, tickNumber uint32, transactions types.Transactions) error {
 	transferTransactions, err := removeNonTransferTransactionsAndConvert(transactions)
 	if err != nil {
 		return errors.Wrap(err, "removing non transfer transactions")
