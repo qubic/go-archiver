@@ -7,7 +7,7 @@ import (
 	"github.com/qubic/go-node-connector/types"
 )
 
-func ComputeAndStore(ctx context.Context, store *store.PebbleStore, initialEpochTick, tickNumber uint64, quorumVote types.QuorumTickVote) error {
+func ComputeAndStore(ctx context.Context, store *store.PebbleStore, initialEpochTick, tickNumber uint32, quorumVote types.QuorumTickVote) error {
 	prevDigest, err := getPrevChainDigest(ctx, store, initialEpochTick, tickNumber)
 	if err != nil {
 		return errors.Wrap(err, "getting prev chain digest")
@@ -26,7 +26,7 @@ func ComputeAndStore(ctx context.Context, store *store.PebbleStore, initialEpoch
 	return nil
 }
 
-func getPrevChainDigest(ctx context.Context, store *store.PebbleStore, initialEpochTick, tickNumber uint64) ([32]byte, error) {
+func getPrevChainDigest(ctx context.Context, store *store.PebbleStore, initialEpochTick, tickNumber uint32) ([32]byte, error) {
 	// if this is the first tick, there is no previous chain digest, so we are using an empty one
 	if tickNumber == initialEpochTick {
 		return [32]byte{}, nil

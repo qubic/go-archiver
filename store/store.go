@@ -25,7 +25,7 @@ func NewPebbleStore(db *pebble.DB, logger *zap.Logger) *PebbleStore {
 	return &PebbleStore{db: db, logger: logger}
 }
 
-func (s *PebbleStore) GetTickData(ctx context.Context, tickNumber uint64) (*protobuff.TickData, error) {
+func (s *PebbleStore) GetTickData(ctx context.Context, tickNumber uint32) (*protobuff.TickData, error) {
 	key := tickDataKey(tickNumber)
 	value, closer, err := s.db.Get(key)
 	if err != nil {
@@ -45,7 +45,7 @@ func (s *PebbleStore) GetTickData(ctx context.Context, tickNumber uint64) (*prot
 	return &td, err
 }
 
-func (s *PebbleStore) SetTickData(ctx context.Context, tickNumber uint64, td *protobuff.TickData) error {
+func (s *PebbleStore) SetTickData(ctx context.Context, tickNumber uint32, td *protobuff.TickData) error {
 	key := tickDataKey(tickNumber)
 	serialized, err := protojson.Marshal(td)
 	if err != nil {
@@ -60,7 +60,7 @@ func (s *PebbleStore) SetTickData(ctx context.Context, tickNumber uint64, td *pr
 	return nil
 }
 
-func (s *PebbleStore) GetQuorumTickData(ctx context.Context, tickNumber uint64) (*protobuff.QuorumTickData, error) {
+func (s *PebbleStore) GetQuorumTickData(ctx context.Context, tickNumber uint32) (*protobuff.QuorumTickData, error) {
 	key := quorumTickDataKey(tickNumber)
 	value, closer, err := s.db.Get(key)
 	if err != nil {
@@ -80,7 +80,7 @@ func (s *PebbleStore) GetQuorumTickData(ctx context.Context, tickNumber uint64) 
 	return &qtd, err
 }
 
-func (s *PebbleStore) SetQuorumTickData(ctx context.Context, tickNumber uint64, qtd *protobuff.QuorumTickData) error {
+func (s *PebbleStore) SetQuorumTickData(ctx context.Context, tickNumber uint32, qtd *protobuff.QuorumTickData) error {
 	key := quorumTickDataKey(tickNumber)
 	serialized, err := proto.Marshal(qtd)
 	if err != nil {
@@ -160,7 +160,7 @@ func (s *PebbleStore) SetTransactions(ctx context.Context, txs []*protobuff.Tran
 	return nil
 }
 
-func (s *PebbleStore) GetTickTransactions(ctx context.Context, tickNumber uint64) ([]*protobuff.Transaction, error) {
+func (s *PebbleStore) GetTickTransactions(ctx context.Context, tickNumber uint32) ([]*protobuff.Transaction, error) {
 	td, err := s.GetTickData(ctx, tickNumber)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
@@ -187,7 +187,7 @@ func (s *PebbleStore) GetTickTransactions(ctx context.Context, tickNumber uint64
 	return txs, nil
 }
 
-func (s *PebbleStore) GetTickTransferTransactions(ctx context.Context, tickNumber uint64) ([]*protobuff.Transaction, error) {
+func (s *PebbleStore) GetTickTransferTransactions(ctx context.Context, tickNumber uint32) ([]*protobuff.Transaction, error) {
 	td, err := s.GetTickData(ctx, tickNumber)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
@@ -241,13 +241,13 @@ func (s *PebbleStore) GetTransaction(ctx context.Context, txID string) (*protobu
 	return &tx, nil
 }
 
-func (s *PebbleStore) SetLastProcessedTick(ctx context.Context, tickNumber uint64, epochNumber uint32) error {
+func (s *PebbleStore) SetLastProcessedTick(ctx context.Context, lastProcessedTick *protobuff.LastProcessedTick) error {
 	batch := s.db.NewBatch()
 	defer batch.Close()
 
-	key := lastProcessedTickKeyPerEpoch(epochNumber)
-	value := make([]byte, 8)
-	binary.LittleEndian.PutUint64(value, tickNumber)
+	key := lastProcessedTickKeyPerEpoch(lastProcessedTick.Epoch)
+	value := make([]byte, 4)
+	binary.LittleEndian.PutUint32(value, lastProcessedTick.TickNumber)
 
 	err := batch.Set(key, value, pebble.Sync)
 	if err != nil {
@@ -255,10 +255,12 @@ func (s *PebbleStore) SetLastProcessedTick(ctx context.Context, tickNumber uint6
 	}
 
 	key = lastProcessedTickKey()
-	value = make([]byte, 8)
-	binary.LittleEndian.PutUint64(value, tickNumber)
+	serialized, err := protojson.Marshal(lastProcessedTick)
+	if err != nil {
+		return errors.Wrap(err, "serializing skipped tick proto")
+	}
 
-	err = batch.Set(key, value, pebble.Sync)
+	err = batch.Set(key, serialized, pebble.Sync)
 	if err != nil {
 		return errors.Wrap(err, "setting last processed tick")
 	}
@@ -271,22 +273,33 @@ func (s *PebbleStore) SetLastProcessedTick(ctx context.Context, tickNumber uint6
 	return nil
 }
 
-func (s *PebbleStore) GetLastProcessedTick(ctx context.Context) (uint64, error) {
+func (s *PebbleStore) GetLastProcessedTick(ctx context.Context) (*protobuff.LastProcessedTick, error) {
 	key := lastProcessedTickKey()
 	value, closer, err := s.db.Get(key)
 	if err != nil {
 		if errors.Is(err, pebble.ErrNotFound) {
-			return 0, ErrNotFound
+			return nil, ErrNotFound
 		}
 
-		return 0, errors.Wrap(err, "getting last processed tick")
+		return nil, errors.Wrap(err, "getting last processed tick")
 	}
 	defer closer.Close()
 
-	return binary.LittleEndian.Uint64(value), nil
+	if len(value) == 8 {
+		var lpt protobuff.LastProcessedTick
+		lpt.TickNumber = uint32(binary.LittleEndian.Uint64(value))
+		return &lpt, nil
+	}
+
+	var lpt protobuff.LastProcessedTick
+	if err := protojson.Unmarshal(value, &lpt); err != nil {
+		return nil, errors.Wrap(err, "unmarshalling lpt to protobuff type")
+	}
+
+	return &lpt, nil
 }
 
-func (s *PebbleStore) GetLastProcessedTicksPerEpoch(ctx context.Context) (map[uint32]uint64, error) {
+func (s *PebbleStore) GetLastProcessedTicksPerEpoch(ctx context.Context) (map[uint32]uint32, error) {
 	upperBound := append([]byte{LastProcessedTickPerEpoch}, []byte(strconv.FormatUint(maxTickNumber, 10))...)
 	iter, err := s.db.NewIter(&pebble.IterOptions{
 		LowerBound: []byte{LastProcessedTickPerEpoch},
@@ -297,7 +310,7 @@ func (s *PebbleStore) GetLastProcessedTicksPerEpoch(ctx context.Context) (map[ui
 	}
 	defer iter.Close()
 
-	ticksPerEpoch := make(map[uint32]uint64)
+	ticksPerEpoch := make(map[uint32]uint32)
 	for iter.First(); iter.Valid(); iter.Next() {
 		key := iter.Key()
 
@@ -307,7 +320,7 @@ func (s *PebbleStore) GetLastProcessedTicksPerEpoch(ctx context.Context) (map[ui
 		}
 
 		epochNumber := binary.BigEndian.Uint32(key[1:])
-		tickNumber := binary.LittleEndian.Uint64(value)
+		tickNumber := binary.LittleEndian.Uint32(value)
 		ticksPerEpoch[epochNumber] = tickNumber
 	}
 
@@ -361,7 +374,7 @@ func (s *PebbleStore) GetSkippedTicksInterval(ctx context.Context) (*protobuff.S
 	return &stil, nil
 }
 
-func (s *PebbleStore) PutTransferTransactionsPerTick(ctx context.Context, identity string, tickNumber uint64, txs *protobuff.TransferTransactionsPerTick) error {
+func (s *PebbleStore) PutTransferTransactionsPerTick(ctx context.Context, identity string, tickNumber uint32, txs *protobuff.TransferTransactionsPerTick) error {
 	key := identityTransferTransactionsPerTickKey(identity, tickNumber)
 
 	serialized, err := protojson.Marshal(txs)
@@ -409,7 +422,7 @@ func (s *PebbleStore) GetTransferTransactions(ctx context.Context, identity stri
 	return transferTxs, nil
 }
 
-func (s *PebbleStore) PutChainDigest(ctx context.Context, tickNumber uint64, digest []byte) error {
+func (s *PebbleStore) PutChainDigest(ctx context.Context, tickNumber uint32, digest []byte) error {
 	key := chainDigestKey(tickNumber)
 
 	err := s.db.Set(key, digest, pebble.Sync)
@@ -420,7 +433,7 @@ func (s *PebbleStore) PutChainDigest(ctx context.Context, tickNumber uint64, dig
 	return nil
 }
 
-func (s *PebbleStore) GetChainDigest(ctx context.Context, tickNumber uint64) ([]byte, error) {
+func (s *PebbleStore) GetChainDigest(ctx context.Context, tickNumber uint32) ([]byte, error) {
 	key := chainDigestKey(tickNumber)
 	value, closer, err := s.db.Get(key)
 	if err != nil {

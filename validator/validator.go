@@ -24,8 +24,8 @@ func New(qu *qubic.Client, store *store.PebbleStore) *Validator {
 	return &Validator{qu: qu, store: store}
 }
 
-func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumber uint64) error {
-	quorumVotes, err := v.qu.GetQuorumVotes(ctx, uint32(tickNumber))
+func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumber uint32) error {
+	quorumVotes, err := v.qu.GetQuorumVotes(ctx, tickNumber)
 	if err != nil {
 		return errors.Wrap(err, "getting quorum tick data")
 	}

@@ -116,9 +116,14 @@ message TransferTransactionsPerTick {
   repeated Transaction transactions = 3;
 }
 
+message LastProcessedTick {
+  uint32 tick_number = 1;
+  uint32 epoch = 2;
+}
+
 message GetStatusResponse {
-  uint32 last_processed_tick = 1;
-  map<uint32, uint64> last_processed_ticks_per_epoch = 2;
+  LastProcessedTick last_processed_tick = 1;
+  map<uint32, uint32> last_processed_ticks_per_epoch = 2;
   repeated SkippedTicksInterval skipped_ticks = 3;
 }
 
