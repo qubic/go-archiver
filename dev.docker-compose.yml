@@ -24,7 +24,7 @@ services:
     restart: always
 
   qubic-tx-status:
-    image: ghcr.io/qubic/qubic-tx-status:v0.1.0
+    image: ghcr.io/qubic/qubic-tx-status:v0.1.5
     container_name: qubic-tx-status
     labels:
       - "traefik.enable=true"
@@ -36,8 +36,11 @@ services:
     environment:
       QUBIC_TX_STATUS_PROCESSOR_SERVER_HTTP_HOST: "0.0.0.0:8000"
       QUBIC_TX_STATUS_PROCESSOR_SERVER_GRPC_HOST: "0.0.0.0:8001"
+      QUBIC_TX_STATUS_PROCESSOR_QUBIC_ARCHIVE_URL: "http://qubic-archiver:8000"
       QUBIC_TX_STATUS_PROCESSOR_POOL_NODE_FETCHER_URL: "http://qubic-node-fetcher:8080/peers"
       QUBIC_TX_STATUS_PROCESSOR_QUBIC_PROCESS_TICK_TIMEOUT: "20s"
+    ports:
+      - "127.0.0.1:8010:8000"
     volumes:
       - ./store/tx-status:/app/store
     networks:
@@ -48,7 +51,7 @@ services:
     restart: always
 
   qubic-archiver:
-    image: ghcr.io/qubic/qubic-archiver:v0.1.18
+    image: ghcr.io/qubic/qubic-archiver:v0.1.23
     container_name: qubic-archiver
     labels:
       - "traefik.enable=true"
@@ -57,6 +60,8 @@ services:
       - "traefik.http.routers.qubic-archiver.entrypoints=web"
       - "traefik.http.routers.qubic-archiver.middlewares=qubic-archiver"
       - "traefik.http.services.qubic-archiver.loadbalancer.server.port=8000"
+    ports:
+      - "127.0.0.1:8001:8000"
     environment:
       QUBIC_ARCHIVER_SERVER_HTTP_HOST: "0.0.0.0:8000"
       QUBIC_ARCHIVER_SERVER_GRPC_HOST: "0.0.0.0:8001"

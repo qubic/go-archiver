@@ -29,6 +29,7 @@ const (
 	ArchiveService_GetTransferTransactionsPerTick_FullMethodName = "/qubic.archiver.archive.pb.ArchiveService/GetTransferTransactionsPerTick"
 	ArchiveService_GetComputors_FullMethodName                   = "/qubic.archiver.archive.pb.ArchiveService/GetComputors"
 	ArchiveService_GetStatus_FullMethodName                      = "/qubic.archiver.archive.pb.ArchiveService/GetStatus"
+	ArchiveService_GetBlockHeight_FullMethodName                 = "/qubic.archiver.archive.pb.ArchiveService/GetBlockHeight"
 )
 
 // ArchiveServiceClient is the client API for ArchiveService service.
@@ -44,6 +45,7 @@ type ArchiveServiceClient interface {
 	GetTransferTransactionsPerTick(ctx context.Context, in *GetTransferTransactionsPerTickRequest, opts ...grpc.CallOption) (*GetTransferTransactionsPerTickResponse, error)
 	GetComputors(ctx context.Context, in *GetComputorsRequest, opts ...grpc.CallOption) (*GetComputorsResponse, error)
 	GetStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*GetStatusResponse, error)
+	GetBlockHeight(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*GetBlockHeightResponse, error)
 }
 
 type archiveServiceClient struct {
@@ -135,6 +137,15 @@ func (c *archiveServiceClient) GetStatus(ctx context.Context, in *emptypb.Empty,
 	return out, nil
 }
 
+func (c *archiveServiceClient) GetBlockHeight(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*GetBlockHeightResponse, error) {
+	out := new(GetBlockHeightResponse)
+	err := c.cc.Invoke(ctx, ArchiveService_GetBlockHeight_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ArchiveServiceServer is the server API for ArchiveService service.
 // All implementations must embed UnimplementedArchiveServiceServer
 // for forward compatibility
@@ -148,6 +159,7 @@ type ArchiveServiceServer interface {
 	GetTransferTransactionsPerTick(context.Context, *GetTransferTransactionsPerTickRequest) (*GetTransferTransactionsPerTickResponse, error)
 	GetComputors(context.Context, *GetComputorsRequest) (*GetComputorsResponse, error)
 	GetStatus(context.Context, *emptypb.Empty) (*GetStatusResponse, error)
+	GetBlockHeight(context.Context, *emptypb.Empty) (*GetBlockHeightResponse, error)
 	mustEmbedUnimplementedArchiveServiceServer()
 }
 
@@ -181,6 +193,9 @@ func (UnimplementedArchiveServiceServer) GetComputors(context.Context, *GetCompu
 }
 func (UnimplementedArchiveServiceServer) GetStatus(context.Context, *emptypb.Empty) (*GetStatusResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetStatus not implemented")
+}
+func (UnimplementedArchiveServiceServer) GetBlockHeight(context.Context, *emptypb.Empty) (*GetBlockHeightResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetBlockHeight not implemented")
 }
 func (UnimplementedArchiveServiceServer) mustEmbedUnimplementedArchiveServiceServer() {}
 
@@ -357,6 +372,24 @@ func _ArchiveService_GetStatus_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ArchiveService_GetBlockHeight_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(emptypb.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ArchiveServiceServer).GetBlockHeight(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ArchiveService_GetBlockHeight_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ArchiveServiceServer).GetBlockHeight(ctx, req.(*emptypb.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ArchiveService_ServiceDesc is the grpc.ServiceDesc for ArchiveService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -399,6 +432,10 @@ var ArchiveService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetStatus",
 			Handler:    _ArchiveService_GetStatus_Handler,
+		},
+		{
+			MethodName: "GetBlockHeight",
+			Handler:    _ArchiveService_GetBlockHeight_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

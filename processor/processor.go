@@ -106,7 +106,7 @@ func (p *Processor) processOneByOne() error {
 		return errors.Wrap(err, "processing skipped ticks")
 	}
 
-	err = p.ps.SetLastProcessedTick(ctx, &protobuff.LastProcessedTick{TickNumber: nextTick, Epoch: uint32(tickInfo.Epoch)})
+	err = p.ps.SetLastProcessedTick(ctx, &protobuff.ProcessedTick{TickNumber: nextTick, Epoch: uint32(tickInfo.Epoch)})
 	if err != nil {
 		return errors.Wrapf(err, "setting last processed tick %d", nextTick)
 	}

@@ -241,7 +241,7 @@ func (s *PebbleStore) GetTransaction(ctx context.Context, txID string) (*protobu
 	return &tx, nil
 }
 
-func (s *PebbleStore) SetLastProcessedTick(ctx context.Context, lastProcessedTick *protobuff.LastProcessedTick) error {
+func (s *PebbleStore) SetLastProcessedTick(ctx context.Context, lastProcessedTick *protobuff.ProcessedTick) error {
 	batch := s.db.NewBatch()
 	defer batch.Close()
 
@@ -273,7 +273,7 @@ func (s *PebbleStore) SetLastProcessedTick(ctx context.Context, lastProcessedTic
 	return nil
 }
 
-func (s *PebbleStore) GetLastProcessedTick(ctx context.Context) (*protobuff.LastProcessedTick, error) {
+func (s *PebbleStore) GetLastProcessedTick(ctx context.Context) (*protobuff.ProcessedTick, error) {
 	key := lastProcessedTickKey()
 	value, closer, err := s.db.Get(key)
 	if err != nil {
@@ -299,13 +299,13 @@ func (s *PebbleStore) GetLastProcessedTick(ctx context.Context) (*protobuff.Last
 				break
 			}
 		}
-		return &protobuff.LastProcessedTick{
+		return &protobuff.ProcessedTick{
 			TickNumber: tickNumber,
 			Epoch:      epoch,
 		}, nil
 	}
 
-	var lpt protobuff.LastProcessedTick
+	var lpt protobuff.ProcessedTick
 	if err := protojson.Unmarshal(value, &lpt); err != nil {
 		return nil, errors.Wrap(err, "unmarshalling lpt to protobuff type")
 	}

@@ -133,6 +133,15 @@ func (s *Server) GetStatus(ctx context.Context, _ *emptypb.Empty) (*protobuff.Ge
 	return &protobuff.GetStatusResponse{LastProcessedTick: tick, LastProcessedTicksPerEpoch: lastProcessedTicksPerEpoch, SkippedTicks: skippedTicks.SkippedTicks}, nil
 }
 
+func (s *Server) GetBlockHeight(ctx context.Context, _ *emptypb.Empty) (*protobuff.GetBlockHeightResponse, error) {
+	tick, err := s.store.GetLastProcessedTick(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "getting last processed tick: %v", err)
+	}
+
+	return &protobuff.GetBlockHeightResponse{BlockHeight: tick}, nil
+}
+
 func (s *Server) GetTransferTransactionsPerTick(ctx context.Context, req *protobuff.GetTransferTransactionsPerTickRequest) (*protobuff.GetTransferTransactionsPerTickResponse, error) {
 	txs, err := s.store.GetTransferTransactions(ctx, req.Identity, uint64(req.GetStartTick()), uint64(req.GetEndTick()))
 	if err != nil {

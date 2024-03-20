@@ -9,7 +9,7 @@ const (
 	QuorumData                   = 0x01
 	ComputorList                 = 0x02
 	Transaction                  = 0x03
-	LastProcessedTick            = 0x04
+	ProcessedTick                = 0x04
 	LastProcessedTickPerEpoch    = 0x05
 	SkippedTicksInterval         = 0x06
 	IdentityTransferTransactions = 0x07
@@ -45,7 +45,7 @@ func tickTxKey(txID string) ([]byte, error) {
 }
 
 func lastProcessedTickKey() []byte {
-	return []byte{LastProcessedTick}
+	return []byte{ProcessedTick}
 }
 
 func lastProcessedTickKeyPerEpoch(epochNumber uint32) []byte {

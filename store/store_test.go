@@ -400,39 +400,39 @@ func TestSetAndGetLastProcessedTicksPerEpoch(t *testing.T) {
 	//}
 
 	// Set last processed ticks per epoch
-	err = store.SetLastProcessedTick(ctx, &pb.LastProcessedTick{TickNumber: 16, Epoch: 1})
+	err = store.SetLastProcessedTick(ctx, &pb.ProcessedTick{TickNumber: 16, Epoch: 1})
 	require.NoError(t, err)
 
 	// Get last processed tick per epoch
 	got, err := store.GetLastProcessedTick(ctx)
 	require.NoError(t, err)
-	require.True(t, proto.Equal(&pb.LastProcessedTick{TickNumber: 16, Epoch: 1}, got))
+	require.True(t, proto.Equal(&pb.ProcessedTick{TickNumber: 16, Epoch: 1}, got))
 
 	lastProcessedTicksPerEpoch, err := store.GetLastProcessedTicksPerEpoch(ctx)
 	require.NoError(t, err)
 	require.Equal(t, map[uint32]uint32{1: 16}, lastProcessedTicksPerEpoch)
 
 	// Set last processed ticks per epoch
-	err = store.SetLastProcessedTick(ctx, &pb.LastProcessedTick{TickNumber: 17, Epoch: 1})
+	err = store.SetLastProcessedTick(ctx, &pb.ProcessedTick{TickNumber: 17, Epoch: 1})
 	require.NoError(t, err)
 
 	// Get last processed tick per epoch
 	got, err = store.GetLastProcessedTick(ctx)
 	require.NoError(t, err)
-	require.True(t, proto.Equal(&pb.LastProcessedTick{TickNumber: 17, Epoch: 1}, got))
+	require.True(t, proto.Equal(&pb.ProcessedTick{TickNumber: 17, Epoch: 1}, got))
 
 	lastProcessedTicksPerEpoch, err = store.GetLastProcessedTicksPerEpoch(ctx)
 	require.NoError(t, err)
 	require.Equal(t, map[uint32]uint32{1: 17}, lastProcessedTicksPerEpoch)
 
 	// Set last processed ticks per epoch
-	err = store.SetLastProcessedTick(ctx, &pb.LastProcessedTick{TickNumber: 18, Epoch: 2})
+	err = store.SetLastProcessedTick(ctx, &pb.ProcessedTick{TickNumber: 18, Epoch: 2})
 	require.NoError(t, err)
 
 	// Get last processed tick per epoch
 	got, err = store.GetLastProcessedTick(ctx)
 	require.NoError(t, err)
-	require.True(t, proto.Equal(&pb.LastProcessedTick{TickNumber: 18, Epoch: 2}, got))
+	require.True(t, proto.Equal(&pb.ProcessedTick{TickNumber: 18, Epoch: 2}, got))
 
 	lastProcessedTicksPerEpoch, err = store.GetLastProcessedTicksPerEpoch(ctx)
 	require.NoError(t, err)

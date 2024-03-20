@@ -116,15 +116,19 @@ message TransferTransactionsPerTick {
   repeated Transaction transactions = 3;
 }
 
-message LastProcessedTick {
+message ProcessedTick {
   uint32 tick_number = 1;
   uint32 epoch = 2;
 }
 
 message GetStatusResponse {
-  LastProcessedTick last_processed_tick = 1;
+  ProcessedTick last_processed_tick = 1;
   map<uint32, uint32> last_processed_ticks_per_epoch = 2;
   repeated SkippedTicksInterval skipped_ticks = 3;
+}
+
+message GetBlockHeightResponse {
+    ProcessedTick block_height = 1;
 }
 
 message GetTransferTransactionsPerTickRequest {
@@ -193,6 +197,12 @@ service ArchiveService {
   rpc GetStatus(google.protobuf.Empty) returns (GetStatusResponse) {
     option (google.api.http) = {
       get: "/status"
+    };
+  };
+
+  rpc GetBlockHeight(google.protobuf.Empty) returns (GetBlockHeightResponse) {
+    option (google.api.http) = {
+      get: "/block-height"
     };
   };
 }
