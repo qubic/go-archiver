@@ -367,6 +367,38 @@ func TestSetAndGetLastProcessedTicksPerEpoch(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 	store := NewPebbleStore(db, logger)
 
+	//value := make([]byte, 8)
+	//binary.LittleEndian.PutUint64(value, 15)
+	//key := lastProcessedTickKey()
+	//
+	//err = db.Set(key, value, pebble.Sync)
+	//if err != nil {
+	//	t.Fatal("setting last processed tick")
+	//}
+	//
+	//key = lastProcessedTickKeyPerEpoch(1)
+	//value = make([]byte, 8)
+	//binary.LittleEndian.PutUint64(value, 15)
+	//
+	//err = db.Set(key, value, pebble.Sync)
+	//if err != nil {
+	//	t.Fatalf("setting last processed tick")
+	//}
+	//
+	//key = lastProcessedTickKeyPerEpoch(2)
+	//value = make([]byte, 8)
+	//binary.LittleEndian.PutUint64(value, 16)
+	//
+	//err = db.Set(key, value, pebble.Sync)
+	//if err != nil {
+	//	t.Fatalf("setting last processed tick")
+	//}
+	//
+	//got, err := store.GetLastProcessedTick(ctx)
+	//if err != nil {
+	//	t.Fatal("getting last processed tick")
+	//}
+
 	// Set last processed ticks per epoch
 	err = store.SetLastProcessedTick(ctx, &pb.LastProcessedTick{TickNumber: 16, Epoch: 1})
 	require.NoError(t, err)
