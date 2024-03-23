@@ -276,10 +276,10 @@ func (s *PebbleStore) SetLastProcessedTick(ctx context.Context, lastProcessedTic
 	}
 
 	if len(ptie.Intervals) == 0 {
-		return errors.Wrap(err, "no ptie found")
+		ptie = &protobuff.ProcessedTickIntervalsPerEpoch{Epoch: lastProcessedTick.Epoch, Intervals: []*protobuff.ProcessedTickInterval{{InitialProcessedTick: lastProcessedTick.TickNumber, LastProcessedTick: lastProcessedTick.TickNumber}}}
+	} else {
+		ptie.Intervals[len(ptie.Intervals)-1].LastProcessedTick = lastProcessedTick.TickNumber
 	}
-
-	ptie.Intervals[len(ptie.Intervals)-1].LastProcessedTick = lastProcessedTick.TickNumber
 
 	err = s.SetProcessedTickIntervalPerEpoch(ctx, lastProcessedTick.Epoch, ptie)
 	if err != nil {

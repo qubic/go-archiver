@@ -106,7 +106,7 @@ func TestProcessor_ProcessStatus(t *testing.T) {
 	p := Processor{ps: s}
 
 	// first run of the archiver
-	lastTick := pb.ProcessedTick{TickNumber: 0, Epoch: 1}
+	lastTick := pb.ProcessedTick{TickNumber: 99, Epoch: 1}
 	nextTick := pb.ProcessedTick{TickNumber: 100, Epoch: 1}
 
 	err = p.processStatus(ctx, &lastTick, &nextTick)
@@ -201,5 +201,46 @@ func TestProcessor_ProcessStatus(t *testing.T) {
 	require.NoError(t, err)
 
 	diff = cmp.Diff(got, expected, cmpopts.IgnoreUnexported(pb.ProcessedTickInterval{}, pb.ProcessedTickIntervalsPerEpoch{}))
+	require.True(t, cmp.Equal(diff, ""))
+}
+
+func TestProcessor_ProcessStatusOnthefly(t *testing.T) {
+	ctx := context.Background()
+
+	// Setup test environment
+	dbDir, err := os.MkdirTemp("", "pebble_test")
+	require.NoError(t, err)
+	defer os.RemoveAll(dbDir)
+
+	db, err := pebble.Open(filepath.Join(dbDir, "testdb"), &pebble.Options{})
+	require.NoError(t, err)
+	defer db.Close()
+
+	logger, _ := zap.NewDevelopment()
+	s := store.NewPebbleStore(db, logger)
+
+	p := Processor{ps: s}
+
+	// first run of the archiver
+	lastTick := pb.ProcessedTick{TickNumber: 99, Epoch: 1}
+	nextTick := pb.ProcessedTick{TickNumber: 100, Epoch: 1}
+
+	err = p.processStatus(ctx, &lastTick, &nextTick)
+	require.NoError(t, err)
+
+	expected := []*pb.ProcessedTickIntervalsPerEpoch{
+		{
+			Epoch: nextTick.Epoch,
+			Intervals: []*pb.ProcessedTickInterval{
+				{
+					InitialProcessedTick: nextTick.TickNumber,
+					LastProcessedTick:    nextTick.TickNumber,
+				},
+			},
+		},
+	}
+	got, err := s.GetProcessedTickIntervals(ctx)
+	require.NoError(t, err)
+	diff := cmp.Diff(got, expected, cmpopts.IgnoreUnexported(pb.ProcessedTickInterval{}, pb.ProcessedTickIntervalsPerEpoch{}))
 	require.True(t, cmp.Equal(diff, ""))
 }
