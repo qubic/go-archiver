@@ -270,6 +270,22 @@ func (s *PebbleStore) SetLastProcessedTick(ctx context.Context, lastProcessedTic
 		return errors.Wrap(err, "committing batch")
 	}
 
+	ptie, err := s.getProcessedTickIntervalsPerEpoch(ctx, lastProcessedTick.Epoch)
+	if err != nil {
+		return errors.Wrap(err, "getting ptie")
+	}
+
+	if len(ptie.Intervals) == 0 {
+		return errors.Wrap(err, "no ptie found")
+	}
+
+	ptie.Intervals[len(ptie.Intervals)-1].LastProcessedTick = lastProcessedTick.TickNumber
+
+	err = s.SetProcessedTickIntervalPerEpoch(ctx, lastProcessedTick.Epoch, ptie)
+	if err != nil {
+		return errors.Wrap(err, "setting ptie")
+	}
+
 	return nil
 }
 
@@ -460,4 +476,84 @@ func (s *PebbleStore) GetChainDigest(ctx context.Context, tickNumber uint32) ([]
 	defer closer.Close()
 
 	return value, nil
+}
+
+func (s *PebbleStore) getProcessedTickIntervalsPerEpoch(ctx context.Context, epoch uint32) (*protobuff.ProcessedTickIntervalsPerEpoch, error) {
+	key := processedTickIntervalsPerEpochKey(epoch)
+	value, closer, err := s.db.Get(key)
+	if err != nil {
+		if errors.Is(err, pebble.ErrNotFound) {
+			return &protobuff.ProcessedTickIntervalsPerEpoch{Intervals: make([]*protobuff.ProcessedTickInterval, 0), Epoch: epoch}, nil
+		}
+
+		return nil, errors.Wrap(err, "getting processed tick intervals per epoch from store")
+	}
+	defer closer.Close()
+
+	var ptie protobuff.ProcessedTickIntervalsPerEpoch
+	if err := protojson.Unmarshal(value, &ptie); err != nil {
+		return nil, errors.Wrap(err, "unmarshalling processed tick intervals per epoch")
+	}
+
+	return &ptie, nil
+}
+
+func (s *PebbleStore) SetProcessedTickIntervalPerEpoch(ctx context.Context, epoch uint32, ptie *protobuff.ProcessedTickIntervalsPerEpoch) error {
+	key := processedTickIntervalsPerEpochKey(epoch)
+	serialized, err := protojson.Marshal(ptie)
+	if err != nil {
+		return errors.Wrap(err, "serializing ptie proto")
+	}
+
+	err = s.db.Set(key, serialized, pebble.Sync)
+	if err != nil {
+		return errors.Wrap(err, "setting ptie")
+	}
+
+	return nil
+}
+
+func (s *PebbleStore) AppendProcessedTickInterval(ctx context.Context, epoch uint32, pti *protobuff.ProcessedTickInterval) error {
+	existing, err := s.getProcessedTickIntervalsPerEpoch(ctx, epoch)
+	if err != nil {
+		return errors.Wrap(err, "getting existing processed tick intervals")
+	}
+
+	existing.Intervals = append(existing.Intervals, pti)
+
+	err = s.SetProcessedTickIntervalPerEpoch(ctx, epoch, existing)
+	if err != nil {
+		return errors.Wrap(err, "setting ptie")
+	}
+
+	return nil
+}
+
+func (s *PebbleStore) GetProcessedTickIntervals(ctx context.Context) ([]*protobuff.ProcessedTickIntervalsPerEpoch, error) {
+	upperBound := append([]byte{ProcessedTickIntervals}, []byte(strconv.FormatUint(maxTickNumber, 10))...)
+	iter, err := s.db.NewIter(&pebble.IterOptions{
+		LowerBound: []byte{ProcessedTickIntervals},
+		UpperBound: upperBound,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "creating iter")
+	}
+	defer iter.Close()
+
+	processedTickIntervals := make([]*protobuff.ProcessedTickIntervalsPerEpoch, 0)
+	for iter.First(); iter.Valid(); iter.Next() {
+		value, err := iter.ValueAndErr()
+		if err != nil {
+			return nil, errors.Wrap(err, "getting value from iter")
+		}
+
+		var ptie protobuff.ProcessedTickIntervalsPerEpoch
+		err = protojson.Unmarshal(value, &ptie)
+		if err != nil {
+			return nil, errors.Wrap(err, "unmarshalling iter ptie")
+		}
+		processedTickIntervals = append(processedTickIntervals, &ptie)
+	}
+
+	return processedTickIntervals, nil
 }

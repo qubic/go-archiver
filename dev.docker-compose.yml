@@ -7,9 +7,10 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.middlewares.qubic-http.headers.accesscontrolalloworiginlist=*"
-      - "traefik.http.routers.qubic-http.rule=Host(`testapi.qubic.org`) && (PathPrefix(`/broadcast-transaction`) || PathPrefix(`/balances`) || PathPrefix(`/tick-info`))"
       - "traefik.http.routers.qubic-http.entrypoints=web"
-      - "traefik.http.routers.qubic-http.middlewares=qubic-http"
+      - "traefik.http.routers.qubic-http.rule=Host(`testapi.qubic.org`) && PathPrefix(`/live`)"
+      - "traefik.http.routers.qubic-http.middlewares=qubic-http-stripprefix"
+      - "traefik.http.middlewares.qubic-http-stripprefix.stripprefix.prefixes=/live"
       - "traefik.http.services.qubic-http.loadbalancer.server.port=8000"
     environment:
       QUBIC_API_SIDECAR_SERVER_HTTP_HOST: "0.0.0.0:8000"
@@ -29,7 +30,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.middlewares.qubic-tx-status.headers.accesscontrolalloworiginlist=*"
-      - "traefik.http.routers.qubic-tx-status.rule=Host(`testapi.qubic.org`) && PathPrefix(`/tx-status`)"
+      - "traefik.http.routers.qubic-tx-status.rule=Host(`testapi.qubic.org`) && (PathPrefix(`/tx-status`) || Path(`/ticks/{tick_number:\\d+}/approved-transactions`))"
       - "traefik.http.routers.qubic-tx-status.entrypoints=web"
       - "traefik.http.routers.qubic-tx-status.middlewares=qubic-tx-status"
       - "traefik.http.services.qubic-tx-status.loadbalancer.server.port=8000"
@@ -37,6 +38,7 @@ services:
       QUBIC_TX_STATUS_PROCESSOR_SERVER_HTTP_HOST: "0.0.0.0:8000"
       QUBIC_TX_STATUS_PROCESSOR_SERVER_GRPC_HOST: "0.0.0.0:8001"
       QUBIC_TX_STATUS_PROCESSOR_QUBIC_ARCHIVE_URL: "http://qubic-archiver:8000"
+      QUBIC_TX_STATUS_PROCESSOR_QUBIC_ARCHIVE_URL_GRPC: "qubic-archiver:8001"
       QUBIC_TX_STATUS_PROCESSOR_POOL_NODE_FETCHER_URL: "http://qubic-node-fetcher:8080/peers"
       QUBIC_TX_STATUS_PROCESSOR_QUBIC_PROCESS_TICK_TIMEOUT: "20s"
     ports:
@@ -55,10 +57,10 @@ services:
     container_name: qubic-archiver
     labels:
       - "traefik.enable=true"
-      - "traefik.http.middlewares.qubic-archiver.headers.accesscontrolalloworiginlist=*"
-      - "traefik.http.routers.qubic-archiver.rule=Host(`testapi.qubic.org`)"
+      - "traefik.http.routers.qubic-archiver.rule=Host(`testapi.qubic.org`) && PathPrefix(`/archive`)"
+      - "traefik.http.routers.qubic-archiver.middlewares=qubic-archiver-stripprefix"
+      - "traefik.http.middlewares.qubic-archiver-stripprefix.stripprefix.prefixes=/archive"
       - "traefik.http.routers.qubic-archiver.entrypoints=web"
-      - "traefik.http.routers.qubic-archiver.middlewares=qubic-archiver"
       - "traefik.http.services.qubic-archiver.loadbalancer.server.port=8000"
     ports:
       - "127.0.0.1:8001:8000"

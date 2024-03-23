@@ -102,18 +102,18 @@ func run() error {
 	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
 
 	proc := processor.NewProcessor(p, ps, cfg.Qubic.ProcessTickTimeout)
-	archiveErrors := make(chan error, 1)
+	procErrors := make(chan error, 1)
 
 	// Start the service listening for requests.
 	go func() {
-		archiveErrors <- proc.Start()
+		procErrors <- proc.Start()
 	}()
 
 	for {
 		select {
 		case <-shutdown:
 			return errors.New("shutting down")
-		case err := <-archiveErrors:
+		case err := <-procErrors:
 			return errors.Wrap(err, "archiver error")
 		}
 	}

@@ -9,11 +9,12 @@ const (
 	QuorumData                   = 0x01
 	ComputorList                 = 0x02
 	Transaction                  = 0x03
-	ProcessedTick                = 0x04
+	LastProcessedTick            = 0x04
 	LastProcessedTickPerEpoch    = 0x05
 	SkippedTicksInterval         = 0x06
 	IdentityTransferTransactions = 0x07
 	ChainDigest                  = 0x08
+	ProcessedTickIntervals       = 0x09
 )
 
 func tickDataKey(tickNumber uint32) []byte {
@@ -45,7 +46,7 @@ func tickTxKey(txID string) ([]byte, error) {
 }
 
 func lastProcessedTickKey() []byte {
-	return []byte{ProcessedTick}
+	return []byte{LastProcessedTick}
 }
 
 func lastProcessedTickKeyPerEpoch(epochNumber uint32) []byte {
@@ -77,6 +78,19 @@ func identityTransferTransactions(identity string) []byte {
 func chainDigestKey(tickNumber uint32) []byte {
 	key := []byte{ChainDigest}
 	key = binary.BigEndian.AppendUint64(key, uint64(tickNumber))
+
+	return key
+}
+
+func processedTickIntervalsPerEpochKey(epoch uint32) []byte {
+	key := []byte{ProcessedTickIntervals}
+	key = binary.BigEndian.AppendUint32(key, epoch)
+
+	return key
+}
+
+func processedTickIntervalsKey() []byte {
+	key := []byte{ProcessedTickIntervals}
 
 	return key
 }

@@ -125,10 +125,11 @@ message GetStatusResponse {
   ProcessedTick last_processed_tick = 1;
   map<uint32, uint32> last_processed_ticks_per_epoch = 2;
   repeated SkippedTicksInterval skipped_ticks = 3;
+  repeated ProcessedTickIntervalsPerEpoch processed_tick_intervals_per_epoch = 4;
 }
 
-message GetBlockHeightResponse {
-    ProcessedTick block_height = 1;
+message GetLatestTickResponse {
+  uint32 latest_tick = 1;
 }
 
 message GetTransferTransactionsPerTickRequest {
@@ -147,6 +148,16 @@ message GetChainHashRequest {
 
 message GetChainHashResponse {
   string hex_digest = 1;
+}
+
+message ProcessedTickInterval {
+  uint32 initial_processed_tick = 1;
+  uint32 last_processed_tick = 2;
+}
+
+message ProcessedTickIntervalsPerEpoch {
+  uint32 epoch = 1;
+  repeated ProcessedTickInterval intervals = 2;
 }
 
 service ArchiveService {
@@ -200,9 +211,9 @@ service ArchiveService {
     };
   };
 
-  rpc GetBlockHeight(google.protobuf.Empty) returns (GetBlockHeightResponse) {
+  rpc GetLatestTick(google.protobuf.Empty) returns (GetLatestTickResponse) {
     option (google.api.http) = {
-      get: "/block-height"
+      get: "/latestTick"
     };
   };
 }

@@ -641,3 +641,184 @@ func TestPebbleStore_ChainHash(t *testing.T) {
 	require.Error(t, err)
 	require.Equal(t, ErrNotFound, err)
 }
+
+func TestPebbleStore_LastProcessedTickIntervals(t *testing.T) {
+	ctx := context.Background()
+
+	// Setup test environment
+	dbDir, err := os.MkdirTemp("", "pebble_test")
+	require.NoError(t, err)
+	defer os.RemoveAll(dbDir)
+
+	db, err := pebble.Open(filepath.Join(dbDir, "testdb"), &pebble.Options{})
+	require.NoError(t, err)
+	defer db.Close()
+
+	logger, _ := zap.NewDevelopment()
+	store := NewPebbleStore(db, logger)
+
+	firstEpochInitialTick := pb.ProcessedTick{TickNumber: 100, Epoch: 1}
+	expected := &pb.ProcessedTickIntervalsPerEpoch{
+		Epoch: firstEpochInitialTick.Epoch,
+		Intervals: []*pb.ProcessedTickInterval{
+			{
+				InitialProcessedTick: firstEpochInitialTick.TickNumber,
+				LastProcessedTick:    firstEpochInitialTick.TickNumber,
+			},
+		},
+	}
+	err = store.AppendProcessedTickInterval(ctx, firstEpochInitialTick.Epoch, expected.Intervals[0])
+	require.NoError(t, err)
+
+	got, err := store.getProcessedTickIntervalsPerEpoch(ctx, firstEpochInitialTick.Epoch)
+	require.NoError(t, err)
+	require.True(t, proto.Equal(got, expected))
+
+	err = store.SetLastProcessedTick(ctx, &firstEpochInitialTick)
+	require.NoError(t, err)
+
+	got, err = store.getProcessedTickIntervalsPerEpoch(ctx, firstEpochInitialTick.Epoch)
+	require.NoError(t, err)
+	require.True(t, proto.Equal(got, expected))
+
+	firstEpochSecondTick := pb.ProcessedTick{TickNumber: 101, Epoch: 1}
+	expected = &pb.ProcessedTickIntervalsPerEpoch{
+		Epoch: firstEpochInitialTick.Epoch,
+		Intervals: []*pb.ProcessedTickInterval{
+			{
+				InitialProcessedTick: firstEpochInitialTick.TickNumber,
+				LastProcessedTick:    firstEpochSecondTick.TickNumber,
+			},
+		},
+	}
+	err = store.SetLastProcessedTick(ctx, &firstEpochSecondTick)
+	require.NoError(t, err, "setting last processed tick")
+
+	got, err = store.getProcessedTickIntervalsPerEpoch(ctx, firstEpochSecondTick.Epoch)
+	require.NoError(t, err)
+	require.True(t, proto.Equal(got, expected))
+
+	firstEpochFourthTick := pb.ProcessedTick{TickNumber: 103, Epoch: 1}
+	expected = &pb.ProcessedTickIntervalsPerEpoch{
+		Epoch: firstEpochInitialTick.Epoch,
+		Intervals: []*pb.ProcessedTickInterval{
+			{
+				InitialProcessedTick: firstEpochInitialTick.TickNumber,
+				LastProcessedTick:    firstEpochSecondTick.TickNumber,
+			},
+			{
+				InitialProcessedTick: firstEpochFourthTick.TickNumber,
+				LastProcessedTick:    firstEpochFourthTick.TickNumber,
+			},
+		},
+	}
+
+	//skip ticks inside same epoch
+	err = store.AppendProcessedTickInterval(ctx, firstEpochInitialTick.Epoch, expected.Intervals[1])
+	require.NoError(t, err)
+
+	got, err = store.getProcessedTickIntervalsPerEpoch(ctx, firstEpochSecondTick.Epoch)
+	require.NoError(t, err)
+	require.True(t, proto.Equal(got, expected))
+
+	err = store.SetLastProcessedTick(ctx, &firstEpochFourthTick)
+	require.NoError(t, err, "setting last processed tick")
+
+	got, err = store.getProcessedTickIntervalsPerEpoch(ctx, firstEpochSecondTick.Epoch)
+	require.NoError(t, err)
+	require.True(t, proto.Equal(got, expected))
+
+	firstEpochFifthTick := pb.ProcessedTick{TickNumber: 104, Epoch: 1}
+	expected = &pb.ProcessedTickIntervalsPerEpoch{
+		Epoch: firstEpochInitialTick.Epoch,
+		Intervals: []*pb.ProcessedTickInterval{
+			{
+				InitialProcessedTick: firstEpochInitialTick.TickNumber,
+				LastProcessedTick:    firstEpochSecondTick.TickNumber,
+			},
+			{
+				InitialProcessedTick: firstEpochFourthTick.TickNumber,
+				LastProcessedTick:    firstEpochFifthTick.TickNumber,
+			},
+		},
+	}
+	err = store.SetLastProcessedTick(ctx, &firstEpochFifthTick)
+	require.NoError(t, err, "setting last processed tick")
+
+	got, err = store.getProcessedTickIntervalsPerEpoch(ctx, firstEpochSecondTick.Epoch)
+	require.NoError(t, err)
+	require.True(t, proto.Equal(got, expected))
+
+	//
+
+	secondEpochInitialTick := pb.ProcessedTick{TickNumber: 200, Epoch: 2}
+	expected = &pb.ProcessedTickIntervalsPerEpoch{
+		Epoch: secondEpochInitialTick.Epoch,
+		Intervals: []*pb.ProcessedTickInterval{
+			{
+				InitialProcessedTick: secondEpochInitialTick.TickNumber,
+				LastProcessedTick:    secondEpochInitialTick.TickNumber,
+			},
+		},
+	}
+	err = store.AppendProcessedTickInterval(ctx, secondEpochInitialTick.Epoch, expected.Intervals[0])
+	require.NoError(t, err)
+
+	got, err = store.getProcessedTickIntervalsPerEpoch(ctx, secondEpochInitialTick.Epoch)
+	require.NoError(t, err)
+	require.True(t, proto.Equal(got, expected))
+
+	err = store.SetLastProcessedTick(ctx, &secondEpochInitialTick)
+	require.NoError(t, err)
+
+	got, err = store.getProcessedTickIntervalsPerEpoch(ctx, secondEpochInitialTick.Epoch)
+	require.NoError(t, err)
+	require.True(t, proto.Equal(got, expected))
+
+	secondEpochSecondTick := pb.ProcessedTick{TickNumber: 201, Epoch: 2}
+	expected = &pb.ProcessedTickIntervalsPerEpoch{
+		Epoch: secondEpochInitialTick.Epoch,
+		Intervals: []*pb.ProcessedTickInterval{
+			{
+				InitialProcessedTick: secondEpochInitialTick.TickNumber,
+				LastProcessedTick:    secondEpochSecondTick.TickNumber,
+			},
+		},
+	}
+	err = store.SetLastProcessedTick(ctx, &secondEpochSecondTick)
+	require.NoError(t, err, "setting last processed tick")
+
+	got, err = store.getProcessedTickIntervalsPerEpoch(ctx, secondEpochSecondTick.Epoch)
+	require.NoError(t, err)
+	require.True(t, proto.Equal(got, expected))
+
+	expectedCombined := []*pb.ProcessedTickIntervalsPerEpoch{
+		{
+			Epoch: firstEpochInitialTick.Epoch,
+			Intervals: []*pb.ProcessedTickInterval{
+				{
+					InitialProcessedTick: firstEpochInitialTick.TickNumber,
+					LastProcessedTick:    firstEpochSecondTick.TickNumber,
+				},
+				{
+					InitialProcessedTick: firstEpochFourthTick.TickNumber,
+					LastProcessedTick:    firstEpochFifthTick.TickNumber,
+				},
+			},
+		},
+		{
+			Epoch: secondEpochInitialTick.Epoch,
+			Intervals: []*pb.ProcessedTickInterval{
+				{
+					InitialProcessedTick: secondEpochInitialTick.TickNumber,
+					LastProcessedTick:    secondEpochSecondTick.TickNumber,
+				},
+			},
+		},
+	}
+
+	gotCombined, err := store.GetProcessedTickIntervals(ctx)
+	require.NoError(t, err)
+	diff := cmp.Diff(gotCombined, expectedCombined, cmpopts.IgnoreUnexported(pb.ProcessedTickInterval{}, pb.ProcessedTickIntervalsPerEpoch{}))
+	require.True(t, cmp.Equal(diff, ""))
+}

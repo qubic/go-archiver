@@ -130,16 +130,26 @@ func (s *Server) GetStatus(ctx context.Context, _ *emptypb.Empty) (*protobuff.Ge
 		return nil, status.Errorf(codes.Internal, "getting skipped ticks: %v", err)
 	}
 
-	return &protobuff.GetStatusResponse{LastProcessedTick: tick, LastProcessedTicksPerEpoch: lastProcessedTicksPerEpoch, SkippedTicks: skippedTicks.SkippedTicks}, nil
+	ptie, err := s.store.GetProcessedTickIntervals(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "getting processed tick intervals")
+	}
+
+	return &protobuff.GetStatusResponse{
+		LastProcessedTick:              tick,
+		LastProcessedTicksPerEpoch:     lastProcessedTicksPerEpoch,
+		SkippedTicks:                   skippedTicks.SkippedTicks,
+		ProcessedTickIntervalsPerEpoch: ptie,
+	}, nil
 }
 
-func (s *Server) GetBlockHeight(ctx context.Context, _ *emptypb.Empty) (*protobuff.GetBlockHeightResponse, error) {
+func (s *Server) GetLatestTick(ctx context.Context, _ *emptypb.Empty) (*protobuff.GetLatestTickResponse, error) {
 	tick, err := s.store.GetLastProcessedTick(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "getting last processed tick: %v", err)
 	}
 
-	return &protobuff.GetBlockHeightResponse{BlockHeight: tick}, nil
+	return &protobuff.GetLatestTickResponse{LatestTick: tick.TickNumber + 3}, nil
 }
 
 func (s *Server) GetTransferTransactionsPerTick(ctx context.Context, req *protobuff.GetTransferTransactionsPerTickRequest) (*protobuff.GetTransferTransactionsPerTickResponse, error) {
