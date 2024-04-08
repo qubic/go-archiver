@@ -8,9 +8,9 @@ services:
       - "traefik.enable=true"
       - "traefik.http.middlewares.qubic-http.headers.accesscontrolalloworiginlist=*"
       - "traefik.http.routers.qubic-http.entrypoints=web"
-      - "traefik.http.routers.qubic-http.rule=Host(`testapi.qubic.org`) && PathPrefix(`/live`)"
+      - "traefik.http.routers.qubic-http.rule=Host(`testapi.qubic.org`) && (PathPrefix(`/v1/broadcast-transaction`) || PathPrefix(`/v1/tick-info`) || PathPrefix(`/v1/balances`))"
       - "traefik.http.routers.qubic-http.middlewares=qubic-http-stripprefix"
-      - "traefik.http.middlewares.qubic-http-stripprefix.stripprefix.prefixes=/live"
+      - "traefik.http.middlewares.qubic-http-stripprefix.stripprefix.prefixes=/v1"
       - "traefik.http.services.qubic-http.loadbalancer.server.port=8000"
     environment:
       QUBIC_API_SIDECAR_SERVER_HTTP_HOST: "0.0.0.0:8000"
@@ -25,14 +25,14 @@ services:
     restart: always
 
   qubic-tx-status:
-    image: ghcr.io/qubic/qubic-tx-status:v0.1.5
+    image: ghcr.io/qubic/qubic-tx-status:v0.1.9
     container_name: qubic-tx-status
     labels:
       - "traefik.enable=true"
-      - "traefik.http.middlewares.qubic-tx-status.headers.accesscontrolalloworiginlist=*"
-      - "traefik.http.routers.qubic-tx-status.rule=Host(`testapi.qubic.org`) && (PathPrefix(`/tx-status`) || Path(`/ticks/{tick_number:\\d+}/approved-transactions`))"
+      - "traefik.http.routers.qubic-tx-status.rule=Host(`testapi.qubic.org`) && (PathPrefix(`/v1/tx-status`) || Path(`/v1/ticks/{tick_number:\\d+}/approved-transactions`))"
       - "traefik.http.routers.qubic-tx-status.entrypoints=web"
-      - "traefik.http.routers.qubic-tx-status.middlewares=qubic-tx-status"
+      - "traefik.http.routers.qubic-tx-status.middlewares=qubic-tx-status-stripprefix"
+      - "traefik.http.middlewares.qubic-tx-status-stripprefix.stripprefix.prefixes=/v1"
       - "traefik.http.services.qubic-tx-status.loadbalancer.server.port=8000"
     environment:
       QUBIC_TX_STATUS_PROCESSOR_SERVER_HTTP_HOST: "0.0.0.0:8000"
@@ -53,13 +53,13 @@ services:
     restart: always
 
   qubic-archiver:
-    image: ghcr.io/qubic/qubic-archiver:v0.1.23
+    image: ghcr.io/qubic/qubic-archiver:v0.1.26
     container_name: qubic-archiver
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.qubic-archiver.rule=Host(`testapi.qubic.org`) && PathPrefix(`/archive`)"
+      - "traefik.http.routers.qubic-archiver.rule=Host(`testapi.qubic.org`) && PathPrefix(`/v1`)"
       - "traefik.http.routers.qubic-archiver.middlewares=qubic-archiver-stripprefix"
-      - "traefik.http.middlewares.qubic-archiver-stripprefix.stripprefix.prefixes=/archive"
+      - "traefik.http.middlewares.qubic-archiver-stripprefix.stripprefix.prefixes=/v1"
       - "traefik.http.routers.qubic-archiver.entrypoints=web"
       - "traefik.http.services.qubic-archiver.loadbalancer.server.port=8000"
     ports:
@@ -84,7 +84,8 @@ services:
     ports:
       - "127.0.0.1:8080:8080"
     environment:
-      NODE_FETCHER_QUBIC_STARTING_PEER_IP: "212.51.150.253"
+      NODE_FETCHER_QUBIC_FIXED_PEER_LIST: true
+      NODE_FETCHER_QUBIC_STARTING_PEERS_IP: "85.70.186.149;185.70.186.153"
     volumes:
       - ./store/node-fetcher:/app/store
     networks:
