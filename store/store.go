@@ -478,6 +478,83 @@ func (s *PebbleStore) GetChainDigest(ctx context.Context, tickNumber uint32) ([]
 	return value, nil
 }
 
+func (s *PebbleStore) GetTickTransactionsStatus(ctx context.Context, tickNumber uint64) (*protobuff.TickTransactionsStatus, error) {
+	key := tickTxStatusKey(tickNumber)
+	value, closer, err := s.db.Get(key)
+	if err != nil {
+		if errors.Is(err, pebble.ErrNotFound) {
+			return nil, ErrNotFound
+		}
+
+		return nil, errors.Wrap(err, "getting transactions status")
+	}
+	defer closer.Close()
+
+	var tts protobuff.TickTransactionsStatus
+	if err := protojson.Unmarshal(value, &tts); err != nil {
+		return nil, errors.Wrap(err, "unmarshalling tick transactions status")
+	}
+
+	return &tts, err
+}
+
+func (s *PebbleStore) GetTransactionStatus(ctx context.Context, txID string) (*protobuff.TransactionStatus, error) {
+	key := txStatusKey(txID)
+	value, closer, err := s.db.Get(key)
+	if err != nil {
+		if errors.Is(err, pebble.ErrNotFound) {
+			return nil, ErrNotFound
+		}
+
+		return nil, errors.Wrap(err, "getting transaction status")
+	}
+	defer closer.Close()
+
+	var ts protobuff.TransactionStatus
+	if err := protojson.Unmarshal(value, &ts); err != nil {
+		return nil, errors.Wrap(err, "unmarshalling transaction status")
+	}
+
+	return &ts, err
+}
+
+func (s *PebbleStore) SetTickTransactionsStatus(ctx context.Context, tickNumber uint64, tts *protobuff.TickTransactionsStatus) error {
+	key := tickTxStatusKey(tickNumber)
+	batch := s.db.NewBatchWithSize(len(tts.Transactions) + 1)
+	defer batch.Close()
+
+	serialized, err := protojson.Marshal(tts)
+	if err != nil {
+		return errors.Wrap(err, "serializing tts proto")
+	}
+
+	err = batch.Set(key, serialized, pebble.Sync)
+	if err != nil {
+		return errors.Wrap(err, "setting tts data")
+	}
+
+	for _, tx := range tts.Transactions {
+		key := txStatusKey(tx.TxId)
+
+		serialized, err := protojson.Marshal(tx)
+		if err != nil {
+			return errors.Wrap(err, "serializing tx status proto")
+		}
+
+		err = batch.Set(key, serialized, nil)
+		if err != nil {
+			return errors.Wrap(err, "setting tx status data")
+		}
+	}
+
+	err = batch.Commit(pebble.Sync)
+	if err != nil {
+		return errors.Wrap(err, "committing batch")
+	}
+
+	return nil
+}
+
 func (s *PebbleStore) getProcessedTickIntervalsPerEpoch(ctx context.Context, epoch uint32) (*protobuff.ProcessedTickIntervalsPerEpoch, error) {
 	key := processedTickIntervalsPerEpochKey(epoch)
 	value, closer, err := s.db.Get(key)

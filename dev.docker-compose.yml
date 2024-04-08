@@ -24,36 +24,8 @@ services:
         condition: service_healthy
     restart: always
 
-  qubic-tx-status:
-    image: ghcr.io/qubic/qubic-tx-status:v0.1.9
-    container_name: qubic-tx-status
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.qubic-tx-status.rule=Host(`testapi.qubic.org`) && (PathPrefix(`/v1/tx-status`) || Path(`/v1/ticks/{tick_number:\\d+}/approved-transactions`))"
-      - "traefik.http.routers.qubic-tx-status.entrypoints=web"
-      - "traefik.http.routers.qubic-tx-status.middlewares=qubic-tx-status-stripprefix"
-      - "traefik.http.middlewares.qubic-tx-status-stripprefix.stripprefix.prefixes=/v1"
-      - "traefik.http.services.qubic-tx-status.loadbalancer.server.port=8000"
-    environment:
-      QUBIC_TX_STATUS_PROCESSOR_SERVER_HTTP_HOST: "0.0.0.0:8000"
-      QUBIC_TX_STATUS_PROCESSOR_SERVER_GRPC_HOST: "0.0.0.0:8001"
-      QUBIC_TX_STATUS_PROCESSOR_QUBIC_ARCHIVE_URL: "http://qubic-archiver:8000"
-      QUBIC_TX_STATUS_PROCESSOR_QUBIC_ARCHIVE_URL_GRPC: "qubic-archiver:8001"
-      QUBIC_TX_STATUS_PROCESSOR_POOL_NODE_FETCHER_URL: "http://qubic-node-fetcher:8080/peers"
-      QUBIC_TX_STATUS_PROCESSOR_QUBIC_PROCESS_TICK_TIMEOUT: "20s"
-    ports:
-      - "127.0.0.1:8010:8000"
-    volumes:
-      - ./store/tx-status:/app/store
-    networks:
-      - traefik
-    depends_on:
-      qubic-node-fetcher:
-        condition: service_healthy
-    restart: always
-
   qubic-archiver:
-    image: ghcr.io/qubic/qubic-archiver:v0.1.26
+    image: ghcr.io/qubic/qubic-archiver:v0.2.0
     container_name: qubic-archiver
     labels:
       - "traefik.enable=true"
@@ -79,7 +51,7 @@ services:
     restart: always
 
   qubic-node-fetcher:
-    image: ghcr.io/qubic/go-node-fetcher:v0.1.1
+    image: ghcr.io/qubic/go-node-fetcher:v0.3.0
     container_name: qubic-node-fetcher
     ports:
       - "127.0.0.1:8080:8080"

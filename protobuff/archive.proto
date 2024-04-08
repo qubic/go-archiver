@@ -38,6 +38,23 @@ message Transaction {
   string tx_id = 9;
 }
 
+message TransactionStatus {
+  string tx_id = 1;
+  bool moneyFlew = 2;
+}
+
+message TickTransactionsStatus {
+  repeated TransactionStatus transactions = 1;
+}
+
+message NextAvailableTick {
+  uint32 next_tick_number = 1;
+}
+
+message LastProcessedTick {
+  uint32 last_processed_tick = 1;
+}
+
 message GetTransactionRequest {
   string tx_id = 1;
 }
@@ -46,12 +63,28 @@ message GetTransactionResponse{
   Transaction transaction = 1;
 }
 
+message GetTransactionStatusRequest {
+  string tx_id = 1;
+}
+
+message GetTransactionStatusResponse {
+  TransactionStatus transaction_status = 1;
+}
+
 message GetTickTransactionsRequest {
   uint32 tick_number = 1;
 }
 
 message GetTickTransactionsResponse {
   repeated Transaction transactions = 1;
+}
+
+message GetTickApprovedTransactionsRequest {
+  uint32 tick_number = 1;
+}
+
+message GetTickApprovedTransactionsResponse {
+  repeated Transaction approved_transactions = 1;
 }
 
 message QuorumDiff {
@@ -181,6 +214,11 @@ service ArchiveService {
       get: "/ticks/{tick_number}/transfer-transactions"
     };
   };
+  rpc GetTickApprovedTransactions (GetTickApprovedTransactionsRequest) returns (GetTickApprovedTransactionsResponse) {
+    option (google.api.http) = {
+      get: "/ticks/{tick_number}/approved-transactions"
+    };
+  }
   rpc GetChainHash(GetChainHashRequest) returns (GetChainHashResponse) {
     option (google.api.http) = {
       get: "/ticks/{tick_number}/chain-hash"
@@ -192,6 +230,12 @@ service ArchiveService {
       get: "/transactions/{tx_id}"
     };
   };
+
+  rpc GetTransactionStatus (GetTransactionStatusRequest) returns (GetTransactionStatusResponse) {
+    option (google.api.http) = {
+      get: "/tx-status/{tx_id}"
+    };
+  }
 
   rpc GetTransferTransactionsPerTick(GetTransferTransactionsPerTickRequest) returns (GetTransferTransactionsPerTickResponse) {
     option (google.api.http) = {

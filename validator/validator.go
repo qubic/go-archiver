@@ -10,6 +10,7 @@ import (
 	"github.com/qubic/go-archiver/validator/quorum"
 	"github.com/qubic/go-archiver/validator/tick"
 	"github.com/qubic/go-archiver/validator/tx"
+	"github.com/qubic/go-archiver/validator/txstatus"
 	qubic "github.com/qubic/go-node-connector"
 	"github.com/qubic/go-node-connector/types"
 	"log"
@@ -84,7 +85,7 @@ func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumb
 
 	log.Println("Tick data validated")
 
-	transactions, err := v.qu.GetTickTransactions(ctx, uint32(tickNumber))
+	transactions, err := v.qu.GetTickTransactions(ctx, tickNumber)
 	if err != nil {
 		return errors.Wrap(err, "getting tick transactions")
 	}
@@ -97,6 +98,16 @@ func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumb
 	}
 
 	log.Printf("Validated %d transactions\n", len(validTxs))
+
+	tickTxStatus, err := v.qu.GetTxStatus(ctx, tickNumber)
+	if err != nil {
+		return errors.Wrap(err, "getting tx status")
+	}
+
+	err = txstatus.Validate(ctx, tickTxStatus, validTxs)
+	if err != nil {
+		return errors.Wrap(err, "validating tx status")
+	}
 
 	// proceed to storing tick information
 	err = quorum.Store(ctx, v.store, tickNumber, alignedVotes)
@@ -119,6 +130,11 @@ func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumb
 	}
 
 	log.Printf("Stored %d transactions\n", len(transactions))
+
+	err = txstatus.Store(ctx, v.store, tickNumber, tickTxStatus)
+	if err != nil {
+		return errors.Wrap(err, "storing tx status")
+	}
 
 	err = chain.ComputeAndStore(ctx, v.store, initialEpochTick, tickNumber, alignedVotes[0])
 	if err != nil {

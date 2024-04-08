@@ -161,6 +161,88 @@ func (s *Server) GetTransferTransactionsPerTick(ctx context.Context, req *protob
 	return &protobuff.GetTransferTransactionsPerTickResponse{TransferTransactionsPerTick: txs}, nil
 }
 
+func (s *Server) GetTickApprovedTransactions(ctx context.Context, req *protobuff.GetTickApprovedTransactionsRequest) (*protobuff.GetTickApprovedTransactionsResponse, error) {
+	lastProcessedTick, err := s.store.GetLastProcessedTick(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "getting last processed tick: %v", err)
+	}
+	if req.TickNumber > lastProcessedTick.TickNumber {
+		st := status.Newf(codes.FailedPrecondition, "requested tick number %d is greater than last processed tick %d", req.TickNumber, lastProcessedTick.TickNumber)
+		st, err = st.WithDetails(&protobuff.LastProcessedTick{LastProcessedTick: lastProcessedTick.TickNumber})
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "creating custom status")
+		}
+
+		return nil, st.Err()
+	}
+
+	processedTickIntervalsPerEpoch, err := s.store.GetProcessedTickIntervals(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "getting processed tick intervals per epoch")
+	}
+
+	wasSkipped, nextAvailableTick := wasTickSkippedByArchive(req.TickNumber, processedTickIntervalsPerEpoch)
+	if wasSkipped == true {
+		st := status.Newf(codes.OutOfRange, "provided tick number %d was skipped by the system, next available tick is %d", req.TickNumber, nextAvailableTick)
+		st, err = st.WithDetails(&protobuff.NextAvailableTick{NextTickNumber: nextAvailableTick})
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "creating custom status")
+		}
+
+		return nil, st.Err()
+	}
+
+	tts, err := s.store.GetTickTransactionsStatus(ctx, uint64(req.TickNumber))
+	if err != nil {
+		if errors.Cause(err) == store.ErrNotFound {
+			return nil, status.Errorf(codes.NotFound, "tick transactions status data not found for tick %d", req.TickNumber)
+		}
+		return nil, status.Errorf(codes.Internal, "getting tick transactions status: %v", err)
+	}
+
+	approvedTxs := make([]*protobuff.Transaction, 0, len(tts.Transactions))
+	for _, txStatus := range tts.Transactions {
+		if txStatus.MoneyFlew == false {
+			continue
+		}
+
+		storedTx, err := s.store.GetTransaction(ctx, txStatus.TxId)
+		if err != nil {
+			return nil, errors.Wrapf(err, "getting tx %s from archiver", txStatus.TxId)
+		}
+		approvedTxs = append(approvedTxs, &protobuff.Transaction{
+			SourceId:     storedTx.SourceId,
+			DestId:       storedTx.DestId,
+			Amount:       storedTx.Amount,
+			TickNumber:   storedTx.TickNumber,
+			InputType:    storedTx.InputType,
+			InputSize:    storedTx.InputSize,
+			InputHex:     storedTx.InputHex,
+			SignatureHex: storedTx.SignatureHex,
+			TxId:         storedTx.TxId,
+		})
+	}
+
+	return &protobuff.GetTickApprovedTransactionsResponse{ApprovedTransactions: approvedTxs}, nil
+}
+
+func wasTickSkippedByArchive(tick uint32, processedTicksIntervalPerEpoch []*protobuff.ProcessedTickIntervalsPerEpoch) (bool, uint32) {
+	if len(processedTicksIntervalPerEpoch) == 0 {
+		return false, 0
+	}
+	for _, epochInterval := range processedTicksIntervalPerEpoch {
+		for _, interval := range epochInterval.Intervals {
+			if tick < interval.InitialProcessedTick {
+				return true, interval.InitialProcessedTick
+			}
+			if tick >= interval.InitialProcessedTick && tick <= interval.LastProcessedTick {
+				return false, 0
+			}
+		}
+	}
+	return false, 0
+}
+
 func (s *Server) GetChainHash(ctx context.Context, req *protobuff.GetChainHashRequest) (*protobuff.GetChainHashResponse, error) {
 	hash, err := s.store.GetChainDigest(ctx, req.TickNumber)
 	if err != nil {
