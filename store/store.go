@@ -7,7 +7,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
 	"go.uber.org/zap"
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"strconv"
 )
@@ -38,7 +37,7 @@ func (s *PebbleStore) GetTickData(ctx context.Context, tickNumber uint32) (*prot
 	defer closer.Close()
 
 	var td protobuff.TickData
-	if err := protojson.Unmarshal(value, &td); err != nil {
+	if err := proto.Unmarshal(value, &td); err != nil {
 		return nil, errors.Wrap(err, "unmarshalling tick data to protobuff type")
 	}
 
@@ -47,7 +46,7 @@ func (s *PebbleStore) GetTickData(ctx context.Context, tickNumber uint32) (*prot
 
 func (s *PebbleStore) SetTickData(ctx context.Context, tickNumber uint32, td *protobuff.TickData) error {
 	key := tickDataKey(tickNumber)
-	serialized, err := protojson.Marshal(td)
+	serialized, err := proto.Marshal(td)
 	if err != nil {
 		return errors.Wrap(err, "serializing td proto")
 	}
@@ -142,7 +141,7 @@ func (s *PebbleStore) SetTransactions(ctx context.Context, txs []*protobuff.Tran
 			return errors.Wrapf(err, "creating tx key for id: %s", tx.TxId)
 		}
 
-		serialized, err := protojson.MarshalOptions{EmitDefaultValues: true}.Marshal(tx)
+		serialized, err := proto.Marshal(tx)
 		if err != nil {
 			return errors.Wrap(err, "serializing tx proto")
 		}
@@ -234,7 +233,7 @@ func (s *PebbleStore) GetTransaction(ctx context.Context, txID string) (*protobu
 	defer closer.Close()
 
 	var tx protobuff.Transaction
-	if err := protojson.Unmarshal(value, &tx); err != nil {
+	if err := proto.Unmarshal(value, &tx); err != nil {
 		return nil, errors.Wrap(err, "unmarshalling tx to protobuff type")
 	}
 
@@ -255,7 +254,7 @@ func (s *PebbleStore) SetLastProcessedTick(ctx context.Context, lastProcessedTic
 	}
 
 	key = lastProcessedTickKey()
-	serialized, err := protojson.Marshal(lastProcessedTick)
+	serialized, err := proto.Marshal(lastProcessedTick)
 	if err != nil {
 		return errors.Wrap(err, "serializing skipped tick proto")
 	}
@@ -322,7 +321,7 @@ func (s *PebbleStore) GetLastProcessedTick(ctx context.Context) (*protobuff.Proc
 	}
 
 	var lpt protobuff.ProcessedTick
-	if err := protojson.Unmarshal(value, &lpt); err != nil {
+	if err := proto.Unmarshal(value, &lpt); err != nil {
 		return nil, errors.Wrap(err, "unmarshalling lpt to protobuff type")
 	}
 
@@ -407,7 +406,7 @@ func (s *PebbleStore) GetSkippedTicksInterval(ctx context.Context) (*protobuff.S
 func (s *PebbleStore) PutTransferTransactionsPerTick(ctx context.Context, identity string, tickNumber uint32, txs *protobuff.TransferTransactionsPerTick) error {
 	key := identityTransferTransactionsPerTickKey(identity, tickNumber)
 
-	serialized, err := protojson.Marshal(txs)
+	serialized, err := proto.Marshal(txs)
 	if err != nil {
 		return errors.Wrap(err, "serializing tx proto")
 	}
@@ -441,7 +440,7 @@ func (s *PebbleStore) GetTransferTransactions(ctx context.Context, identity stri
 
 		var perTick protobuff.TransferTransactionsPerTick
 
-		err = protojson.Unmarshal(value, &perTick)
+		err = proto.Unmarshal(value, &perTick)
 		if err != nil {
 			return nil, errors.Wrap(err, "unmarshalling transfer tx per tick to protobuff type")
 		}
@@ -491,7 +490,7 @@ func (s *PebbleStore) GetTickTransactionsStatus(ctx context.Context, tickNumber 
 	defer closer.Close()
 
 	var tts protobuff.TickTransactionsStatus
-	if err := protojson.Unmarshal(value, &tts); err != nil {
+	if err := proto.Unmarshal(value, &tts); err != nil {
 		return nil, errors.Wrap(err, "unmarshalling tick transactions status")
 	}
 
@@ -511,7 +510,7 @@ func (s *PebbleStore) GetTransactionStatus(ctx context.Context, txID string) (*p
 	defer closer.Close()
 
 	var ts protobuff.TransactionStatus
-	if err := protojson.Unmarshal(value, &ts); err != nil {
+	if err := proto.Unmarshal(value, &ts); err != nil {
 		return nil, errors.Wrap(err, "unmarshalling transaction status")
 	}
 
@@ -523,7 +522,7 @@ func (s *PebbleStore) SetTickTransactionsStatus(ctx context.Context, tickNumber 
 	batch := s.db.NewBatchWithSize(len(tts.Transactions) + 1)
 	defer batch.Close()
 
-	serialized, err := protojson.Marshal(tts)
+	serialized, err := proto.Marshal(tts)
 	if err != nil {
 		return errors.Wrap(err, "serializing tts proto")
 	}
@@ -536,7 +535,7 @@ func (s *PebbleStore) SetTickTransactionsStatus(ctx context.Context, tickNumber 
 	for _, tx := range tts.Transactions {
 		key := txStatusKey(tx.TxId)
 
-		serialized, err := protojson.Marshal(tx)
+		serialized, err := proto.Marshal(tx)
 		if err != nil {
 			return errors.Wrap(err, "serializing tx status proto")
 		}
@@ -568,7 +567,7 @@ func (s *PebbleStore) getProcessedTickIntervalsPerEpoch(ctx context.Context, epo
 	defer closer.Close()
 
 	var ptie protobuff.ProcessedTickIntervalsPerEpoch
-	if err := protojson.Unmarshal(value, &ptie); err != nil {
+	if err := proto.Unmarshal(value, &ptie); err != nil {
 		return nil, errors.Wrap(err, "unmarshalling processed tick intervals per epoch")
 	}
 
@@ -577,7 +576,7 @@ func (s *PebbleStore) getProcessedTickIntervalsPerEpoch(ctx context.Context, epo
 
 func (s *PebbleStore) SetProcessedTickIntervalPerEpoch(ctx context.Context, epoch uint32, ptie *protobuff.ProcessedTickIntervalsPerEpoch) error {
 	key := processedTickIntervalsPerEpochKey(epoch)
-	serialized, err := protojson.Marshal(ptie)
+	serialized, err := proto.Marshal(ptie)
 	if err != nil {
 		return errors.Wrap(err, "serializing ptie proto")
 	}
@@ -625,7 +624,7 @@ func (s *PebbleStore) GetProcessedTickIntervals(ctx context.Context) ([]*protobu
 		}
 
 		var ptie protobuff.ProcessedTickIntervalsPerEpoch
-		err = protojson.Unmarshal(value, &ptie)
+		err = proto.Unmarshal(value, &ptie)
 		if err != nil {
 			return nil, errors.Wrap(err, "unmarshalling iter ptie")
 		}

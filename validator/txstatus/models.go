@@ -6,7 +6,7 @@ import (
 	"github.com/qubic/go-node-connector/types"
 )
 
-func qubicToProto(model types.TransactionStatus) (*protobuff.TickTransactionsStatus, error) {
+func qubicToProto(model types.TransactionStatus, filterMoneyFlew bool) (*protobuff.TickTransactionsStatus, error) {
 	tickTransactions := make([]*protobuff.TransactionStatus, 0, model.TxCount)
 	for index, txDigest := range model.TransactionDigests {
 		var id types.Identity
@@ -14,9 +14,14 @@ func qubicToProto(model types.TransactionStatus) (*protobuff.TickTransactionsSta
 		if err != nil {
 			return nil, errors.Wrap(err, "converting digest to id")
 		}
+		moneyFlew := getMoneyFlewFromBits(model.MoneyFlew, index)
+		if filterMoneyFlew && !moneyFlew {
+			continue
+		}
+
 		tx := &protobuff.TransactionStatus{
 			TxId:      id.String(),
-			MoneyFlew: getMoneyFlewFromBits(model.MoneyFlew, index),
+			MoneyFlew: moneyFlew,
 		}
 
 		tickTransactions = append(tickTransactions, tx)
@@ -27,8 +32,9 @@ func qubicToProto(model types.TransactionStatus) (*protobuff.TickTransactionsSta
 
 func getMoneyFlewFromBits(input [(types.NumberOfTransactionsPerTick + 7) / 8]byte, digestIndex int) bool {
 	pos := digestIndex / 8
+	bitIndex := digestIndex % 8
 
-	return getNthBit(input[pos], pos)
+	return getNthBit(input[pos], bitIndex)
 }
 
 func getNthBit(input byte, bitIndex int) bool {

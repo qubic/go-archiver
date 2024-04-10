@@ -41,7 +41,7 @@ func NewServer(listenAddrGRPC, listenAddrHTTP string, store *store.PebbleStore) 
 func (s *Server) GetTickData(ctx context.Context, req *protobuff.GetTickDataRequest) (*protobuff.GetTickDataResponse, error) {
 	tickData, err := s.store.GetTickData(ctx, req.TickNumber)
 	if err != nil {
-		if errors.Cause(err) == store.ErrNotFound {
+		if errors.Is(err, store.ErrNotFound) {
 			return nil, status.Errorf(codes.NotFound, "tick data not found")
 		}
 		return nil, status.Errorf(codes.Internal, "getting tick data: %v", err)
@@ -56,7 +56,7 @@ func (s *Server) GetTickData(ctx context.Context, req *protobuff.GetTickDataRequ
 func (s *Server) GetTickTransactions(ctx context.Context, req *protobuff.GetTickTransactionsRequest) (*protobuff.GetTickTransactionsResponse, error) {
 	txs, err := s.store.GetTickTransactions(ctx, req.TickNumber)
 	if err != nil {
-		if errors.Cause(err) == store.ErrNotFound {
+		if errors.Is(err, store.ErrNotFound) {
 			return nil, status.Errorf(codes.NotFound, "tick transactions for specified tick not found")
 		}
 		return nil, status.Errorf(codes.Internal, "getting tick transactions: %v", err)
@@ -68,7 +68,7 @@ func (s *Server) GetTickTransactions(ctx context.Context, req *protobuff.GetTick
 func (s *Server) GetTickTransferTransactions(ctx context.Context, req *protobuff.GetTickTransactionsRequest) (*protobuff.GetTickTransactionsResponse, error) {
 	txs, err := s.store.GetTickTransferTransactions(ctx, req.TickNumber)
 	if err != nil {
-		if errors.Cause(err) == store.ErrNotFound {
+		if errors.Is(err, store.ErrNotFound) {
 			return nil, status.Errorf(codes.NotFound, "tick transfer transactions for specified tick not found")
 		}
 		return nil, status.Errorf(codes.Internal, "getting tick transactions: %v", err)
@@ -79,7 +79,7 @@ func (s *Server) GetTickTransferTransactions(ctx context.Context, req *protobuff
 func (s *Server) GetTransaction(ctx context.Context, req *protobuff.GetTransactionRequest) (*protobuff.GetTransactionResponse, error) {
 	tx, err := s.store.GetTransaction(ctx, req.TxId)
 	if err != nil {
-		if errors.Cause(err) == store.ErrNotFound {
+		if errors.Is(err, store.ErrNotFound) {
 			return nil, status.Errorf(codes.NotFound, "transaction not found")
 		}
 		return nil, status.Errorf(codes.Internal, "getting transaction: %v", err)
@@ -90,7 +90,7 @@ func (s *Server) GetTransaction(ctx context.Context, req *protobuff.GetTransacti
 func (s *Server) GetQuorumTickData(ctx context.Context, req *protobuff.GetQuorumTickDataRequest) (*protobuff.GetQuorumTickDataResponse, error) {
 	qtd, err := s.store.GetQuorumTickData(ctx, req.TickNumber)
 	if err != nil {
-		if errors.Cause(err) == store.ErrNotFound {
+		if errors.Is(err, store.ErrNotFound) {
 			return nil, status.Errorf(codes.NotFound, "quorum tick data not found")
 		}
 		return nil, status.Errorf(codes.Internal, "getting quorum tick data: %v", err)
@@ -101,7 +101,7 @@ func (s *Server) GetQuorumTickData(ctx context.Context, req *protobuff.GetQuorum
 func (s *Server) GetComputors(ctx context.Context, req *protobuff.GetComputorsRequest) (*protobuff.GetComputorsResponse, error) {
 	computors, err := s.store.GetComputors(ctx, req.Epoch)
 	if err != nil {
-		if errors.Cause(err) == store.ErrNotFound {
+		if errors.Is(err, store.ErrNotFound) {
 			return nil, status.Errorf(codes.NotFound, "computors not found")
 		}
 		return nil, status.Errorf(codes.Internal, "getting computors: %v", err)
@@ -123,7 +123,7 @@ func (s *Server) GetStatus(ctx context.Context, _ *emptypb.Empty) (*protobuff.Ge
 
 	skippedTicks, err := s.store.GetSkippedTicksInterval(ctx)
 	if err != nil {
-		if errors.Cause(err) == store.ErrNotFound {
+		if errors.Is(err, store.ErrNotFound) {
 			return &protobuff.GetStatusResponse{LastProcessedTick: tick, LastProcessedTicksPerEpoch: lastProcessedTicksPerEpoch}, nil
 		}
 
@@ -194,7 +194,7 @@ func (s *Server) GetTickApprovedTransactions(ctx context.Context, req *protobuff
 
 	tts, err := s.store.GetTickTransactionsStatus(ctx, uint64(req.TickNumber))
 	if err != nil {
-		if errors.Cause(err) == store.ErrNotFound {
+		if errors.Is(err, store.ErrNotFound) {
 			return nil, status.Errorf(codes.NotFound, "tick transactions status data not found for tick %d", req.TickNumber)
 		}
 		return nil, status.Errorf(codes.Internal, "getting tick transactions status: %v", err)
@@ -246,7 +246,7 @@ func wasTickSkippedByArchive(tick uint32, processedTicksIntervalPerEpoch []*prot
 func (s *Server) GetChainHash(ctx context.Context, req *protobuff.GetChainHashRequest) (*protobuff.GetChainHashResponse, error) {
 	hash, err := s.store.GetChainDigest(ctx, req.TickNumber)
 	if err != nil {
-		if errors.Cause(err) == store.ErrNotFound {
+		if errors.Is(err, store.ErrNotFound) {
 			return nil, status.Errorf(codes.NotFound, "chain hash for specified tick not found")
 		}
 		return nil, status.Errorf(codes.Internal, "getting chain hash: %v", err)
