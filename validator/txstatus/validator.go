@@ -4,26 +4,32 @@ import (
 	"bytes"
 	"context"
 	"github.com/pkg/errors"
+	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-node-connector/types"
 	"sort"
 )
 
-func Validate(ctx context.Context, tickTxStatus types.TransactionStatus, tickTxs types.Transactions) error {
+func Validate(ctx context.Context, tickTxStatus types.TransactionStatus, tickTxs types.Transactions) (*protobuff.TickTransactionsStatus, error) {
 	if tickTxStatus.TxCount != uint32(len(tickTxs)) {
-		return errors.Errorf("Mismatched tx length. Tick tx status count: %d - len(tickTx): %d", tickTxStatus.TxCount, len(tickTxs))
+		return nil, errors.Errorf("Mismatched tx length. Tick tx status count: %d - len(tickTx): %d", tickTxStatus.TxCount, len(tickTxs))
 	}
 
 	tickTxDigests, err := getTickTxDigests(tickTxs)
 	if err != nil {
-		return errors.Wrap(err, "getting tick tx digests")
+		return nil, errors.Wrap(err, "getting tick tx digests")
 	}
 
 	if !equalDigests(tickTxDigests, tickTxStatus.TransactionDigests) {
-		return errors.New("digests not equal")
+		return nil, errors.New("digests not equal")
 	}
 
-	return nil
+	proto, err := qubicToProto(tickTxStatus, true)
+	if err != nil {
+		return nil, errors.Wrap(err, "qubic to proto")
+	}
+
+	return proto, nil
 }
 
 func getTickTxDigests(tickTxs types.Transactions) ([][32]byte, error) {
@@ -61,13 +67,8 @@ func sortByteSlices(slice [][32]byte) {
 	})
 }
 
-func Store(ctx context.Context, store *store.PebbleStore, tickNumber uint32, tickTxStatus types.TransactionStatus) error {
-	proto, err := qubicToProto(tickTxStatus)
-	if err != nil {
-		return errors.Wrap(err, "qubic to proto")
-	}
-
-	err = store.SetTickTransactionsStatus(ctx, uint64(tickNumber), proto)
+func Store(ctx context.Context, store *store.PebbleStore, tickNumber uint32, approvedTxs *protobuff.TickTransactionsStatus) error {
+	err := store.SetTickTransactionsStatus(ctx, uint64(tickNumber), approvedTxs)
 	if err != nil {
 		return errors.Wrap(err, "setting tts")
 	}

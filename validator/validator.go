@@ -104,7 +104,7 @@ func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumb
 		return errors.Wrap(err, "getting tx status")
 	}
 
-	err = txstatus.Validate(ctx, tickTxStatus, validTxs)
+	approvedTxs, err := txstatus.Validate(ctx, tickTxStatus, validTxs)
 	if err != nil {
 		return errors.Wrap(err, "validating tx status")
 	}
@@ -131,7 +131,7 @@ func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumb
 
 	log.Printf("Stored %d transactions\n", len(transactions))
 
-	err = txstatus.Store(ctx, v.store, tickNumber, tickTxStatus)
+	err = txstatus.Store(ctx, v.store, tickNumber, approvedTxs)
 	if err != nil {
 		return errors.Wrap(err, "storing tx status")
 	}
