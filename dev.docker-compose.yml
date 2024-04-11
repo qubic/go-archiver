@@ -25,7 +25,7 @@ services:
     restart: always
 
   qubic-archiver:
-    image: ghcr.io/qubic/qubic-archiver:v0.2.0
+    image: ghcr.io/qubic/qubic-archiver:v0.2.1
     container_name: qubic-archiver
     labels:
       - "traefik.enable=true"
