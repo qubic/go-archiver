@@ -10,15 +10,13 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.19.1
 	github.com/pkg/errors v0.9.1
 	github.com/qubic/go-node-connector v0.6.1
-	github.com/qubic/go-schnorrq v0.1.0
+	github.com/qubic/go-schnorrq v0.2.0
 	github.com/stretchr/testify v1.8.4
 	go.uber.org/zap v1.26.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20240125205218-1f4bbc51befe
 	google.golang.org/grpc v1.61.1
 	google.golang.org/protobuf v1.33.0
 )
-
-replace github.com/cloudflare/circl v1.3.7 => github.com/linckode/circl v1.3.7
 
 require (
 	github.com/DataDog/zstd v1.4.5 // indirect
@@ -36,6 +34,7 @@ require (
 	github.com/klauspost/compress v1.15.15 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
+	github.com/linckode/circl v1.3.71 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_golang v1.12.0 // indirect
