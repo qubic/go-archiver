@@ -1,36 +1,52 @@
 version: '3'
 
 services:
-  qubic-archiver:
-    image: ghcr.io/qubic/qubic-archiver:v0.1.18
-    container_name: qubic-archiver
-    ports:
-      - "127.0.0.1:8000:8000"
-      - "127.0.0.1:8001:8001"
+  qubic-http:
+    image: ghcr.io/qubic/qubic-http:dev
+    container_name: qubic-http
+    environment:
+      QUBIC_API_SIDECAR_SERVER_HTTP_HOST: "0.0.0.0:8000"
+      QUBIC_API_SIDECAR_SERVER_GRPC_HOST: "0.0.0.0:8001"
+      QUBIC_API_SIDECAR_POOL_NODE_FETCHER_URL: "http://qubic-node-fetcher:8080/peers"
+      QUBIC_API_SIDECAR_POOL_NODE_FETCHER_TIMEOUT: "20s"
+    networks:
+      - archiver
     depends_on:
       qubic-node-fetcher:
         condition: service_healthy
+    restart: always
+
+  qubic-archiver:
+    image: ghcr.io/qubic/qubic-archiver:v0.2.2
+    container_name: qubic-archiver
+    ports:
+      - "127.0.0.1:8001:8000"
     environment:
       QUBIC_ARCHIVER_SERVER_HTTP_HOST: "0.0.0.0:8000"
       QUBIC_ARCHIVER_SERVER_GRPC_HOST: "0.0.0.0:8001"
       QUBIC_ARCHIVER_POOL_NODE_FETCHER_URL: "http://qubic-node-fetcher:8080/peers"
+      QUBIC_ARCHIVER_QUBIC_PROCESS_TICK_TIMEOUT: "20s"
     volumes:
       - ./store/archiver:/app/store
     networks:
-      - qubic
+      - archiver
+    depends_on:
+      qubic-node-fetcher:
+        condition: service_healthy
     restart: always
 
   qubic-node-fetcher:
-    image: ghcr.io/qubic/go-node-fetcher:v0.1.1
+    image: ghcr.io/qubic/go-node-fetcher:v0.3.0
     container_name: qubic-node-fetcher
     ports:
       - "127.0.0.1:8080:8080"
     environment:
-      NODE_FETCHER_QUBIC_STARTING_PEER_IP: "212.51.150.253"
+      NODE_FETCHER_QUBIC_FIXED_PEER_LIST: true
+      NODE_FETCHER_QUBIC_STARTING_PEERS_IP: "185.70.186.149;185.70.186.153"
     volumes:
       - ./store/node-fetcher:/app/store
     networks:
-      - qubic
+      - archiver
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://qubic-node-fetcher:8080/peers"]
       interval: 30s
@@ -39,4 +55,4 @@ services:
     restart: always
 
 networks:
-  qubic:
+  archiver:
