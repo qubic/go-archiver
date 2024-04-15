@@ -46,14 +46,24 @@ func getTickTxDigests(tickTxs types.Transactions) ([][32]byte, error) {
 	return tickTxDigests, nil
 }
 
+func copySlice(slice [][32]byte) [][32]byte {
+	newSlice := make([][32]byte, len(slice))
+	copy(newSlice, slice)
+	return newSlice
+}
+
 func equalDigests(tickTxsDigests [][32]byte, tickTxStatusDigests [][32]byte) bool {
+	//copy slices to avoid modifying the original slices
+	copyTxsDigests := copySlice(tickTxsDigests)
+	copyTxStatusDigests := copySlice(tickTxStatusDigests)
+
 	// Sort the slices
-	sortByteSlices(tickTxsDigests)
-	sortByteSlices(tickTxStatusDigests)
+	sortByteSlices(copyTxsDigests)
+	sortByteSlices(copyTxStatusDigests)
 
 	// Compare the sorted slices element by element
-	for i := range tickTxsDigests {
-		if !bytes.Equal(tickTxsDigests[i][:], tickTxStatusDigests[i][:]) {
+	for i := range copyTxsDigests {
+		if !bytes.Equal(copyTxsDigests[i][:], copyTxStatusDigests[i][:]) {
 			return false
 		}
 	}
