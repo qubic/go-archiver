@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/store"
-	"github.com/qubic/go-archiver/utils"
 	"github.com/qubic/go-archiver/validator/chain"
 	"github.com/qubic/go-archiver/validator/computors"
 	"github.com/qubic/go-archiver/validator/quorum"
@@ -13,6 +12,7 @@ import (
 	"github.com/qubic/go-archiver/validator/txstatus"
 	qubic "github.com/qubic/go-node-connector"
 	"github.com/qubic/go-node-connector/types"
+	"github.com/qubic/go-schnorrq"
 	"log"
 )
 
@@ -23,6 +23,10 @@ type Validator struct {
 
 func New(qu *qubic.Client, store *store.PebbleStore) *Validator {
 	return &Validator{qu: qu, store: store}
+}
+
+func GoSchnorrqVerify(ctx context.Context, pubkey [32]byte, digest [32]byte, sig [64]byte) error {
+	return schnorrq.Verify(pubkey, digest, sig)
 }
 
 func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumber uint32) error {
@@ -50,7 +54,7 @@ func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumb
 		}
 	}
 
-	err = computors.Validate(ctx, utils.FourQSigVerify, comps)
+	err = computors.Validate(ctx, GoSchnorrqVerify, comps)
 	if err != nil {
 		return errors.Wrap(err, "validating comps")
 	}
@@ -59,7 +63,7 @@ func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumb
 		return errors.Wrap(err, "storing computors")
 	}
 
-	alignedVotes, err := quorum.Validate(ctx, utils.FourQSigVerify, quorumVotes, comps)
+	alignedVotes, err := quorum.Validate(ctx, GoSchnorrqVerify, quorumVotes, comps)
 	if err != nil {
 		return errors.Wrap(err, "validating quorum")
 	}
@@ -78,7 +82,7 @@ func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumb
 	}
 	log.Println("Got tick data")
 
-	err = tick.Validate(ctx, utils.FourQSigVerify, tickData, alignedVotes[0], comps)
+	err = tick.Validate(ctx, GoSchnorrqVerify, tickData, alignedVotes[0], comps)
 	if err != nil {
 		return errors.Wrap(err, "validating tick data")
 	}
@@ -92,7 +96,7 @@ func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumb
 
 	log.Printf("Validating %d transactions\n", len(transactions))
 
-	validTxs, err := tx.Validate(ctx, utils.FourQSigVerify, transactions, tickData)
+	validTxs, err := tx.Validate(ctx, GoSchnorrqVerify, transactions, tickData)
 	if err != nil {
 		return errors.Wrap(err, "validating transactions")
 	}
