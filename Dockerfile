@@ -1,4 +1,4 @@
-FROM golang:1.21 AS builder
+FROM golang:1.22 AS builder
 ENV CGO_ENABLED=0
 
 WORKDIR /src
@@ -11,9 +11,7 @@ RUN go build -o "/src/bin/go-archiver" --ldflags="-X 'github.com/qubic/go-archiv
 FROM ubuntu:22.04
 RUN apt-get update && apt-get install -y ca-certificates
 COPY --from=builder /src/bin/go-archiver /app/go-archiver
-COPY fourq_verify /app/fourq_verify
 RUN chmod +x /app/go-archiver
-RUN chmod +x /app/fourq_verify
 
 EXPOSE 8000
 EXPOSE 8001

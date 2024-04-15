@@ -1,6 +1,6 @@
 module github.com/qubic/go-archiver
 
-go 1.21.3
+go 1.22.2
 
 require (
 	github.com/ardanlabs/conf v1.5.0
@@ -10,12 +10,15 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.19.1
 	github.com/pkg/errors v0.9.1
 	github.com/qubic/go-node-connector v0.6.1
+	github.com/qubic/go-schnorrq v0.1.0
 	github.com/stretchr/testify v1.8.4
 	go.uber.org/zap v1.26.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20240125205218-1f4bbc51befe
 	google.golang.org/grpc v1.61.1
 	google.golang.org/protobuf v1.33.0
 )
+
+replace github.com/cloudflare/circl v1.3.7 => github.com/linckode/circl v1.3.7
 
 require (
 	github.com/DataDog/zstd v1.4.5 // indirect
