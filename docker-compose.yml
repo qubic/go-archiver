@@ -45,7 +45,7 @@ services:
     volumes:
       - ./store/qubic-nodes:/app/store
     networks:
-      - traefik
+      - archiver
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/status"]
       interval: 30s
