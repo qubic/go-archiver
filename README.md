@@ -1,11 +1,10 @@
-[![test](.github/badges/test.svg)](https://github.com/qubic/go-archiver/actions/workflows/test.yaml)
 ## High level description:
 The archive system consists of two services:
 - `qubic-archiver` - the archiver processor and HTTP server that provides rpc endpoints to query the archiver
 - `qubic-node-fetcher` - a service that is starting from a reliable node, gather the peers by "walking" from peer to peer and then filters them out so they don't have more than 30 ticks behind. This service is also exposing an http server for the qubic-archiver to retrieve the reliable peers
 
 ## IMPORTANT
-Before starting the system, open the `docker-compose.yml` file and make sure that there is a reliable peer as a starting point for the node-fetcher service. It's defined in the `NODE_FETCHER_QUBIC_STARTING_PEER_IP` environment variable.
+Before starting the system, open the `docker-compose.yml` file and make sure that there is a reliable peer as a starting point for the node-fetcher service. It's defined in the `NODE_FETCHER_QUBIC_STARTING_PEERS_IP` environment variable.
 
 ## Other optional configuration parameters for qubic-archiver can be specified as env variable by adding them to docker compose:
 ```bash
