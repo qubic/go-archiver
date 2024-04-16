@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-archiver/store"
+	"github.com/qubic/go-node-connector/types"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
@@ -241,6 +242,35 @@ func wasTickSkippedByArchive(tick uint32, processedTicksIntervalPerEpoch []*prot
 		}
 	}
 	return false, 0
+}
+
+func (s *Server) GetTransactionStatus(ctx context.Context, req *protobuff.GetTransactionStatusRequest) (*protobuff.GetTransactionStatusResponse, error) {
+	id := types.Identity(req.TxId)
+	pubKey, err := id.ToPubKey(true)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tx id format: %v", err)
+	}
+
+	var pubkeyFixed [32]byte
+	copy(pubkeyFixed[:], pubKey[:32])
+	id, err = id.FromPubKey(pubkeyFixed, true)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tx id format: %v", err)
+	}
+
+	if id.String() != req.TxId {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tx id format")
+	}
+
+	txStatus, err := s.store.GetTransactionStatus(ctx, req.TxId)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, status.Errorf(codes.NotFound, "tx status for specified tx id not found")
+		}
+		return nil, status.Errorf(codes.Internal, "getting tx status: %v", err)
+	}
+
+	return &protobuff.GetTransactionStatusResponse{TransactionStatus: txStatus}, nil
 }
 
 func (s *Server) GetChainHash(ctx context.Context, req *protobuff.GetChainHashRequest) (*protobuff.GetChainHashResponse, error) {
