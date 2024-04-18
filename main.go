@@ -95,7 +95,7 @@ func run() error {
 		return errors.Wrap(err, "creating qubic pool")
 	}
 
-	rpcServer := rpc.NewServer(cfg.Server.GrpcHost, cfg.Server.HttpHost, ps)
+	rpcServer := rpc.NewServer(cfg.Server.GrpcHost, cfg.Server.HttpHost, ps, p)
 	rpcServer.Start()
 
 	shutdown := make(chan os.Signal, 1)
