@@ -449,7 +449,7 @@ func local_request_ArchiveService_GetTransactionStatus_0(ctx context.Context, ma
 }
 
 var (
-	filter_ArchiveService_GetTransferTransactionsPerTick_0 = &utilities.DoubleArray{Encoding: map[string]int{"identity": 0}, Base: []int{1, 2, 0, 0}, Check: []int{0, 1, 2, 2}}
+	filter_ArchiveService_GetTransferTransactionsPerTick_0 = &utilities.DoubleArray{Encoding: map[string]int{"identity": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
 )
 
 func request_ArchiveService_GetTransferTransactionsPerTick_0(ctx context.Context, marshaler runtime.Marshaler, client ArchiveServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
@@ -602,6 +602,24 @@ func local_request_ArchiveService_GetLatestTick_0(ctx context.Context, marshaler
 	var metadata runtime.ServerMetadata
 
 	msg, err := server.GetLatestTick(ctx, &protoReq)
+	return msg, metadata, err
+
+}
+
+func request_ArchiveService_GetHealthCheck_0(ctx context.Context, marshaler runtime.Marshaler, client ArchiveServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq emptypb.Empty
+	var metadata runtime.ServerMetadata
+
+	msg, err := client.GetHealthCheck(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+
+}
+
+func local_request_ArchiveService_GetHealthCheck_0(ctx context.Context, marshaler runtime.Marshaler, server ArchiveServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq emptypb.Empty
+	var metadata runtime.ServerMetadata
+
+	msg, err := server.GetHealthCheck(ctx, &protoReq)
 	return msg, metadata, err
 
 }
@@ -912,6 +930,31 @@ func RegisterArchiveServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 
 	})
 
+	mux.Handle("GET", pattern_ArchiveService_GetHealthCheck_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		var stream runtime.ServerTransportStream
+		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		var err error
+		var annotatedContext context.Context
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/qubic.archiver.archive.pb.ArchiveService/GetHealthCheck", runtime.WithHTTPPathPattern("/healthcheck"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := local_request_ArchiveService_GetHealthCheck_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_ArchiveService_GetHealthCheck_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
 	return nil
 }
 
@@ -1217,6 +1260,28 @@ func RegisterArchiveServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 
 	})
 
+	mux.Handle("GET", pattern_ArchiveService_GetHealthCheck_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		var err error
+		var annotatedContext context.Context
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/qubic.archiver.archive.pb.ArchiveService/GetHealthCheck", runtime.WithHTTPPathPattern("/healthcheck"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_ArchiveService_GetHealthCheck_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_ArchiveService_GetHealthCheck_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
 	return nil
 }
 
@@ -1244,6 +1309,8 @@ var (
 	pattern_ArchiveService_GetStatus_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0}, []string{"status"}, ""))
 
 	pattern_ArchiveService_GetLatestTick_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0}, []string{"latestTick"}, ""))
+
+	pattern_ArchiveService_GetHealthCheck_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0}, []string{"healthcheck"}, ""))
 )
 
 var (
@@ -1270,4 +1337,6 @@ var (
 	forward_ArchiveService_GetStatus_0 = runtime.ForwardResponseMessage
 
 	forward_ArchiveService_GetLatestTick_0 = runtime.ForwardResponseMessage
+
+	forward_ArchiveService_GetHealthCheck_0 = runtime.ForwardResponseMessage
 )
