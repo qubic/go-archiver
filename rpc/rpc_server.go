@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-archiver/store"
+	qubic "github.com/qubic/go-node-connector"
 	"github.com/qubic/go-node-connector/types"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -29,13 +30,15 @@ type Server struct {
 	listenAddrGRPC string
 	listenAddrHTTP string
 	store          *store.PebbleStore
+	pool           *qubic.Pool
 }
 
-func NewServer(listenAddrGRPC, listenAddrHTTP string, store *store.PebbleStore) *Server {
+func NewServer(listenAddrGRPC, listenAddrHTTP string, store *store.PebbleStore, pool *qubic.Pool) *Server {
 	return &Server{
 		listenAddrGRPC: listenAddrGRPC,
 		listenAddrHTTP: listenAddrHTTP,
 		store:          store,
+		pool:           pool,
 	}
 }
 
@@ -262,6 +265,47 @@ func (s *Server) GetStatus(ctx context.Context, _ *emptypb.Empty) (*protobuff.Ge
 		SkippedTicks:                   skippedTicks.SkippedTicks,
 		ProcessedTickIntervalsPerEpoch: ptie,
 	}, nil
+}
+
+func (s *Server) GetHealthCheck(ctx context.Context, _ *emptypb.Empty) (*protobuff.GetHealthCheckResponse, error) {
+	var err error
+	lastProcessedTick, err := s.store.GetLastProcessedTick(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "getting last processed tick: %v", err)
+	}
+
+	client, err := s.pool.Get()
+	if err != nil {
+
+		return nil, status.Errorf(codes.Internal, "getting qubic pooled client connection: %v", err)
+	}
+	defer func() {
+		if err == nil {
+			log.Printf("Putting conn back to pool")
+			pErr := s.pool.Put(client)
+			if pErr != nil {
+				log.Printf("Putting conn back to pool failed: %s", pErr.Error())
+			}
+		} else {
+			log.Printf("Closing conn")
+			cErr := s.pool.Close(client)
+			if cErr != nil {
+				log.Printf("Closing conn failed: %s", cErr.Error())
+			}
+		}
+	}()
+
+	nodeTickInfo, err := client.GetTickInfo(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "getting tick info: %v", err)
+	}
+
+	if nodeTickInfo.Tick != lastProcessedTick.TickNumber {
+		return nil, status.Errorf(codes.Internal, "archiver is not up to date. node tick: %d achiver last processed tick: %d", nodeTickInfo.Tick, lastProcessedTick.TickNumber)
+	}
+
+	return &protobuff.GetHealthCheckResponse{Status: "Up to date"}, nil
+
 }
 
 func (s *Server) GetLatestTick(ctx context.Context, _ *emptypb.Empty) (*protobuff.GetLatestTickResponse, error) {
