@@ -25,7 +25,7 @@ services:
     restart: always
 
   qubic-archiver:
-    image: ghcr.io/qubic/qubic-archiver:v0.2.2
+    image: ghcr.io/qubic/qubic-archiver:v0.3.0
     container_name: qubic-archiver
     labels:
       - "traefik.enable=true"
@@ -40,7 +40,7 @@ services:
       QUBIC_ARCHIVER_SERVER_HTTP_HOST: "0.0.0.0:8000"
       QUBIC_ARCHIVER_SERVER_GRPC_HOST: "0.0.0.0:8001"
       QUBIC_ARCHIVER_POOL_NODE_FETCHER_URL: "http://qubic-node-fetcher:8080/peers"
-      QUBIC_ARCHIVER_QUBIC_PROCESS_TICK_TIMEOUT: "20s"
+      QUBIC_ARCHIVER_QUBIC_PROCESS_TICK_TIMEOUT: "5s"
     volumes:
       - ./store/archiver:/app/store
     networks:
