@@ -27,11 +27,13 @@ func main() {
 func run() error {
 	var cfg struct {
 		Server struct {
-			ReadTimeout     time.Duration `conf:"default:5s"`
-			WriteTimeout    time.Duration `conf:"default:5s"`
-			ShutdownTimeout time.Duration `conf:"default:5s"`
-			HttpHost        string        `conf:"default:0.0.0.0:8000"`
-			GrpcHost        string        `conf:"default:0.0.0.0:8001"`
+			ReadTimeout       time.Duration `conf:"default:5s"`
+			WriteTimeout      time.Duration `conf:"default:5s"`
+			ShutdownTimeout   time.Duration `conf:"default:5s"`
+			HttpHost          string        `conf:"default:0.0.0.0:8000"`
+			GrpcHost          string        `conf:"default:0.0.0.0:8001"`
+			NodeSyncThreshold int           `conf:"default:2"`
+			ChainTickFetchUrl string        `conf:"default:http://127.0.0.1:8080/chain-tick"`
 		}
 		Pool struct {
 			NodeFetcherUrl     string        `conf:"default:http://127.0.0.1:8080/peers"`
@@ -95,7 +97,7 @@ func run() error {
 		return errors.Wrap(err, "creating qubic pool")
 	}
 
-	rpcServer := rpc.NewServer(cfg.Server.GrpcHost, cfg.Server.HttpHost, ps, p)
+	rpcServer := rpc.NewServer(cfg.Server.GrpcHost, cfg.Server.HttpHost, cfg.Server.NodeSyncThreshold, cfg.Server.ChainTickFetchUrl, ps, p)
 	rpcServer.Start()
 
 	shutdown := make(chan os.Signal, 1)
