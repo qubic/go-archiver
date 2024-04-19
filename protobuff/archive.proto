@@ -162,7 +162,7 @@ message GetStatusResponse {
 }
 
 message GetHealthCheckResponse {
-  string status = 1;
+  bool status = 1;
 }
 
 message GetLatestTickResponse {
