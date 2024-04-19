@@ -3,6 +3,7 @@ package rpc
 import (
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
@@ -16,7 +17,9 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"io"
 	"log"
+	"math"
 	"net"
 	"net/http"
 )
@@ -27,18 +30,22 @@ var emptyTd = &protobuff.TickData{}
 
 type Server struct {
 	protobuff.UnimplementedArchiveServiceServer
-	listenAddrGRPC string
-	listenAddrHTTP string
-	store          *store.PebbleStore
-	pool           *qubic.Pool
+	listenAddrGRPC    string
+	listenAddrHTTP    string
+	syncThreshold     int
+	chainTickFetchUrl string
+	store             *store.PebbleStore
+	pool              *qubic.Pool
 }
 
-func NewServer(listenAddrGRPC, listenAddrHTTP string, store *store.PebbleStore, pool *qubic.Pool) *Server {
+func NewServer(listenAddrGRPC, listenAddrHTTP string, syncThreshold int, chainTickUrl string, store *store.PebbleStore, pool *qubic.Pool) *Server {
 	return &Server{
-		listenAddrGRPC: listenAddrGRPC,
-		listenAddrHTTP: listenAddrHTTP,
-		store:          store,
-		pool:           pool,
+		listenAddrGRPC:    listenAddrGRPC,
+		listenAddrHTTP:    listenAddrHTTP,
+		syncThreshold:     syncThreshold,
+		chainTickFetchUrl: chainTickUrl,
+		store:             store,
+		pool:              pool,
 	}
 }
 
@@ -267,44 +274,68 @@ func (s *Server) GetStatus(ctx context.Context, _ *emptypb.Empty) (*protobuff.Ge
 	}, nil
 }
 
+type response struct {
+	ChainTick int `json:"chain_tick"`
+}
+
+func fetchChainTick(ctx context.Context, url string) (int, error) {
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return 0, errors.Wrap(err, "creating new request")
+	}
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return 0, errors.Wrap(err, "getting chain tick from node fetcher")
+	}
+
+	var resp response
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return 0, errors.Wrap(err, "reading response body")
+	}
+	err = json.Unmarshal(body, &resp)
+	if err != nil {
+		return 0, errors.Wrap(err, "unmarshalling response")
+	}
+
+	tick := resp.ChainTick
+
+	return tick, nil
+
+}
+
 func (s *Server) GetHealthCheck(ctx context.Context, _ *emptypb.Empty) (*protobuff.GetHealthCheckResponse, error) {
 	var err error
+
+	//Get last processed tick
 	lastProcessedTick, err := s.store.GetLastProcessedTick(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "getting last processed tick: %v", err)
 	}
 
-	client, err := s.pool.Get()
+	//Poll node-fetcher for network tick
+	chainTick, err := fetchChainTick(ctx, s.chainTickFetchUrl)
 	if err != nil {
-
-		return nil, status.Errorf(codes.Internal, "getting qubic pooled client connection: %v", err)
-	}
-	defer func() {
-		if err == nil {
-			log.Printf("Putting conn back to pool")
-			pErr := s.pool.Put(client)
-			if pErr != nil {
-				log.Printf("Putting conn back to pool failed: %s", pErr.Error())
-			}
-		} else {
-			log.Printf("Closing conn")
-			cErr := s.pool.Close(client)
-			if cErr != nil {
-				log.Printf("Closing conn failed: %s", cErr.Error())
-			}
-		}
-	}()
-
-	nodeTickInfo, err := client.GetTickInfo(ctx)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "getting tick info: %v", err)
+		return nil, status.Errorf(codes.Internal, "fetching chain tick: %v", err)
 	}
 
-	if nodeTickInfo.Tick != lastProcessedTick.TickNumber {
-		return nil, status.Errorf(codes.Internal, "archiver is not up to date. node tick: %d achiver last processed tick: %d", nodeTickInfo.Tick, lastProcessedTick.TickNumber)
+	//Calculate difference between node tick and our last processed tick. difference = nodeTick - lastProcessed
+	difference := chainTick - int(lastProcessedTick.TickNumber)
+
+	//If we're ahead of the node something is clearly wrong here
+	//TODO: Should we use the threshold here?
+	if difference < 0 {
+		return nil, status.Errorf(codes.Internal, "processor is ahead of node by %d ticks", int(math.Abs(float64(difference))))
 	}
 
-	return &protobuff.GetHealthCheckResponse{Status: "Up to date"}, nil
+	//If the sync difference is bigger than our threshold
+	if difference > s.syncThreshold {
+		return nil, status.Errorf(codes.Internal, "processor is behind node by %d ticks", difference)
+	}
+
+	return &protobuff.GetHealthCheckResponse{Status: true}, nil
 
 }
 
