@@ -2,7 +2,10 @@ package validator
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"github.com/pkg/errors"
+	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-archiver/validator/chain"
 	"github.com/qubic/go-archiver/validator/computors"
@@ -14,6 +17,9 @@ import (
 	"github.com/qubic/go-node-connector/types"
 	"github.com/qubic/go-schnorrq"
 	"log"
+	"net/http"
+	"strconv"
+	"time"
 )
 
 type Validator struct {
@@ -103,14 +109,19 @@ func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumb
 
 	log.Printf("Validated %d transactions\n", len(validTxs))
 
-	tickTxStatus, err := v.qu.GetTxStatus(ctx, tickNumber)
+	//tickTxStatus, err := v.qu.GetTxStatus(ctx, tickNumber)
+	//if err != nil {
+	//	return errors.Wrap(err, "getting tx status")
+	//}
+	//
+	//approvedTxs, err := txstatus.Validate(ctx, tickTxStatus, validTxs)
+	//if err != nil {
+	//	return errors.Wrap(err, "validating tx status")
+	//}
+
+	approvedTxs, err := v.GetTxStatus(ctx, uint64(tickNumber))
 	if err != nil {
 		return errors.Wrap(err, "getting tx status")
-	}
-
-	approvedTxs, err := txstatus.Validate(ctx, tickTxStatus, validTxs)
-	if err != nil {
-		return errors.Wrap(err, "validating tx status")
 	}
 
 	// proceed to storing tick information
@@ -146,4 +157,68 @@ func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumb
 	}
 
 	return nil
+}
+
+type responseStatusStruct []struct {
+	Digest    string `json:"digest"`
+	MoneyFlew bool   `json:"moneyFlew"`
+}
+
+func (v *Validator) queryQliServicesForTransactions(ctx context.Context, tickNumber uint64) (responseStatusStruct, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.qubic.li/Public/TickTransaction/"+strconv.Itoa(int(tickNumber)), nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "creating new request")
+	}
+
+	httpRes, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "sending request")
+	}
+	defer httpRes.Body.Close()
+
+	if httpRes.StatusCode != http.StatusOK {
+		return nil, errors.Errorf("got non 200 status code: %d", httpRes.StatusCode)
+	}
+
+	var res responseStatusStruct
+
+	err = json.NewDecoder(httpRes.Body).Decode(&res)
+	if err != nil {
+		return nil, errors.Wrap(err, "decoding response")
+	}
+
+	return res, nil
+}
+
+func (v *Validator) GetTxStatus(ctx context.Context, tickNumber uint64) (*protobuff.TickTransactionsStatus, error) {
+	qliServicesTransactions, err := v.queryQliServicesForTransactions(ctx, tickNumber)
+	if err != nil {
+		return nil, errors.Wrap(err, "querying qli services for transactions")
+	}
+
+	transactions := make([]*protobuff.TransactionStatus, 0, len(qliServicesTransactions))
+	for _, transaction := range qliServicesTransactions {
+		var id types.Identity
+
+		decoded, err := base64.StdEncoding.DecodeString(transaction.Digest)
+		if err != nil {
+			return nil, errors.Wrap(err, "base64 decoding digest")
+		}
+		var pubKey [32]byte
+		copy(pubKey[:], decoded[:32])
+		id, err = id.FromPubKey(pubKey, true)
+		if err != nil {
+			return nil, errors.Wrap(err, "creating identity from public key")
+		}
+		t := protobuff.TransactionStatus{
+			TxId:      id.String(),
+			MoneyFlew: transaction.MoneyFlew,
+		}
+		transactions = append(transactions, &t)
+	}
+
+	return &protobuff.TickTransactionsStatus{Transactions: transactions}, nil
 }
