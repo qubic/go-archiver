@@ -33,10 +33,10 @@ func run() error {
 			HttpHost          string        `conf:"default:0.0.0.0:8000"`
 			GrpcHost          string        `conf:"default:0.0.0.0:8001"`
 			NodeSyncThreshold int           `conf:"default:2"`
-			ChainTickFetchUrl string        `conf:"default:http://127.0.0.1:8080/chain-tick"`
+			ChainTickFetchUrl string        `conf:"default:http://127.0.0.1:8080/max-tick"`
 		}
 		Pool struct {
-			NodeFetcherUrl     string        `conf:"default:http://127.0.0.1:8080/peers"`
+			NodeFetcherUrl     string        `conf:"default:http://127.0.0.1:8080/status"`
 			NodeFetcherTimeout time.Duration `conf:"default:2s"`
 			InitialCap         int           `conf:"default:5"`
 			MaxIdle            int           `conf:"default:20"`
