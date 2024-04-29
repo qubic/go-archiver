@@ -18,6 +18,9 @@ require (
 	google.golang.org/protobuf v1.33.0
 )
 
+replace (
+	github.com/qubic/go-node-connector => ../go-qubic
+)
 require (
 	github.com/DataDog/zstd v1.4.5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect

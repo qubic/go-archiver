@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"github.com/pkg/errors"
-	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-archiver/validator/chain"
 	"github.com/qubic/go-archiver/validator/computors"
@@ -109,19 +108,14 @@ func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumb
 
 	log.Printf("Validated %d transactions\n", len(validTxs))
 
-	//tickTxStatus, err := v.qu.GetTxStatus(ctx, tickNumber)
-	//if err != nil {
-	//	return errors.Wrap(err, "getting tx status")
-	//}
-	//
-	//approvedTxs, err := txstatus.Validate(ctx, tickTxStatus, validTxs)
-	//if err != nil {
-	//	return errors.Wrap(err, "validating tx status")
-	//}
-
-	approvedTxs, err := v.GetTxStatus(ctx, uint64(tickNumber))
+	tickTxStatus, err := v.GetTxStatus(ctx, uint64(tickNumber))
 	if err != nil {
 		return errors.Wrap(err, "getting tx status")
+	}
+
+	validTxsStatus, err := txstatus.Validate(ctx, tickTxStatus, validTxs)
+	if err != nil {
+		return errors.Wrap(err, "validating tx status")
 	}
 
 	// proceed to storing tick information
@@ -146,7 +140,7 @@ func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumb
 
 	log.Printf("Stored %d transactions\n", len(transactions))
 
-	err = txstatus.Store(ctx, v.store, tickNumber, approvedTxs)
+	err = txstatus.Store(ctx, v.store, tickNumber, validTxsStatus)
 	if err != nil {
 		return errors.Wrap(err, "storing tx status")
 	}
@@ -193,13 +187,36 @@ func (v *Validator) queryQliServicesForTransactions(ctx context.Context, tickNum
 	return res, nil
 }
 
-func (v *Validator) GetTxStatus(ctx context.Context, tickNumber uint64) (*protobuff.TickTransactionsStatus, error) {
-	qliServicesTransactions, err := v.queryQliServicesForTransactions(ctx, tickNumber)
+func (v *Validator) GetTxStatus(ctx context.Context, tickNumber uint64) ([]types.IndividualTransactionStatus, error) {
+	var responseChannel = make(chan []types.IndividualTransactionStatus, 1)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				responseChannel <- nil
+			}
+		}
+	}()
+
+	return nil, nil
+}
+
+func (v *Validator) getTxStatusFromNode(ctx context.Context, tickNumber uint64) ([]types.IndividualTransactionStatus, error) {
+	txStatus, err := v.qu.GetTxStatus(ctx, uint32(tickNumber))
 	if err != nil {
-		return nil, errors.Wrap(err, "querying qli services for transactions")
+		return nil, errors.Wrap(err, "getting tx status from qubic node")
 	}
 
-	transactions := make([]*protobuff.TransactionStatus, 0, len(qliServicesTransactions))
+	return txStatus.TransactionsStatus, nil
+}
+
+func (v *Validator) getTxStatusFromQli(ctx context.Context, tickNumber uint64) ([]types.IndividualTransactionStatus, error) {
+	qliServicesTransactions, err := v.queryQliServicesForTransactions(ctx, tickNumber)
+	if err != nil {
+		return nil, errors.Wrap(err, "querying qli services for transactionsStatus")
+	}
+
+	transactionsStatus := make([]types.IndividualTransactionStatus, 0, len(qliServicesTransactions))
 	for _, transaction := range qliServicesTransactions {
 		var id types.Identity
 
@@ -213,12 +230,12 @@ func (v *Validator) GetTxStatus(ctx context.Context, tickNumber uint64) (*protob
 		if err != nil {
 			return nil, errors.Wrap(err, "creating identity from public key")
 		}
-		t := protobuff.TransactionStatus{
-			TxId:      id.String(),
+		t := types.IndividualTransactionStatus{
+			TxID:      id.String(),
 			MoneyFlew: transaction.MoneyFlew,
 		}
-		transactions = append(transactions, &t)
+		transactionsStatus = append(transactionsStatus, t)
 	}
 
-	return &protobuff.TickTransactionsStatus{Transactions: transactions}, nil
+	return transactionsStatus, nil
 }

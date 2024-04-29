@@ -10,9 +10,9 @@ import (
 	"sort"
 )
 
-func Validate(ctx context.Context, tickTxStatus types.TransactionStatus, tickTxs types.Transactions) (*protobuff.TickTransactionsStatus, error) {
-	if tickTxStatus.TxCount != uint32(len(tickTxs)) {
-		return nil, errors.Errorf("Mismatched tx length. Tick tx status count: %d - len(tickTx): %d", tickTxStatus.TxCount, len(tickTxs))
+func Validate(ctx context.Context, tickTxStatus []types.IndividualTransactionStatus, tickTxs types.Transactions) (*protobuff.TickTransactionsStatus, error) {
+	if len(tickTxStatus) != len(tickTxs) {
+		return nil, errors.Errorf("Mismatched tx length. Tick tx status count: %d - len(tickTx): %d", len(tickTxStatus), len(tickTxs))
 	}
 
 	tickTxDigests, err := getTickTxDigests(tickTxs)
@@ -20,16 +20,16 @@ func Validate(ctx context.Context, tickTxStatus types.TransactionStatus, tickTxs
 		return nil, errors.Wrap(err, "getting tick tx digests")
 	}
 
-	if !equalDigests(tickTxDigests, tickTxStatus.TransactionDigests) {
+	tickTxStatusDigests, err := getTickTxStatusDigests(tickTxStatus)
+	if err != nil {
+		return nil, errors.Wrap(err, "getting tick tx status digests")
+	}
+
+	if !equalDigests(tickTxDigests, tickTxStatusDigests) {
 		return nil, errors.New("digests not equal")
 	}
 
-	proto, err := qubicToProto(tickTxStatus, true)
-	if err != nil {
-		return nil, errors.Wrap(err, "qubic to proto")
-	}
-
-	return proto, nil
+	return qubicToProto(tickTxStatus), nil
 }
 
 func getTickTxDigests(tickTxs types.Transactions) ([][32]byte, error) {
@@ -44,6 +44,21 @@ func getTickTxDigests(tickTxs types.Transactions) ([][32]byte, error) {
 	}
 
 	return tickTxDigests, nil
+}
+
+func getTickTxStatusDigests(tickTxStatus []types.IndividualTransactionStatus) ([][32]byte, error) {
+	tickTxStatusDigests := make([][32]byte, 0, len(tickTxStatus))
+	for index, txStatus := range tickTxStatus {
+		id := types.Identity(txStatus.TxID)
+		pubKey, err := id.ToPubKey(true)
+		if err != nil {
+			return nil, errors.Wrapf(err, "creating digest for tx on index %d", index)
+		}
+
+		tickTxStatusDigests = append(tickTxStatusDigests, pubKey)
+	}
+
+	return tickTxStatusDigests, nil
 }
 
 func copySlice(slice [][32]byte) [][32]byte {
@@ -77,8 +92,8 @@ func sortByteSlices(slice [][32]byte) {
 	})
 }
 
-func Store(ctx context.Context, store *store.PebbleStore, tickNumber uint32, approvedTxs *protobuff.TickTransactionsStatus) error {
-	err := store.SetTickTransactionsStatus(ctx, uint64(tickNumber), approvedTxs)
+func Store(ctx context.Context, store *store.PebbleStore, tickNumber uint32, validTxsStatus *protobuff.TickTransactionsStatus) error {
+	err := store.SetTickTransactionsStatus(ctx, uint64(tickNumber), validTxsStatus)
 	if err != nil {
 		return errors.Wrap(err, "setting tts")
 	}
