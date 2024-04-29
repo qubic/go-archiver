@@ -109,19 +109,14 @@ func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumb
 
 	log.Printf("Validated %d transactions\n", len(validTxs))
 
-	//tickTxStatus, err := v.qu.GetTxStatus(ctx, tickNumber)
-	//if err != nil {
-	//	return errors.Wrap(err, "getting tx status")
-	//}
-	//
-	//approvedTxs, err := txstatus.Validate(ctx, tickTxStatus, validTxs)
-	//if err != nil {
-	//	return errors.Wrap(err, "validating tx status")
-	//}
-
-	approvedTxs, err := v.GetTxStatus(ctx, uint64(tickNumber))
+	tickTxStatus, err := v.qu.GetTxStatus(ctx, tickNumber)
 	if err != nil {
 		return errors.Wrap(err, "getting tx status")
+	}
+
+	approvedTxs, err := txstatus.Validate(ctx, tickTxStatus, validTxs)
+	if err != nil {
+		return errors.Wrap(err, "validating tx status")
 	}
 
 	// proceed to storing tick information

@@ -8,16 +8,20 @@ import (
 	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-archiver/utils"
 	"github.com/qubic/go-node-connector/types"
-	"log"
 )
 
 var emptyTxDigest [32]byte
 
 func Validate(ctx context.Context, sigVerifierFunc utils.SigVerifierFunc, transactions []types.Transaction, tickData types.TickData) ([]types.Transaction, error) {
 	digestsMap := createTxDigestsMap(tickData)
-	//if len(transactions) != len(digestsMap) {
-	//	return nil, errors.Errorf("tx count mismatch. tx count: %d, digests count: %d", len(transactions), len(digestsMap))
-	//}
+	// handles empty tick but with transactions
+	if len(digestsMap) == 0 {
+		return []types.Transaction{}, nil
+	}
+
+	if len(transactions) != len(digestsMap) {
+		return nil, errors.Errorf("tx count mismatch. tx count: %d, digests count: %d", len(transactions), len(digestsMap))
+	}
 
 	validTxs, err := validateTransactions(ctx, sigVerifierFunc, transactions, digestsMap)
 	if err != nil {
@@ -35,10 +39,14 @@ func validateTransactions(ctx context.Context, sigVerifierFunc utils.SigVerifier
 			return nil, errors.Wrap(err, "getting digest from tx data")
 		}
 
+		txId, err := tx.ID()
+		if err != nil {
+			return nil, errors.Wrap(err, "getting tx id")
+		}
+
 		hexDigest := hex.EncodeToString(txDigest[:])
 		if _, ok := digestsMap[hexDigest]; !ok {
-			log.Printf("tx not found in digests map: %s. not \n", hexDigest)
-			continue
+			return nil, errors.Errorf("tx id: %s not found in digests map", txId)
 		}
 
 		txDataBytes, err := tx.MarshallBinary()
