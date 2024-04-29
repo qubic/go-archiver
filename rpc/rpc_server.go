@@ -275,7 +275,7 @@ func (s *Server) GetStatus(ctx context.Context, _ *emptypb.Empty) (*protobuff.Ge
 }
 
 type response struct {
-	ChainTick int `json:"chain_tick"`
+	ChainTick int `json:"max_tick"`
 }
 
 func fetchChainTick(ctx context.Context, url string) (int, error) {
