@@ -289,6 +289,7 @@ func fetchChainTick(ctx context.Context, url string) (int, error) {
 	if err != nil {
 		return 0, errors.Wrap(err, "getting chain tick from node fetcher")
 	}
+	defer res.Body.Close()
 
 	var resp response
 	body, err := io.ReadAll(res.Body)
