@@ -2,7 +2,7 @@ version: '3'
 
 services:
   qubic-http:
-    image: ghcr.io/qubic/qubic-http:dev
+    image: ghcr.io/qubic/qubic-http:v0.5.0
     container_name: qubic-http
     labels:
       - "traefik.enable=true"
@@ -25,7 +25,7 @@ services:
     restart: always
 
   qubic-archiver:
-    image: ghcr.io/qubic/qubic-archiver:v0.3.0
+    image: ghcr.io/qubic/qubic-archiver:dev
     container_name: qubic-archiver
     labels:
       - "traefik.enable=true"
@@ -38,7 +38,6 @@ services:
       - "traefik.http.services.qubic-archiver.loadbalancer.healthcheck.interval=30s"
       - "traefik.http.services.qubic-archiver.loadbalancer.healthcheck.timeout=5s"
       - "traefik.http.services.qubic-archiver.loadbalancer.healthcheck.scheme=http"
-      - "traefik.http.services.qubic-archiver.loadbalancer.healthcheck.statuscodes=200"
     ports:
       - "127.0.0.1:8001:8000"
     environment:
