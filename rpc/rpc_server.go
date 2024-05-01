@@ -303,13 +303,15 @@ func fetchChainTick(ctx context.Context, url string) (int, error) {
 
 	tick := resp.ChainTick
 
+	if tick == 0 {
+		return 0, errors.New("response has no chain tick or chain tick is 0")
+	}
+
 	return tick, nil
 
 }
 
 func (s *Server) GetHealthCheck(ctx context.Context, _ *emptypb.Empty) (*protobuff.GetHealthCheckResponse, error) {
-	var err error
-
 	//Get last processed tick
 	lastProcessedTick, err := s.store.GetLastProcessedTick(ctx)
 	if err != nil {
@@ -341,12 +343,12 @@ func (s *Server) GetHealthCheck(ctx context.Context, _ *emptypb.Empty) (*protobu
 }
 
 func (s *Server) GetLatestTick(ctx context.Context, _ *emptypb.Empty) (*protobuff.GetLatestTickResponse, error) {
-	tick, err := s.store.GetLastProcessedTick(ctx)
+	chainTick, err := fetchChainTick(ctx, s.chainTickFetchUrl)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "getting last processed tick: %v", err)
+		return nil, status.Errorf(codes.Internal, "fetching chain tick: %v", err)
 	}
 
-	return &protobuff.GetLatestTickResponse{LatestTick: tick.TickNumber + 3}, nil
+	return &protobuff.GetLatestTickResponse{LatestTick: uint32(chainTick)}, nil
 }
 
 func (s *Server) GetTransferTransactionsPerTick(ctx context.Context, req *protobuff.GetTransferTransactionsPerTickRequest) (*protobuff.GetTransferTransactionsPerTickResponse, error) {
