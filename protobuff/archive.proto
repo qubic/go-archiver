@@ -161,6 +161,10 @@ message GetStatusResponse {
   repeated ProcessedTickIntervalsPerEpoch processed_tick_intervals_per_epoch = 4;
 }
 
+message GetHealthCheckResponse {
+  bool status = 1;
+}
+
 message GetLatestTickResponse {
   uint32 latest_tick = 1;
 }
@@ -258,6 +262,13 @@ service ArchiveService {
   rpc GetLatestTick(google.protobuf.Empty) returns (GetLatestTickResponse) {
     option (google.api.http) = {
       get: "/latestTick"
+    };
+  };
+
+
+  rpc GetHealthCheck(google.protobuf.Empty) returns (GetHealthCheckResponse){
+    option (google.api.http) = {
+      get: "/healthcheck"
     };
   };
 }

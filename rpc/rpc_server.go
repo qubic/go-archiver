@@ -3,10 +3,12 @@ package rpc
 import (
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-archiver/store"
+	qubic "github.com/qubic/go-node-connector"
 	"github.com/qubic/go-node-connector/types"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -15,7 +17,9 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"io"
 	"log"
+	"math"
 	"net"
 	"net/http"
 )
@@ -26,16 +30,22 @@ var emptyTd = &protobuff.TickData{}
 
 type Server struct {
 	protobuff.UnimplementedArchiveServiceServer
-	listenAddrGRPC string
-	listenAddrHTTP string
-	store          *store.PebbleStore
+	listenAddrGRPC    string
+	listenAddrHTTP    string
+	syncThreshold     int
+	chainTickFetchUrl string
+	store             *store.PebbleStore
+	pool              *qubic.Pool
 }
 
-func NewServer(listenAddrGRPC, listenAddrHTTP string, store *store.PebbleStore) *Server {
+func NewServer(listenAddrGRPC, listenAddrHTTP string, syncThreshold int, chainTickUrl string, store *store.PebbleStore, pool *qubic.Pool) *Server {
 	return &Server{
-		listenAddrGRPC: listenAddrGRPC,
-		listenAddrHTTP: listenAddrHTTP,
-		store:          store,
+		listenAddrGRPC:    listenAddrGRPC,
+		listenAddrHTTP:    listenAddrHTTP,
+		syncThreshold:     syncThreshold,
+		chainTickFetchUrl: chainTickUrl,
+		store:             store,
+		pool:              pool,
 	}
 }
 
@@ -264,13 +274,81 @@ func (s *Server) GetStatus(ctx context.Context, _ *emptypb.Empty) (*protobuff.Ge
 	}, nil
 }
 
-func (s *Server) GetLatestTick(ctx context.Context, _ *emptypb.Empty) (*protobuff.GetLatestTickResponse, error) {
-	tick, err := s.store.GetLastProcessedTick(ctx)
+type response struct {
+	ChainTick int `json:"max_tick"`
+}
+
+func fetchChainTick(ctx context.Context, url string) (int, error) {
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return 0, errors.Wrap(err, "creating new request")
+	}
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return 0, errors.Wrap(err, "getting chain tick from node fetcher")
+	}
+	defer res.Body.Close()
+
+	var resp response
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return 0, errors.Wrap(err, "reading response body")
+	}
+	err = json.Unmarshal(body, &resp)
+	if err != nil {
+		return 0, errors.Wrap(err, "unmarshalling response")
+	}
+
+	tick := resp.ChainTick
+
+	if tick == 0 {
+		return 0, errors.New("response has no chain tick or chain tick is 0")
+	}
+
+	return tick, nil
+
+}
+
+func (s *Server) GetHealthCheck(ctx context.Context, _ *emptypb.Empty) (*protobuff.GetHealthCheckResponse, error) {
+	//Get last processed tick
+	lastProcessedTick, err := s.store.GetLastProcessedTick(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "getting last processed tick: %v", err)
 	}
 
-	return &protobuff.GetLatestTickResponse{LatestTick: tick.TickNumber + 3}, nil
+	//Poll node-fetcher for network tick
+	chainTick, err := fetchChainTick(ctx, s.chainTickFetchUrl)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "fetching chain tick: %v", err)
+	}
+
+	//Calculate difference between node tick and our last processed tick. difference = nodeTick - lastProcessed
+	difference := chainTick - int(lastProcessedTick.TickNumber)
+
+	//If we're ahead of the node something is clearly wrong here
+	//TODO: Should we use the threshold here?
+	if difference < 0 {
+		return nil, status.Errorf(codes.Internal, "processor is ahead of node by %d ticks", int(math.Abs(float64(difference))))
+	}
+
+	//If the sync difference is bigger than our threshold
+	if difference > s.syncThreshold {
+		return nil, status.Errorf(codes.Internal, "processor is behind node by %d ticks", difference)
+	}
+
+	return &protobuff.GetHealthCheckResponse{Status: true}, nil
+
+}
+
+func (s *Server) GetLatestTick(ctx context.Context, _ *emptypb.Empty) (*protobuff.GetLatestTickResponse, error) {
+	chainTick, err := fetchChainTick(ctx, s.chainTickFetchUrl)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "fetching chain tick: %v", err)
+	}
+
+	return &protobuff.GetLatestTickResponse{LatestTick: uint32(chainTick)}, nil
 }
 
 func (s *Server) GetTransferTransactionsPerTick(ctx context.Context, req *protobuff.GetTransferTransactionsPerTickRequest) (*protobuff.GetTransferTransactionsPerTickResponse, error) {
