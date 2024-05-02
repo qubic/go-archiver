@@ -1,31 +1,42 @@
 ## High level description:
+
 The archive system consists of two services:
+
 - `qubic-archiver` - the archiver processor and HTTP server that provides rpc endpoints to query the archiver
-- `qubic-node-fetcher` - a service that is starting from a reliable node, gather the peers by "walking" from peer to peer and then filters them out so they don't have more than 30 ticks behind. This service is also exposing an http server for the qubic-archiver to retrieve the reliable peers
+- `qubic-nodes` - a service responsible with providing information regarding reliable nodes and the max tick of the
+  network
 
 ## IMPORTANT
-Before starting the system, open the `docker-compose.yml` file and make sure that there is a reliable peer as a starting point for the node-fetcher service. It's defined in the `NODE_FETCHER_QUBIC_STARTING_PEERS_IP` environment variable.
+
+Before starting the system, open the `docker-compose.yml` file and make sure that you have a reliable peer list setup
+for the `qubic-nodes` service.
+This can be configured using the `QUBIC_NODES_QUBIC_PEER_LIST` environment variable.
 
 ## Other optional configuration parameters for qubic-archiver can be specified as env variable by adding them to docker compose:
+
 ```bash
   $QUBIC_ARCHIVER_SERVER_READ_TIMEOUT                        <duration>  (default: 5s)
   $QUBIC_ARCHIVER_SERVER_WRITE_TIMEOUT                       <duration>  (default: 5s)
   $QUBIC_ARCHIVER_SERVER_SHUTDOWN_TIMEOUT                    <duration>  (default: 5s)
   $QUBIC_ARCHIVER_SERVER_HTTP_HOST                           <string>    (default: 0.0.0.0:8000)
   $QUBIC_ARCHIVER_SERVER_GRPC_HOST                           <string>    (default: 0.0.0.0:8001)
-  $QUBIC_ARCHIVER_POOL_NODE_FETCHER_URL                      <string>    (default: http://127.0.0.1:8080/peers)
+  $QUBIC_ARCHIVER_SERVER_NODE_SYNC_THRESHOLD                 <int>       (default: 3)
+  $QUBIC_ARCHIVER_SERVER_CHAIN_TICK_FETCH_URL                <string>    (default: http://127.0.0.1:8080/max-tick)
+  
+  $QUBIC_ARCHIVER_POOL_NODE_FETCHER_URL                      <string>    (default: http://127.0.0.1:8080/status)
   $QUBIC_ARCHIVER_POOL_NODE_FETCHER_TIMEOUT                  <duration>  (default: 2s)
   $QUBIC_ARCHIVER_POOL_INITIAL_CAP                           <int>       (default: 5)
   $QUBIC_ARCHIVER_POOL_MAX_IDLE                              <int>       (default: 20)
   $QUBIC_ARCHIVER_POOL_MAX_CAP                               <int>       (default: 30)
   $QUBIC_ARCHIVER_POOL_IDLE_TIMEOUT                          <duration>  (default: 15s)
+  
   $QUBIC_ARCHIVER_QUBIC_NODE_PORT                            <string>    (default: 21841)
   $QUBIC_ARCHIVER_QUBIC_STORAGE_FOLDER                       <string>    (default: store)
   $QUBIC_ARCHIVER_QUBIC_PROCESS_TICK_TIMEOUT                 <duration>  (default: 5s)
-  $QUBIC_ARCHIVER_QUBIC_NR_PEERS_TO_BROADCAST_TX             <int>       (default: 2)
 ```
 
 ## Run with docker-compose:
+
 ```bash
 $ docker-compose up -d
 ```
@@ -35,8 +46,9 @@ $ docker-compose up -d
 ## Available endpoints:
 
 ### GetTickTransactions:
+
 ```bash
-$ curl -sX POST  http://127.0.0.1:8000/qubic.archiver.archive.pb.ArchiveService/GetTickTransactions -d '{"tickNumber": 12795663}'
+$ curl http://127.0.0.1:8001/ticks/{tick}/transactions
 {
   "transactions": [
     {
@@ -53,9 +65,11 @@ $ curl -sX POST  http://127.0.0.1:8000/qubic.archiver.archive.pb.ArchiveService/
   ]
 }
 ```
+
 ### GetTickData
+
 ```bash
-$ curl -sX POST  http://127.0.0.1:8000/qubic.archiver.archive.pb.ArchiveService/GetTickData -d '{"tickNumber": 12795663}'
+$ curl http://127.0.0.1:8001/ticks/{tick}/tick-data
 {
   "tickData": {
     "computorIndex": 335,
@@ -74,8 +88,9 @@ $ curl -sX POST  http://127.0.0.1:8000/qubic.archiver.archive.pb.ArchiveService/
 ```
 
 ### GetTransaction
+
 ```bash
-$ curl -sX POST  http://127.0.0.1:8000/qubic.archiver.archive.pb.ArchiveService/GetTransaction -d '{"txId": "qbrdxsmlfggneflkbskpqwjeqhgdssfuabhfapywobqcilroobgvruseuerk"}'
+$ curl http://127.0.0.1:8001/transactions/{tx_id}
 {
   "transaction": {
     "sourceId": "PJUMDQZEAEDZNFAXATGGYGJULKGALYFCBYUAZRGAHGPXCDBDGEJOMKOFSKKD",
@@ -92,13 +107,15 @@ $ curl -sX POST  http://127.0.0.1:8000/qubic.archiver.archive.pb.ArchiveService/
 ```
 
 ### GetQuorumTickData
+
 ```bash
-$ curl -sX POST  http://127.0.0.1:8000/qubic.archiver.archive.pb.ArchiveService/GetQuorumTickData  -d '{"tickNumber": 12795663}'
+$ curl http://127.0.0.1:8001/ticks/{tick_number}/quorum-tick-data
 ```
 
 ### Get Computors
+
 ```bash
-$ curl -sX POST  http://127.0.0.1:8000/qubic.archiver.archive.pb.ArchiveService/GetComputors -d '{"epoch": 99}'
+$ curl http://127.0.0.1:8001/epochs/{epoch}/computors
 {
   "computors": {
     "epoch": 99,
@@ -114,48 +131,49 @@ $ curl -sX POST  http://127.0.0.1:8000/qubic.archiver.archive.pb.ArchiveService/
   }
 }
 ```
-### GetIdentityInfo
+
+### GetStatus
+
 ```bash
-$ curl -sX POST  http://127.0.0.1:8000/qubic.archiver.archive.pb.ArchiveService/GetIdentityInfo -d '{"identity": "PJUMDQZEAEDZNFAXATGGYGJULKGALYFCBYUAZRGAHGPXCDBDGEJOMKOFSKKD"}'
+$ curl http://127.0.0.1:8001/status
 {
-  "identityInfo": {
-    "id": "PJUMDQZEAEDZNFAXATGGYGJULKGALYFCBYUAZRGAHGPXCDBDGEJOMKOFSKKD",
-    "tickNumber": 12797233,
-    "balance": "1479289941",
-    "incomingAmount": "4835212306297",
-    "outgoingAmount": "4833733016356",
-    "nrIncomingTransfers": 826438,
-    "nrOutgoingTransfers": 47187,
-    "latestIncomingTransferTick": 12790393,
-    "latestOutgoingTransferTick": 12797113,
-    "siblingsHex": [
-      "2a5af1c66af3ef4a294e09f27aed030d3faeffb9a1910012468b9c7f3e46bd9f",
-      "705f57f0c8f11be888bb1e4d935a7582ca65e8212207404bc135b22a6e9bf450",
-      "c11fb66d62103d9a2e47b39b205354517d7014e15b6985343daec01f396da1d5",
-      "c6b45f22943acd48520886ccd104a580d85b41f39e803c29a8d2eeb0b0e62865"
-    ]
-  }
+   "lastProcessedTick":{
+      "tickNumber":13682425,
+      "epoch":107
+   },
+   "lastProcessedTicksPerEpoch":{
+      "106":13548510,
+      "107":13682425
+   },
+   "skippedTicks":[
+      {
+         "startTick":1,
+         "endTick":13547629
+      },
+      {
+         "startTick":13548511,
+         "endTick":13679999
+      }
+   ],
+   "processedTickIntervalsPerEpoch":[
+      {
+         "epoch":106,
+         "intervals":[
+            {
+               "initialProcessedTick":13547630,
+               "lastProcessedTick":13548510
+            }
+         ]
+      },
+      {
+         "epoch":107,
+         "intervals":[
+            {
+               "initialProcessedTick":13680000,
+               "lastProcessedTick":13682425
+            }
+         ]
+      }
+   ]
 }
 ```
-
-### SendRawTransaction
-```bash
-$ curl -sX POST  http://127.0.0.1:8000/qubic.archiver.archive.pb.ArchiveService/SendRawTransaction -d '{"signedTx": "228d0b45c0298810c4730d03aed61c7f90f366ea596c62d91947e5144bf0c897d65fd697e9b960d5107547257867336d109066ea408a2ca36bb2325783804e8464000000000000003b06c300000000005c885cc9f5abe907710dd6caade707350003dc9e2f7ba9905ad699b86e939d419e374f662caf1d09d4997889a00f0cc77cbef37f643a5f5c16a4519f164a2200"}'
-{
-  "message": "Transaction broadcasted to 2 peers"
-}
-```
-
-### GetLastProcessedTick
-```bash
-$ curl -sX POST  http://127.0.0.1:8000/qubic.archiver.archive.pb.ArchiveService/GetLastProcessedTick
-{
-  "lastProcessedTick": 12797164,
-  "lastProcessedTicksPerEpoch": {
-    "99": "12797164"
-  }
-} 
-```
-
-
-
