@@ -15,6 +15,7 @@ services:
     environment:
       QUBIC_API_SIDECAR_SERVER_HTTP_HOST: "0.0.0.0:8000"
       QUBIC_API_SIDECAR_SERVER_GRPC_HOST: "0.0.0.0:8001"
+      QUBIC_API_SIDECAR_SERVER_MAX_TICK_FETCH_URL: "http://qubic-nodes:8080/max-tick"
       QUBIC_API_SIDECAR_POOL_NODE_FETCHER_URL: "http://qubic-nodes:8080/status"
       QUBIC_API_SIDECAR_POOL_NODE_FETCHER_TIMEOUT: "20s"
     networks:
