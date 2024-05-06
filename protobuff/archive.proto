@@ -116,20 +116,35 @@ message SkippedTicksIntervalList {
   repeated SkippedTicksInterval skipped_ticks = 1;
 }
 
-message QuorumTickData {
+message QuorumVotes {
   QuorumTickStructure quorum_tick_structure = 1;
-  map<uint32, QuorumDiff> quorum_diff_per_computor = 2;
+  map<uint32, QuorumDiff> quorum_votes_per_computor = 2;
 }
 
-message GetQuorumTickDataRequest {
+message GetQuorumVotesRequest {
   uint32 tick_number = 1;
 }
 
-message GetQuorumTickDataResponse {
-  QuorumTickData quorum_tick_data = 1;
+message GetQuorumVotesResponse {
+  QuorumVotes quorum_tick_data = 1;
+}
+
+message ComputorsList {
+  repeated Computors computors = 1;
 }
 
 message Computors {
+  uint32 epoch = 1;
+  repeated string identities = 2;
+  string signature_hex = 3;
+  string digest_hex = 4;
+}
+
+message OldComputorsList {
+  repeated OldComputors computors = 1;
+}
+
+message OldComputors {
   uint32 epoch = 1;
   repeated string identities = 2;
   string signature_hex = 3;
@@ -203,7 +218,7 @@ service ArchiveService {
       get: "/ticks/{tick_number}/tick-data"
     };
   };
-  rpc GetQuorumTickData(GetQuorumTickDataRequest) returns (GetQuorumTickDataResponse) {
+  rpc GetQuorumVotes(GetQuorumVotesRequest) returns (GetQuorumVotesResponse) {
     option (google.api.http) = {
       get: "/ticks/{tick_number}/quorum-tick-data"
     };

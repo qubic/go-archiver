@@ -312,6 +312,7 @@ func fetchChainTick(ctx context.Context, url string) (int, error) {
 }
 
 func (s *Server) GetHealthCheck(ctx context.Context, _ *emptypb.Empty) (*protobuff.GetHealthCheckResponse, error) {
+	return nil, status.Err
 	//Get last processed tick
 	lastProcessedTick, err := s.store.GetLastProcessedTick(ctx)
 	if err != nil {
