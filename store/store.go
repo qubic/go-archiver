@@ -477,6 +477,32 @@ func (s *PebbleStore) GetChainDigest(ctx context.Context, tickNumber uint32) ([]
 	return value, nil
 }
 
+func (s *PebbleStore) PutStoreDigest(ctx context.Context, tickNumber uint32, digest []byte) error {
+	key := storeDigestKey(tickNumber)
+
+	err := s.db.Set(key, digest, pebble.Sync)
+	if err != nil {
+		return errors.Wrap(err, "setting chain digest")
+	}
+
+	return nil
+}
+
+func (s *PebbleStore) GetStoreDigest(ctx context.Context, tickNumber uint32) ([]byte, error) {
+	key := storeDigestKey(tickNumber)
+	value, closer, err := s.db.Get(key)
+	if err != nil {
+		if errors.Is(err, pebble.ErrNotFound) {
+			return nil, ErrNotFound
+		}
+
+		return nil, errors.Wrap(err, "getting chain digest")
+	}
+	defer closer.Close()
+
+	return value, nil
+}
+
 func (s *PebbleStore) GetTickTransactionsStatus(ctx context.Context, tickNumber uint64) (*protobuff.TickTransactionsStatus, error) {
 	key := tickTxStatusKey(tickNumber)
 	value, closer, err := s.db.Get(key)
