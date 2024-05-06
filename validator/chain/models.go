@@ -7,7 +7,6 @@ import (
 	"github.com/qubic/go-archiver/utils"
 	"github.com/qubic/go-node-connector/types"
 	"google.golang.org/protobuf/proto"
-	"log"
 	"sort"
 )
 
@@ -67,7 +66,7 @@ func (s *Store) MarshallBinary() ([]byte, error) {
 		return nil, errors.Wrap(err, "writing previousTickStoreDigest")
 	}
 
-	digests := make([][32]byte, len(s.ValidTxs))
+	digests := make([][32]byte, 0, len(s.ValidTxs))
 	for _, tx := range s.ValidTxs {
 		digest, err := tx.Digest()
 		if err != nil {
@@ -79,8 +78,7 @@ func (s *Store) MarshallBinary() ([]byte, error) {
 
 	sortByteSlices(digests)
 
-	for i, digest := range digests {
-		log.Printf("tx index: %d marshalled binary hex: %x\n", i, digest)
+	for _, digest := range digests {
 		_, err = buff.Write(digest[:])
 		if err != nil {
 			return nil, errors.Wrap(err, "writing digest")
@@ -91,8 +89,6 @@ func (s *Store) MarshallBinary() ([]byte, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "marshalling tickTxsStatus")
 	}
-
-	log.Printf("marshalled proto hex: %x\n", b)
 
 	_, err = buff.Write(b)
 	if err != nil {
@@ -107,8 +103,6 @@ func (s *Store) Digest() ([32]byte, error) {
 	if err != nil {
 		return [32]byte{}, errors.Wrap(err, "serializing store")
 	}
-
-	log.Printf("marshalled binary hex: %x\n", b)
 
 	digest, err := utils.K12Hash(b)
 	if err != nil {
