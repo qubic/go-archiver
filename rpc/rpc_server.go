@@ -483,6 +483,18 @@ func (s *Server) GetChainHash(ctx context.Context, req *protobuff.GetChainHashRe
 	return &protobuff.GetChainHashResponse{HexDigest: hex.EncodeToString(hash[:])}, nil
 }
 
+func (s *Server) GetStoreHash(ctx context.Context, req *protobuff.GetChainHashRequest) (*protobuff.GetChainHashResponse, error) {
+	hash, err := s.store.GetStoreDigest(ctx, req.TickNumber)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, status.Errorf(codes.NotFound, "store hash for specified tick not found")
+		}
+		return nil, status.Errorf(codes.Internal, "getting store hash: %v", err)
+	}
+
+	return &protobuff.GetChainHashResponse{HexDigest: hex.EncodeToString(hash[:])}, nil
+}
+
 func (s *Server) Start() error {
 	srv := grpc.NewServer(
 		grpc.MaxRecvMsgSize(600*1024*1024),

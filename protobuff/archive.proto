@@ -229,6 +229,12 @@ service ArchiveService {
     };
   };
 
+  rpc GetStoreHash(GetChainHashRequest) returns (GetChainHashResponse) {
+    option (google.api.http) = {
+      get: "/ticks/{tick_number}/store-hash"
+    };
+  };
+
   rpc GetTransaction(GetTransactionRequest) returns (GetTransactionResponse) {
     option (google.api.http) = {
       get: "/transactions/{tx_id}"
