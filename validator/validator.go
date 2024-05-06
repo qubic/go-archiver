@@ -146,9 +146,14 @@ func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumb
 		return errors.Wrap(err, "storing tx status")
 	}
 
-	err = chain.ComputeAndStore(ctx, v.store, initialEpochTick, tickNumber, alignedVotes[0])
+	err = chain.ComputeAndSave(ctx, v.store, initialEpochTick, tickNumber, alignedVotes[0])
 	if err != nil {
-		return errors.Wrap(err, "computing and storing chain")
+		return errors.Wrap(err, "computing and saving chain digest")
+	}
+
+	err = chain.ComputeStoreAndSave(ctx, v.store, initialEpochTick, tickNumber, validTxs, approvedTxs)
+	if err != nil {
+		return errors.Wrap(err, "computing and saving store digest")
 	}
 
 	return nil
