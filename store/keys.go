@@ -16,7 +16,8 @@ const (
 	ChainDigest                  = 0x08
 	ProcessedTickIntervals       = 0x09
 	TickTransactionsStatus       = 0x10
-	TransactionStatus            = 0x11
+	TransactionStatus
+	StoreDigest = 0x12
 )
 
 func tickDataKey(tickNumber uint32) []byte {
@@ -79,6 +80,13 @@ func identityTransferTransactions(identity string) []byte {
 
 func chainDigestKey(tickNumber uint32) []byte {
 	key := []byte{ChainDigest}
+	key = binary.BigEndian.AppendUint64(key, uint64(tickNumber))
+
+	return key
+}
+
+func storeDigestKey(tickNumber uint32) []byte {
+	key := []byte{StoreDigest}
 	key = binary.BigEndian.AppendUint64(key, uint64(tickNumber))
 
 	return key

@@ -1,8 +1,12 @@
 package chain
 
 import (
+	"bytes"
 	"github.com/pkg/errors"
+	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-archiver/utils"
+	"github.com/qubic/go-node-connector/types"
+	"google.golang.org/protobuf/proto"
 )
 
 type Chain struct {
@@ -46,4 +50,55 @@ func (c *Chain) MarshallBinary() ([]byte, error) {
 	}
 
 	return b, nil
+}
+
+type Store struct {
+	PreviousTickStoreDigest [32]byte
+	ValidTxs                []types.Transaction
+	TickTxsStatus           *protobuff.TickTransactionsStatus
+}
+
+func (s *Store) MarshallBinary() ([]byte, error) {
+	var buff bytes.Buffer
+	_, err := buff.Write(s.PreviousTickStoreDigest[:])
+	if err != nil {
+		return nil, errors.Wrap(err, "writing previousTickStoreDigest")
+	}
+
+	for _, tx := range s.ValidTxs {
+		digest, err := tx.MarshallBinary()
+		if err != nil {
+			return nil, errors.Wrap(err, "marshalling tx")
+		}
+		_, err = buff.Write(digest)
+		if err != nil {
+			return nil, errors.Wrap(err, "writing digest")
+		}
+	}
+
+	b, err := proto.Marshal(s.TickTxsStatus)
+	if err != nil {
+		return nil, errors.Wrap(err, "marshalling tickTxsStatus")
+	}
+
+	_, err = buff.Write(b)
+	if err != nil {
+		return nil, errors.Wrap(err, "writing tickTxsStatus")
+	}
+
+	return buff.Bytes(), nil
+}
+
+func (s *Store) Digest() ([32]byte, error) {
+	b, err := s.MarshallBinary()
+	if err != nil {
+		return [32]byte{}, errors.Wrap(err, "serializing store")
+	}
+
+	digest, err := utils.K12Hash(b)
+	if err != nil {
+		return [32]byte{}, errors.Wrap(err, "hashing vote")
+	}
+
+	return digest, nil
 }

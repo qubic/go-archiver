@@ -3,11 +3,12 @@ package chain
 import (
 	"context"
 	"github.com/pkg/errors"
+	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-node-connector/types"
 )
 
-func ComputeAndStore(ctx context.Context, store *store.PebbleStore, initialEpochTick, tickNumber uint32, quorumVote types.QuorumTickVote) error {
+func ComputeAndSave(ctx context.Context, store *store.PebbleStore, initialEpochTick, tickNumber uint32, quorumVote types.QuorumTickVote) error {
 	prevDigest, err := getPrevChainDigest(ctx, store, initialEpochTick, tickNumber)
 	if err != nil {
 		return errors.Wrap(err, "getting prev chain digest")
@@ -26,6 +27,43 @@ func ComputeAndStore(ctx context.Context, store *store.PebbleStore, initialEpoch
 	return nil
 }
 
+func ComputeStoreAndSave(ctx context.Context, store *store.PebbleStore, initialEpochTick, tickNumber uint32, validTxs []types.Transaction, tickTxsStatus *protobuff.TickTransactionsStatus) error {
+	prevDigest, err := getPrevStoreDigest(ctx, store, initialEpochTick, tickNumber)
+	if err != nil {
+		return errors.Wrap(err, "getting prev chain digest")
+	}
+
+	currentDigest, err := computeCurrentTickStoreDigest(ctx, validTxs, tickTxsStatus, prevDigest)
+	if err != nil {
+		return errors.Wrap(err, "computing current tick digest")
+	}
+
+	err = store.PutStoreDigest(ctx, tickNumber, currentDigest[:])
+	if err != nil {
+		return errors.Wrapf(err, "storing store digest for tick: %d\n", tickNumber)
+	}
+
+	return nil
+}
+
+func getPrevStoreDigest(ctx context.Context, store *store.PebbleStore, initialEpochTick, tickNumber uint32) ([32]byte, error) {
+	if tickNumber == initialEpochTick {
+		return [32]byte{}, nil
+	}
+
+	previousTickStoreDigestStored, err := store.GetStoreDigest(ctx, tickNumber-1)
+	if err != nil {
+		//returning nil error in order to not fail until epoch change
+		return [32]byte{}, nil
+		//return [32]byte{}, errors.Wrapf(err, "getting chain digest for last tick: %d\n", tickNumber-1)
+	}
+
+	var previousTickStoreDigest [32]byte
+	copy(previousTickStoreDigest[:], previousTickStoreDigestStored)
+
+	return previousTickStoreDigest, nil
+}
+
 func getPrevChainDigest(ctx context.Context, store *store.PebbleStore, initialEpochTick, tickNumber uint32) ([32]byte, error) {
 	// if this is the first tick, there is no previous chain digest, so we are using an empty one
 	if tickNumber == initialEpochTick {
@@ -34,9 +72,7 @@ func getPrevChainDigest(ctx context.Context, store *store.PebbleStore, initialEp
 
 	previousTickChainDigestStored, err := store.GetChainDigest(ctx, tickNumber-1)
 	if err != nil {
-		//returning nil error in order to not fail until epoch change
-		return [32]byte{}, nil
-		//return [32]byte{}, errors.Wrapf(err, "getting chain digest for last tick: %d\n", tickNumber-1)
+		return [32]byte{}, errors.Wrapf(err, "getting chain digest for last tick: %d\n", tickNumber-1)
 	}
 
 	var previousTickChainDigest [32]byte
@@ -67,6 +103,20 @@ func computeCurrentTickDigest(ctx context.Context, vote types.QuorumTickVote, pr
 	digest, err := chain.Digest()
 	if err != nil {
 		return [32]byte{}, errors.Wrap(err, "computing chain digest")
+	}
+	return digest, nil
+}
+
+func computeCurrentTickStoreDigest(ctx context.Context, validTxs []types.Transaction, tickTxsStatus *protobuff.TickTransactionsStatus, previousTickChainDigest [32]byte) ([32]byte, error) {
+	s := Store{
+		PreviousTickStoreDigest: previousTickChainDigest,
+		ValidTxs:                validTxs,
+		TickTxsStatus:           tickTxsStatus,
+	}
+
+	digest, err := s.Digest()
+	if err != nil {
+		return [32]byte{}, errors.Wrap(err, "computing store digest")
 	}
 	return digest, nil
 }
