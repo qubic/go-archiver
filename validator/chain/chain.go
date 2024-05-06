@@ -29,7 +29,7 @@ func ComputeAndSave(ctx context.Context, store *store.PebbleStore, initialEpochT
 }
 
 func ComputeStoreAndSave(ctx context.Context, store *store.PebbleStore, initialEpochTick, tickNumber uint32, validTxs []types.Transaction, tickTxsStatus *protobuff.TickTransactionsStatus) error {
-	if tickNumber < 13751850 {
+	if tickNumber < 13752000 {
 		return nil
 	}
 

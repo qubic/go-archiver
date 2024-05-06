@@ -8,6 +8,7 @@ import (
 	"github.com/qubic/go-node-connector/types"
 	"google.golang.org/protobuf/proto"
 	"log"
+	"sort"
 )
 
 type Chain struct {
@@ -66,12 +67,19 @@ func (s *Store) MarshallBinary() ([]byte, error) {
 		return nil, errors.Wrap(err, "writing previousTickStoreDigest")
 	}
 
-	for i, tx := range s.ValidTxs {
+	digests := make([][32]byte, len(s.ValidTxs))
+	for _, tx := range s.ValidTxs {
 		digest, err := tx.Digest()
 		if err != nil {
 			return nil, errors.Wrap(err, "marshalling tx")
 		}
 
+		digests = append(digests, digest)
+	}
+
+	sortByteSlices(digests)
+
+	for i, digest := range digests {
 		log.Printf("tx index: %d marshalled binary hex: %x\n", i, digest)
 		_, err = buff.Write(digest[:])
 		if err != nil {
@@ -108,4 +116,10 @@ func (s *Store) Digest() ([32]byte, error) {
 	}
 
 	return digest, nil
+}
+
+func sortByteSlices(slice [][32]byte) {
+	sort.SliceStable(slice, func(i, j int) bool {
+		return bytes.Compare(slice[i][:], slice[j][:]) == -1
+	})
 }
