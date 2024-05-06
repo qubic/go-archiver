@@ -28,6 +28,10 @@ func ComputeAndSave(ctx context.Context, store *store.PebbleStore, initialEpochT
 }
 
 func ComputeStoreAndSave(ctx context.Context, store *store.PebbleStore, initialEpochTick, tickNumber uint32, validTxs []types.Transaction, tickTxsStatus *protobuff.TickTransactionsStatus) error {
+	if tickNumber < 13751650 {
+		return nil
+	}
+
 	prevDigest, err := getPrevStoreDigest(ctx, store, initialEpochTick, tickNumber)
 	if err != nil {
 		return errors.Wrap(err, "getting prev chain digest")
