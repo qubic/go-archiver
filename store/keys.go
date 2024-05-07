@@ -16,8 +16,8 @@ const (
 	ChainDigest                  = 0x08
 	ProcessedTickIntervals       = 0x09
 	TickTransactionsStatus       = 0x10
-	TransactionStatus
-	StoreDigest = 0x12
+	TransactionStatus            = 0x11
+	StoreDigest                  = 0x12
 )
 
 func tickDataKey(tickNumber uint32) []byte {
