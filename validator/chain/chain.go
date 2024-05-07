@@ -6,7 +6,6 @@ import (
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-node-connector/types"
-	"log"
 )
 
 func ComputeAndSave(ctx context.Context, store *store.PebbleStore, initialEpochTick, tickNumber uint32, quorumVote types.QuorumTickVote) error {
@@ -123,6 +122,6 @@ func computeCurrentTickStoreDigest(ctx context.Context, validTxs []types.Transac
 	if err != nil {
 		return [32]byte{}, errors.Wrap(err, "computing store digest")
 	}
-	log.Printf("store digest hex: %x\n", digest)
+
 	return digest, nil
 }
