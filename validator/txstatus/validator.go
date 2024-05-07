@@ -24,7 +24,7 @@ func Validate(ctx context.Context, tickTxStatus types.TransactionStatus, tickTxs
 		return nil, errors.New("digests not equal")
 	}
 
-	proto, err := qubicToProto(tickTxStatus, true)
+	proto, err := qubicToProto(tickTxStatus)
 	if err != nil {
 		return nil, errors.Wrap(err, "qubic to proto")
 	}
