@@ -32,7 +32,7 @@ func run() error {
 			ShutdownTimeout   time.Duration `conf:"default:5s"`
 			HttpHost          string        `conf:"default:0.0.0.0:8000"`
 			GrpcHost          string        `conf:"default:0.0.0.0:8001"`
-			NodeSyncThreshold int           `conf:"default:2"`
+			NodeSyncThreshold int           `conf:"default:3"`
 			ChainTickFetchUrl string        `conf:"default:http://127.0.0.1:8080/max-tick"`
 		}
 		Pool struct {
