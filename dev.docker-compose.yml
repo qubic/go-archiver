@@ -1,5 +1,3 @@
-version: '3'
-
 services:
   qubic-http:
     image: ghcr.io/qubic/qubic-http:v0.5.0
@@ -8,7 +6,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.middlewares.qubic-http.headers.accesscontrolalloworiginlist=*"
       - "traefik.http.routers.qubic-http.entrypoints=web"
-      - "traefik.http.routers.qubic-http.rule=Host(`testapi.qubic.org`) && (PathPrefix(`/v1/broadcast-transaction`) || PathPrefix(`/v1/tick-info`) || PathPrefix(`/v1/balances`))"
+      - "traefik.http.routers.qubic-http.rule=(PathPrefix(`/v1/broadcast-transaction`) || PathPrefix(`/v1/tick-info`) || PathPrefix(`/v1/balances`))"
       - "traefik.http.middlewares.qubic-http-stripprefix.stripprefix.prefixes=/v1"
       - "traefik.http.routers.qubic-http.middlewares=qubic-archiver-stripprefix, cors"
       - "traefik.http.middlewares.cors.headers.accesscontrolallowmethods=*"
@@ -30,11 +28,11 @@ services:
     restart: always
 
   qubic-archiver:
-    image: ghcr.io/qubic/qubic-archiver:v0.4.0
+    image: ghcr.io/qubic/qubic-archiver:dev
     container_name: qubic-archiver
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.qubic-archiver.rule=Host(`testapi.qubic.org`) && PathPrefix(`/v1`)"
+      - "traefik.http.routers.qubic-archiver.rule=PathPrefix(`/v1`)"
       - "traefik.http.middlewares.qubic-archiver-stripprefix.stripprefix.prefixes=/v1"
       - "traefik.http.routers.qubic-archiver.middlewares=qubic-archiver-stripprefix, cors"
       - "traefik.http.middlewares.cors.headers.accesscontrolallowmethods=*"
@@ -47,7 +45,6 @@ services:
       - "traefik.http.services.qubic-archiver.loadbalancer.healthcheck.interval=30s"
       - "traefik.http.services.qubic-archiver.loadbalancer.healthcheck.timeout=5s"
       - "traefik.http.services.qubic-archiver.loadbalancer.healthcheck.scheme=http"
-      - "traefik.http.services.qubic-archiver.loadbalancer.healthcheck.statuscodes=200"
     ports:
       - "127.0.0.1:8001:8000"
     environment:
@@ -95,7 +92,7 @@ services:
       - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:80"
     ports:
-      - "80:80"
+      - "8009:80"
       - "127.0.0.1:8081:8080"
     depends_on:
       - "qubic-archiver"
