@@ -19,7 +19,6 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 	"io"
 	"log"
-	"math"
 	"net"
 	"net/http"
 )
@@ -321,21 +320,15 @@ func (s *Server) GetHealthCheck(ctx context.Context, _ *emptypb.Empty) (*protobu
 	//Poll node-fetcher for network tick
 	chainTick, err := fetchChainTick(ctx, s.chainTickFetchUrl)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "fetching chain tick: %v", err)
+		return nil, status.Errorf(codes.Internal, "fetching network tick: %v", err)
 	}
 
 	//Calculate difference between node tick and our last processed tick. difference = nodeTick - lastProcessed
 	difference := chainTick - int(lastProcessedTick.TickNumber)
 
-	//If we're ahead of the node something is clearly wrong here
-	//TODO: Should we use the threshold here?
-	if difference < 0 {
-		return nil, status.Errorf(codes.Internal, "processor is ahead of node by %d ticks", int(math.Abs(float64(difference))))
-	}
-
 	//If the sync difference is bigger than our threshold
 	if difference > s.syncThreshold {
-		return nil, status.Errorf(codes.Internal, "processor is behind node by %d ticks", difference)
+		return nil, status.Errorf(codes.Internal, "processor is behind network by %d ticks", difference)
 	}
 
 	return &protobuff.GetHealthCheckResponse{Status: true}, nil
