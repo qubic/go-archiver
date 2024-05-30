@@ -131,6 +131,53 @@ func (s *PebbleStore) SetComputors(ctx context.Context, epoch uint32, computors 
 	return nil
 }
 
+func (s *PebbleStore) SetSendManyTransactions(ctx context.Context, transactions map[string]*protobuff.SendManyTransaction) error {
+
+	batch := s.db.NewBatchWithSize(len(transactions))
+	defer batch.Close()
+
+	for txId, tx := range transactions {
+		key := sendManyTxKey(txId)
+
+		serialized, err := proto.Marshal(tx)
+		if err != nil {
+			return errors.Wrap(err, "serializing send many transaction proto")
+		}
+
+		err = batch.Set(key, serialized, nil)
+		if err != nil {
+			return errors.Wrap(err, "getting tick data")
+		}
+	}
+
+	if err := batch.Commit(pebble.Sync); err != nil {
+		return errors.Wrap(err, "committing batch")
+	}
+
+	return nil
+}
+
+func (s *PebbleStore) GetSendManyTransaction(ctx context.Context, txId string) (*protobuff.SendManyTransaction, error) {
+	key := sendManyTxKey(txId)
+
+	value, closer, err := s.db.Get(key)
+	if err != nil {
+		if errors.Is(err, pebble.ErrNotFound) {
+			return nil, ErrNotFound
+		}
+
+		return nil, errors.Wrap(err, "getting send many transaction")
+	}
+	defer closer.Close()
+
+	var tx protobuff.SendManyTransaction
+	if err := proto.Unmarshal(value, &tx); err != nil {
+		return nil, errors.Wrap(err, "unmarshalling send many transaction to protobuff type")
+	}
+
+	return &tx, nil
+}
+
 func (s *PebbleStore) SetTransactions(ctx context.Context, txs []*protobuff.Transaction) error {
 	batch := s.db.NewBatchWithSize(len(txs))
 	defer batch.Close()
@@ -148,7 +195,7 @@ func (s *PebbleStore) SetTransactions(ctx context.Context, txs []*protobuff.Tran
 
 		err = batch.Set(key, serialized, nil)
 		if err != nil {
-			return errors.Wrap(err, "getting tick data")
+			return errors.Wrap(err, "setting transaction")
 		}
 	}
 

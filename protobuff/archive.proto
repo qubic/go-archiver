@@ -87,6 +87,27 @@ message GetTickApprovedTransactionsResponse {
   repeated Transaction approved_transactions = 1;
 }
 
+message SendManyTransfer {
+  string dest_id = 1;
+  int64 amount = 2;
+}
+
+message SendManyTransaction {
+  string source_id = 1;
+  repeated SendManyTransfer transfers = 2;
+  int64 total_amount = 3;
+  TransactionStatus status = 4;
+  uint32 tick = 5;
+}
+
+message GetSendManyTransactionRequest {
+  string tx_id = 1;
+}
+
+message GetSendManyTransactionResponse {
+  SendManyTransaction transaction = 1;
+}
+
 message QuorumDiff {
   string salted_resource_testing_digest_hex = 1;
   string salted_spectrum_digest_hex = 2;
@@ -238,6 +259,12 @@ service ArchiveService {
   rpc GetTransaction(GetTransactionRequest) returns (GetTransactionResponse) {
     option (google.api.http) = {
       get: "/transactions/{tx_id}"
+    };
+  };
+
+  rpc GetSendManyTransaction(GetSendManyTransactionRequest) returns (GetSendManyTransactionResponse) {
+    option (google.api.http) = {
+      get: "/transactions/send-many/{tx_id}"
     };
   };
 
