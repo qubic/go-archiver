@@ -18,7 +18,6 @@ const (
 	TickTransactionsStatus       = 0x10
 	TransactionStatus            = 0x11
 	StoreDigest                  = 0x12
-	SendManyTransaction          = 0x13
 )
 
 func tickDataKey(tickNumber uint32) []byte {
@@ -47,13 +46,6 @@ func tickTxKey(txID string) ([]byte, error) {
 	key = append(key, []byte(txID)...)
 
 	return key, nil
-}
-
-func sendManyTxKey(txID string) []byte {
-	key := []byte{SendManyTransaction}
-	key = append(key, []byte(txID)...)
-
-	return key
 }
 
 func lastProcessedTickKey() []byte {

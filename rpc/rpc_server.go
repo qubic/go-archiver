@@ -176,19 +176,6 @@ func (s *Server) GetTickTransferTransactions(ctx context.Context, req *protobuff
 
 	return &protobuff.GetTickTransactionsResponse{Transactions: txs}, nil
 }
-
-func (s *Server) GetSendManyTransaction(ctx context.Context, req *protobuff.GetSendManyTransactionRequest) (*protobuff.GetSendManyTransactionResponse, error) {
-	transaction, err := s.store.GetSendManyTransaction(ctx, req.TxId)
-	if err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			return nil, status.Errorf(codes.NotFound, "transaction not found")
-		}
-		return nil, status.Errorf(codes.Internal, "getting send many transaction: %v", err)
-	}
-
-	return &protobuff.GetSendManyTransactionResponse{Transaction: transaction}, nil
-}
-
 func (s *Server) GetTransaction(ctx context.Context, req *protobuff.GetTransactionRequest) (*protobuff.GetTransactionResponse, error) {
 	tx, err := s.store.GetTransaction(ctx, req.TxId)
 	if err != nil {
