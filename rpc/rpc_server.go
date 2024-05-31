@@ -176,6 +176,67 @@ func (s *Server) GetTickTransferTransactions(ctx context.Context, req *protobuff
 
 	return &protobuff.GetTickTransactionsResponse{Transactions: txs}, nil
 }
+
+func (s *Server) GetSendManyTransaction(ctx context.Context, req *protobuff.GetSendManyTransactionRequest) (*protobuff.GetSendManyTransactionResponse, error) {
+
+	transaction, err := s.store.GetTransaction(ctx, req.TxId)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, status.Errorf(codes.NotFound, "transaction not found")
+		}
+		return nil, status.Errorf(codes.Internal, "getting transaction: %v", err)
+	}
+
+	if transaction.InputType != 1 || transaction.DestId != types.QutilAddress {
+		return nil, status.Errorf(codes.NotFound, "request transaction is not of send-many type")
+	}
+
+	rawPayload, err := hex.DecodeString(transaction.InputHex)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to decode raw payload")
+	}
+
+	var sendManyPayload types.SendManyTransferPayload
+	err = sendManyPayload.UnmarshallBinary(rawPayload)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to unmarshall payload data")
+	}
+
+	transactionStatus, err := s.store.GetTransactionStatus(ctx, req.TxId)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			transactionStatus = &protobuff.TransactionStatus{TxId: req.TxId, MoneyFlew: false}
+		}
+		return nil, status.Errorf(codes.Internal, "getting transaction status status: %v", err)
+	}
+
+	sendManyTransfers := make([]*protobuff.SendManyTransfer, 0)
+
+	transfers, err := sendManyPayload.GetTransfers()
+
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "getting send many transfers")
+	}
+
+	for _, transfer := range transfers {
+		sendManyTransfers = append(sendManyTransfers, &protobuff.SendManyTransfer{
+			DestId: transfer.AddressID.String(),
+			Amount: transfer.Amount,
+		})
+	}
+
+	sendManyTransaction := protobuff.SendManyTransaction{
+		SourceId:    transaction.SourceId,
+		Transfers:   sendManyTransfers,
+		TotalAmount: sendManyPayload.GetTotalAmount(),
+		Status:      transactionStatus,
+		Tick:        transaction.TickNumber,
+	}
+
+	return &protobuff.GetSendManyTransactionResponse{Transaction: &sendManyTransaction}, nil
+
+}
+
 func (s *Server) GetTransaction(ctx context.Context, req *protobuff.GetTransactionRequest) (*protobuff.GetTransactionResponse, error) {
 	tx, err := s.store.GetTransaction(ctx, req.TxId)
 	if err != nil {
