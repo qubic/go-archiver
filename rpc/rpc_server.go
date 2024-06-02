@@ -398,20 +398,32 @@ func (s *Server) GetTickApprovedTransactions(ctx context.Context, req *protobuff
 			continue
 		}
 
-		storedTx, err := s.store.GetTransaction(ctx, txStatus.TxId)
+		tx, err := s.store.GetTransaction(ctx, txStatus.TxId)
 		if err != nil {
 			return nil, errors.Wrapf(err, "getting tx %s from archiver", txStatus.TxId)
 		}
+
+		if tx.InputType == 1 && tx.InputSize == 1000 && tx.DestId == "EAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAVWRF" {
+			moneyFlew, err := recomputeSendManyMoneyFlew(tx)
+			if err != nil {
+				return nil, status.Errorf(codes.Internal, "recomputeSendManyMoneyFlew: %v", err)
+			}
+
+			if moneyFlew == false {
+				continue
+			}
+		}
+
 		approvedTxs = append(approvedTxs, &protobuff.Transaction{
-			SourceId:     storedTx.SourceId,
-			DestId:       storedTx.DestId,
-			Amount:       storedTx.Amount,
-			TickNumber:   storedTx.TickNumber,
-			InputType:    storedTx.InputType,
-			InputSize:    storedTx.InputSize,
-			InputHex:     storedTx.InputHex,
-			SignatureHex: storedTx.SignatureHex,
-			TxId:         storedTx.TxId,
+			SourceId:     tx.SourceId,
+			DestId:       tx.DestId,
+			Amount:       tx.Amount,
+			TickNumber:   tx.TickNumber,
+			InputType:    tx.InputType,
+			InputSize:    tx.InputSize,
+			InputHex:     tx.InputHex,
+			SignatureHex: tx.SignatureHex,
+			TxId:         tx.TxId,
 		})
 	}
 
@@ -480,6 +492,15 @@ func (s *Server) GetTransactionStatus(ctx context.Context, req *protobuff.GetTra
 			return &protobuff.GetTransactionStatusResponse{TransactionStatus: &protobuff.TransactionStatus{TxId: tx.TxId, MoneyFlew: false}}, nil
 		}
 		return nil, status.Errorf(codes.Internal, "getting tx status: %v", err)
+	}
+
+	if tx.InputType == 1 && tx.InputSize == 1000 && tx.DestId == "EAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAVWRF" {
+		moneyFlew, err := recomputeSendManyMoneyFlew(tx)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "recomputeSendManyMoneyFlew: %v", err)
+		}
+
+		return &protobuff.GetTransactionStatusResponse{TransactionStatus: &protobuff.TransactionStatus{TxId: tx.TxId, MoneyFlew: moneyFlew}}, nil
 	}
 
 	return &protobuff.GetTransactionStatusResponse{TransactionStatus: txStatus}, nil
@@ -557,4 +578,22 @@ func (s *Server) Start() error {
 	}
 
 	return nil
+}
+
+func recomputeSendManyMoneyFlew(tx *protobuff.Transaction) (bool, error) {
+	decodedInput, err := hex.DecodeString(tx.InputHex)
+	if err != nil {
+		return false, status.Errorf(codes.Internal, "decoding tx input: %v", err)
+	}
+	var sendmanypayload types.SendManyTransferPayload
+	err = sendmanypayload.UnmarshallBinary(decodedInput)
+	if err != nil {
+		return false, status.Errorf(codes.Internal, "unmarshalling payload: %v", err)
+	}
+
+	if tx.Amount < sendmanypayload.GetTotalAmount() {
+		return false, nil
+	}
+
+	return true, nil
 }
