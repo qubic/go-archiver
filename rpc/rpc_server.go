@@ -48,6 +48,35 @@ func NewServer(listenAddrGRPC, listenAddrHTTP string, syncThreshold int, chainTi
 	}
 }
 
+func (s *Server) GetTransactionData(ctx context.Context, req *protobuff.GetTransactionDataRequest) (*protobuff.GetTransactionDataResponse, error) {
+
+	tx, err := s.store.GetTransaction(ctx, req.TxId)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, status.Errorf(codes.NotFound, "transaction not found")
+		}
+		return nil, status.Errorf(codes.Internal, "getting transaction: %v", err)
+	}
+
+	txStatus, err := s.store.GetTransactionStatus(ctx, req.TxId)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "getting tx status: %v", err)
+	}
+
+	tickData, err := s.store.GetTickData(ctx, tx.TickNumber)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "getting tick data: %v", err)
+	}
+
+	res := protobuff.GetTransactionDataResponse{
+		Transaction: tx,
+		MoneyFlew:   txStatus.MoneyFlew,
+		Timestamp:   tickData.Timestamp,
+	}
+	return &res, nil
+
+}
+
 func (s *Server) GetTickData(ctx context.Context, req *protobuff.GetTickDataRequest) (*protobuff.GetTickDataResponse, error) {
 	lastProcessedTick, err := s.store.GetLastProcessedTick(ctx)
 	if err != nil {

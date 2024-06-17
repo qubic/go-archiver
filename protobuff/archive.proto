@@ -38,6 +38,17 @@ message Transaction {
   string tx_id = 9;
 }
 
+
+message GetTransactionDataRequest {
+  string tx_id = 1;
+}
+
+message GetTransactionDataResponse {
+  Transaction transaction = 1;
+  uint64 timestamp = 2;
+  bool money_flew = 3;
+}
+
 message TransactionStatus {
   string tx_id = 1;
   bool moneyFlew = 2;
@@ -198,83 +209,90 @@ message ProcessedTickIntervalsPerEpoch {
 }
 
 service ArchiveService {
+
+  rpc GetTransactionData(GetTransactionDataRequest) returns (GetTransactionDataResponse) {
+    option (google.api.http) = {
+      get: "/v2/transaction/{tx_id}"
+    };
+  };
+
   rpc GetTickData(GetTickDataRequest) returns (GetTickDataResponse){
     option (google.api.http) = {
-      get: "/ticks/{tick_number}/tick-data"
+      get: "/v1/ticks/{tick_number}/tick-data"
     };
   };
   rpc GetQuorumTickData(GetQuorumTickDataRequest) returns (GetQuorumTickDataResponse) {
     option (google.api.http) = {
-      get: "/ticks/{tick_number}/quorum-tick-data"
+      get: "/v1/ticks/{tick_number}/quorum-tick-data"
     };
   };
   rpc GetTickTransactions(GetTickTransactionsRequest) returns (GetTickTransactionsResponse) {
     option (google.api.http) = {
-      get: "/ticks/{tick_number}/transactions"
+      get: "/v1/ticks/{tick_number}/transactions"
     };
   };
   rpc GetTickTransferTransactions(GetTickTransactionsRequest) returns (GetTickTransactionsResponse) {
     option (google.api.http) = {
-      get: "/ticks/{tick_number}/transfer-transactions"
+      get: "/v1/ticks/{tick_number}/transfer-transactions"
     };
   };
   rpc GetTickApprovedTransactions (GetTickApprovedTransactionsRequest) returns (GetTickApprovedTransactionsResponse) {
     option (google.api.http) = {
-      get: "/ticks/{tick_number}/approved-transactions"
+      get: "/v1/ticks/{tick_number}/approved-transactions"
     };
   }
   rpc GetChainHash(GetChainHashRequest) returns (GetChainHashResponse) {
     option (google.api.http) = {
-      get: "/ticks/{tick_number}/chain-hash"
+      get: "/v1/ticks/{tick_number}/chain-hash"
     };
   };
 
   rpc GetStoreHash(GetChainHashRequest) returns (GetChainHashResponse) {
     option (google.api.http) = {
-      get: "/ticks/{tick_number}/store-hash"
+      get: "/v1/ticks/{tick_number}/store-hash"
     };
   };
 
   rpc GetTransaction(GetTransactionRequest) returns (GetTransactionResponse) {
     option (google.api.http) = {
-      get: "/transactions/{tx_id}"
+      get: "/v1/transactions/{tx_id}"
     };
   };
 
   rpc GetTransactionStatus (GetTransactionStatusRequest) returns (GetTransactionStatusResponse) {
     option (google.api.http) = {
-      get: "/tx-status/{tx_id}"
+      get: "/v1/tx-status/{tx_id}"
     };
   }
 
   rpc GetTransferTransactionsPerTick(GetTransferTransactionsPerTickRequest) returns (GetTransferTransactionsPerTickResponse) {
     option (google.api.http) = {
-      get: "/identities/{identity}/transfer-transactions"
+      get: "/v1/identities/{identity}/transfer-transactions"
     };
   };
 
   rpc GetComputors(GetComputorsRequest) returns (GetComputorsResponse) {
     option (google.api.http) = {
-      get: "/epochs/{epoch}/computors"
+      get: "/v1/epochs/{epoch}/computors"
     };
   };
 
   rpc GetStatus(google.protobuf.Empty) returns (GetStatusResponse) {
     option (google.api.http) = {
-      get: "/status"
+      get: "/v1/status"
     };
   };
 
   rpc GetLatestTick(google.protobuf.Empty) returns (GetLatestTickResponse) {
     option (google.api.http) = {
-      get: "/latestTick"
+      get: "/v1/latestTick"
     };
   };
 
 
   rpc GetHealthCheck(google.protobuf.Empty) returns (GetHealthCheckResponse){
     option (google.api.http) = {
-      get: "/healthcheck"
+      get: "/v1/healthcheck"
     };
   };
 }
