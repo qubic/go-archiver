@@ -27,6 +27,11 @@ var _ protobuff.ArchiveServiceServer = &Server{}
 
 var emptyTd = &protobuff.TickData{}
 
+type TransactionInfo struct {
+	timestamp uint64
+	moneyFlew bool
+}
+
 type Server struct {
 	protobuff.UnimplementedArchiveServiceServer
 	listenAddrGRPC    string
@@ -48,7 +53,207 @@ func NewServer(listenAddrGRPC, listenAddrHTTP string, syncThreshold int, chainTi
 	}
 }
 
-func (s *Server) GetTransactionData(ctx context.Context, req *protobuff.GetTransactionDataRequest) (*protobuff.GetTransactionDataResponse, error) {
+func getTransactionInfo(ctx context.Context, pebbleStore *store.PebbleStore, transactionId string, tickNumber uint32) (*TransactionInfo, error) {
+
+	txStatus, err := pebbleStore.GetTransactionStatus(ctx, transactionId)
+	if err != nil {
+		return nil, errors.Wrap(err, "getting transaction status")
+	}
+
+	tickData, err := pebbleStore.GetTickData(ctx, tickNumber)
+	if err != nil {
+		return nil, errors.Wrap(err, "getting tick data")
+	}
+
+	return &TransactionInfo{
+		timestamp: tickData.Timestamp,
+		moneyFlew: txStatus.MoneyFlew,
+	}, nil
+
+}
+
+func (s *Server) GetAllTickTransactionsV2(ctx context.Context, req *protobuff.GetTickTransactionsRequestV2) (*protobuff.GetTickTransactionsResponseV2, error) {
+	lastProcessedTick, err := s.store.GetLastProcessedTick(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "getting last processed tick: %v", err)
+	}
+	if req.TickNumber > lastProcessedTick.TickNumber {
+		st := status.Newf(codes.FailedPrecondition, "requested tick number %d is greater than last processed tick %d", req.TickNumber, lastProcessedTick.TickNumber)
+		st, err = st.WithDetails(&protobuff.LastProcessedTick{LastProcessedTick: lastProcessedTick.TickNumber})
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "creating custom status")
+		}
+
+		return nil, st.Err()
+	}
+
+	processedTickIntervalsPerEpoch, err := s.store.GetProcessedTickIntervals(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "getting processed tick intervals per epoch")
+	}
+
+	wasSkipped, nextAvailableTick := wasTickSkippedByArchive(req.TickNumber, processedTickIntervalsPerEpoch)
+	if wasSkipped == true {
+		st := status.Newf(codes.OutOfRange, "provided tick number %d was skipped by the system, next available tick is %d", req.TickNumber, nextAvailableTick)
+		st, err = st.WithDetails(&protobuff.NextAvailableTick{NextTickNumber: nextAvailableTick})
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "creating custom status")
+		}
+
+		return nil, st.Err()
+	}
+
+	txs, err := s.store.GetTickTransactions(ctx, req.TickNumber)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, status.Errorf(codes.NotFound, "tick transactions for specified tick not found")
+		}
+		return nil, status.Errorf(codes.Internal, "getting tick transactions: %v", err)
+	}
+
+	var transactions []*protobuff.TransactionData
+
+	for _, transaction := range txs {
+
+		transactionInfo, err := getTransactionInfo(ctx, s.store, transaction.TxId, transaction.TickNumber)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to get transaction info: %v", err)
+		}
+
+		transactions = append(transactions, &protobuff.TransactionData{
+			Transaction: transaction,
+			Timestamp:   transactionInfo.timestamp,
+			MoneyFlew:   transactionInfo.moneyFlew,
+		})
+
+	}
+
+	return &protobuff.GetTickTransactionsResponseV2{Transactions: transactions}, nil
+}
+
+func (s *Server) GetTransferTickTransactionsV2(ctx context.Context, req *protobuff.GetTickTransactionsRequestV2) (*protobuff.GetTickTransactionsResponseV2, error) {
+	lastProcessedTick, err := s.store.GetLastProcessedTick(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "getting last processed tick: %v", err)
+	}
+	if req.TickNumber > lastProcessedTick.TickNumber {
+		st := status.Newf(codes.FailedPrecondition, "requested tick number %d is greater than last processed tick %d", req.TickNumber, lastProcessedTick.TickNumber)
+		st, err = st.WithDetails(&protobuff.LastProcessedTick{LastProcessedTick: lastProcessedTick.TickNumber})
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "creating custom status")
+		}
+
+		return nil, st.Err()
+	}
+
+	processedTickIntervalsPerEpoch, err := s.store.GetProcessedTickIntervals(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "getting processed tick intervals per epoch")
+	}
+
+	wasSkipped, nextAvailableTick := wasTickSkippedByArchive(req.TickNumber, processedTickIntervalsPerEpoch)
+	if wasSkipped == true {
+		st := status.Newf(codes.OutOfRange, "provided tick number %d was skipped by the system, next available tick is %d", req.TickNumber, nextAvailableTick)
+		st, err = st.WithDetails(&protobuff.NextAvailableTick{NextTickNumber: nextAvailableTick})
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "creating custom status")
+		}
+
+		return nil, st.Err()
+	}
+
+	txs, err := s.store.GetTickTransferTransactions(ctx, req.TickNumber)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, status.Errorf(codes.NotFound, "tick transfer transactions for specified tick not found")
+		}
+		return nil, status.Errorf(codes.Internal, "getting tick transactions: %v", err)
+	}
+
+	var transactions []*protobuff.TransactionData
+
+	for _, transaction := range txs {
+
+		transactionInfo, err := getTransactionInfo(ctx, s.store, transaction.TxId, transaction.TickNumber)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to get transaction info: %v", err)
+		}
+
+		transactions = append(transactions, &protobuff.TransactionData{
+			Transaction: transaction,
+			Timestamp:   transactionInfo.timestamp,
+			MoneyFlew:   transactionInfo.moneyFlew,
+		})
+
+	}
+
+	return &protobuff.GetTickTransactionsResponseV2{Transactions: transactions}, nil
+}
+
+func (s *Server) GetApprovedTickTransactionsV2(ctx context.Context, req *protobuff.GetTickTransactionsRequestV2) (*protobuff.GetTickTransactionsResponseV2, error) {
+	lastProcessedTick, err := s.store.GetLastProcessedTick(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "getting last processed tick: %v", err)
+	}
+	if req.TickNumber > lastProcessedTick.TickNumber {
+		st := status.Newf(codes.FailedPrecondition, "requested tick number %d is greater than last processed tick %d", req.TickNumber, lastProcessedTick.TickNumber)
+		st, err = st.WithDetails(&protobuff.LastProcessedTick{LastProcessedTick: lastProcessedTick.TickNumber})
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "creating custom status")
+		}
+
+		return nil, st.Err()
+	}
+
+	processedTickIntervalsPerEpoch, err := s.store.GetProcessedTickIntervals(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "getting processed tick intervals per epoch")
+	}
+
+	wasSkipped, nextAvailableTick := wasTickSkippedByArchive(req.TickNumber, processedTickIntervalsPerEpoch)
+	if wasSkipped == true {
+		st := status.Newf(codes.OutOfRange, "provided tick number %d was skipped by the system, next available tick is %d", req.TickNumber, nextAvailableTick)
+		st, err = st.WithDetails(&protobuff.NextAvailableTick{NextTickNumber: nextAvailableTick})
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "creating custom status")
+		}
+
+		return nil, st.Err()
+	}
+
+	txs, err := s.store.GetTickTransferTransactions(ctx, req.TickNumber)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, status.Errorf(codes.NotFound, "tick transfer transactions for specified tick not found")
+		}
+		return nil, status.Errorf(codes.Internal, "getting tick transactions: %v", err)
+	}
+
+	var transactions []*protobuff.TransactionData
+
+	for _, transaction := range txs {
+
+		transactionInfo, err := getTransactionInfo(ctx, s.store, transaction.TxId, transaction.TickNumber)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to get transaction info: %v", err)
+		}
+
+		if transactionInfo.moneyFlew == false {
+			continue
+		}
+
+		transactions = append(transactions, &protobuff.TransactionData{
+			Transaction: transaction,
+			Timestamp:   transactionInfo.timestamp,
+			MoneyFlew:   transactionInfo.moneyFlew,
+		})
+
+	}
+
+	return &protobuff.GetTickTransactionsResponseV2{Transactions: transactions}, nil
+}
+
+func (s *Server) GetTransactionV2(ctx context.Context, req *protobuff.GetTransactionRequestV2) (*protobuff.GetTransactionResponseV2, error) {
 
 	tx, err := s.store.GetTransaction(ctx, req.TxId)
 	if err != nil {
@@ -58,20 +263,15 @@ func (s *Server) GetTransactionData(ctx context.Context, req *protobuff.GetTrans
 		return nil, status.Errorf(codes.Internal, "getting transaction: %v", err)
 	}
 
-	txStatus, err := s.store.GetTransactionStatus(ctx, req.TxId)
+	transactionInfo, err := getTransactionInfo(ctx, s.store, tx.TxId, tx.TickNumber)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "getting tx status: %v", err)
+		return nil, status.Errorf(codes.Internal, "getting transaction info")
 	}
 
-	tickData, err := s.store.GetTickData(ctx, tx.TickNumber)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "getting tick data: %v", err)
-	}
-
-	res := protobuff.GetTransactionDataResponse{
+	res := protobuff.GetTransactionResponseV2{
 		Transaction: tx,
-		MoneyFlew:   txStatus.MoneyFlew,
-		Timestamp:   tickData.Timestamp,
+		MoneyFlew:   transactionInfo.moneyFlew,
+		Timestamp:   transactionInfo.timestamp,
 	}
 	return &res, nil
 

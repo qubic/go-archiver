@@ -38,17 +38,6 @@ message Transaction {
   string tx_id = 9;
 }
 
-
-message GetTransactionDataRequest {
-  string tx_id = 1;
-}
-
-message GetTransactionDataResponse {
-  Transaction transaction = 1;
-  uint64 timestamp = 2;
-  bool money_flew = 3;
-}
-
 message TransactionStatus {
   string tx_id = 1;
   bool moneyFlew = 2;
@@ -208,9 +197,56 @@ message ProcessedTickIntervalsPerEpoch {
   repeated ProcessedTickInterval intervals = 2;
 }
 
+// Wrapper around transaction and additional data
+message TransactionData {
+  Transaction transaction = 1;
+  uint64 timestamp = 2;
+  bool money_flew = 3;
+}
+
+//Ticks
+
+// Tick Transactions
+message GetTickTransactionsRequestV2 {
+  uint32 tick_number = 1;
+}
+message GetTickTransactionsResponseV2 {
+  repeated TransactionData transactions = 1;
+}
+
+
+// Get Transaction
+message GetTransactionRequestV2 {
+  string tx_id = 1;
+}
+message GetTransactionResponseV2 {
+  Transaction transaction = 1;
+  uint64 timestamp = 2;
+  bool money_flew = 3;
+}
+
+
 service ArchiveService {
 
-  rpc GetTransactionData(GetTransactionDataRequest) returns (GetTransactionDataResponse) {
+  //Tick
+  rpc GetAllTickTransactionsV2(GetTickTransactionsRequestV2) returns (GetTickTransactionsResponseV2){
+    option (google.api.http) = {
+      get: "/v2/tick/{tick_number}/transactions"
+    };
+  };
+  rpc GetTransferTickTransactionsV2(GetTickTransactionsRequestV2) returns (GetTickTransactionsResponseV2){
+    option (google.api.http) = {
+      get: "/v2/tick/{tick_number}/transactions/transfers"
+    };
+  };
+  rpc GetApprovedTickTransactionsV2(GetTickTransactionsRequestV2) returns (GetTickTransactionsResponseV2){
+    option (google.api.http) = {
+      get: "/v2/tick/{tick_number}/transactions/transfers/approved"
+    };
+  };
+
+  //Transaction
+  rpc GetTransactionV2(GetTransactionRequestV2) returns (GetTransactionResponseV2) {
     option (google.api.http) = {
       get: "/v2/transaction/{tx_id}"
     };
