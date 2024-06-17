@@ -20,7 +20,10 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	ArchiveService_GetTransactionData_FullMethodName             = "/qubic.archiver.archive.pb.ArchiveService/GetTransactionData"
+	ArchiveService_GetAllTickTransactionsV2_FullMethodName       = "/qubic.archiver.archive.pb.ArchiveService/GetAllTickTransactionsV2"
+	ArchiveService_GetTransferTickTransactionsV2_FullMethodName  = "/qubic.archiver.archive.pb.ArchiveService/GetTransferTickTransactionsV2"
+	ArchiveService_GetApprovedTickTransactionsV2_FullMethodName  = "/qubic.archiver.archive.pb.ArchiveService/GetApprovedTickTransactionsV2"
+	ArchiveService_GetTransactionV2_FullMethodName               = "/qubic.archiver.archive.pb.ArchiveService/GetTransactionV2"
 	ArchiveService_GetTickData_FullMethodName                    = "/qubic.archiver.archive.pb.ArchiveService/GetTickData"
 	ArchiveService_GetQuorumTickData_FullMethodName              = "/qubic.archiver.archive.pb.ArchiveService/GetQuorumTickData"
 	ArchiveService_GetTickTransactions_FullMethodName            = "/qubic.archiver.archive.pb.ArchiveService/GetTickTransactions"
@@ -41,7 +44,12 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ArchiveServiceClient interface {
-	GetTransactionData(ctx context.Context, in *GetTransactionDataRequest, opts ...grpc.CallOption) (*GetTransactionDataResponse, error)
+	// Tick
+	GetAllTickTransactionsV2(ctx context.Context, in *GetTickTransactionsRequestV2, opts ...grpc.CallOption) (*GetTickTransactionsResponseV2, error)
+	GetTransferTickTransactionsV2(ctx context.Context, in *GetTickTransactionsRequestV2, opts ...grpc.CallOption) (*GetTickTransactionsResponseV2, error)
+	GetApprovedTickTransactionsV2(ctx context.Context, in *GetTickTransactionsRequestV2, opts ...grpc.CallOption) (*GetTickTransactionsResponseV2, error)
+	// Transaction
+	GetTransactionV2(ctx context.Context, in *GetTransactionRequestV2, opts ...grpc.CallOption) (*GetTransactionResponseV2, error)
 	GetTickData(ctx context.Context, in *GetTickDataRequest, opts ...grpc.CallOption) (*GetTickDataResponse, error)
 	GetQuorumTickData(ctx context.Context, in *GetQuorumTickDataRequest, opts ...grpc.CallOption) (*GetQuorumTickDataResponse, error)
 	GetTickTransactions(ctx context.Context, in *GetTickTransactionsRequest, opts ...grpc.CallOption) (*GetTickTransactionsResponse, error)
@@ -66,9 +74,36 @@ func NewArchiveServiceClient(cc grpc.ClientConnInterface) ArchiveServiceClient {
 	return &archiveServiceClient{cc}
 }
 
-func (c *archiveServiceClient) GetTransactionData(ctx context.Context, in *GetTransactionDataRequest, opts ...grpc.CallOption) (*GetTransactionDataResponse, error) {
-	out := new(GetTransactionDataResponse)
-	err := c.cc.Invoke(ctx, ArchiveService_GetTransactionData_FullMethodName, in, out, opts...)
+func (c *archiveServiceClient) GetAllTickTransactionsV2(ctx context.Context, in *GetTickTransactionsRequestV2, opts ...grpc.CallOption) (*GetTickTransactionsResponseV2, error) {
+	out := new(GetTickTransactionsResponseV2)
+	err := c.cc.Invoke(ctx, ArchiveService_GetAllTickTransactionsV2_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *archiveServiceClient) GetTransferTickTransactionsV2(ctx context.Context, in *GetTickTransactionsRequestV2, opts ...grpc.CallOption) (*GetTickTransactionsResponseV2, error) {
+	out := new(GetTickTransactionsResponseV2)
+	err := c.cc.Invoke(ctx, ArchiveService_GetTransferTickTransactionsV2_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *archiveServiceClient) GetApprovedTickTransactionsV2(ctx context.Context, in *GetTickTransactionsRequestV2, opts ...grpc.CallOption) (*GetTickTransactionsResponseV2, error) {
+	out := new(GetTickTransactionsResponseV2)
+	err := c.cc.Invoke(ctx, ArchiveService_GetApprovedTickTransactionsV2_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *archiveServiceClient) GetTransactionV2(ctx context.Context, in *GetTransactionRequestV2, opts ...grpc.CallOption) (*GetTransactionResponseV2, error) {
+	out := new(GetTransactionResponseV2)
+	err := c.cc.Invoke(ctx, ArchiveService_GetTransactionV2_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -205,7 +240,12 @@ func (c *archiveServiceClient) GetHealthCheck(ctx context.Context, in *emptypb.E
 // All implementations must embed UnimplementedArchiveServiceServer
 // for forward compatibility
 type ArchiveServiceServer interface {
-	GetTransactionData(context.Context, *GetTransactionDataRequest) (*GetTransactionDataResponse, error)
+	// Tick
+	GetAllTickTransactionsV2(context.Context, *GetTickTransactionsRequestV2) (*GetTickTransactionsResponseV2, error)
+	GetTransferTickTransactionsV2(context.Context, *GetTickTransactionsRequestV2) (*GetTickTransactionsResponseV2, error)
+	GetApprovedTickTransactionsV2(context.Context, *GetTickTransactionsRequestV2) (*GetTickTransactionsResponseV2, error)
+	// Transaction
+	GetTransactionV2(context.Context, *GetTransactionRequestV2) (*GetTransactionResponseV2, error)
 	GetTickData(context.Context, *GetTickDataRequest) (*GetTickDataResponse, error)
 	GetQuorumTickData(context.Context, *GetQuorumTickDataRequest) (*GetQuorumTickDataResponse, error)
 	GetTickTransactions(context.Context, *GetTickTransactionsRequest) (*GetTickTransactionsResponse, error)
@@ -227,8 +267,17 @@ type ArchiveServiceServer interface {
 type UnimplementedArchiveServiceServer struct {
 }
 
-func (UnimplementedArchiveServiceServer) GetTransactionData(context.Context, *GetTransactionDataRequest) (*GetTransactionDataResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetTransactionData not implemented")
+func (UnimplementedArchiveServiceServer) GetAllTickTransactionsV2(context.Context, *GetTickTransactionsRequestV2) (*GetTickTransactionsResponseV2, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAllTickTransactionsV2 not implemented")
+}
+func (UnimplementedArchiveServiceServer) GetTransferTickTransactionsV2(context.Context, *GetTickTransactionsRequestV2) (*GetTickTransactionsResponseV2, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTransferTickTransactionsV2 not implemented")
+}
+func (UnimplementedArchiveServiceServer) GetApprovedTickTransactionsV2(context.Context, *GetTickTransactionsRequestV2) (*GetTickTransactionsResponseV2, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetApprovedTickTransactionsV2 not implemented")
+}
+func (UnimplementedArchiveServiceServer) GetTransactionV2(context.Context, *GetTransactionRequestV2) (*GetTransactionResponseV2, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTransactionV2 not implemented")
 }
 func (UnimplementedArchiveServiceServer) GetTickData(context.Context, *GetTickDataRequest) (*GetTickDataResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTickData not implemented")
@@ -285,20 +334,74 @@ func RegisterArchiveServiceServer(s grpc.ServiceRegistrar, srv ArchiveServiceSer
 	s.RegisterService(&ArchiveService_ServiceDesc, srv)
 }
 
-func _ArchiveService_GetTransactionData_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetTransactionDataRequest)
+func _ArchiveService_GetAllTickTransactionsV2_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetTickTransactionsRequestV2)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ArchiveServiceServer).GetTransactionData(ctx, in)
+		return srv.(ArchiveServiceServer).GetAllTickTransactionsV2(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: ArchiveService_GetTransactionData_FullMethodName,
+		FullMethod: ArchiveService_GetAllTickTransactionsV2_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ArchiveServiceServer).GetTransactionData(ctx, req.(*GetTransactionDataRequest))
+		return srv.(ArchiveServiceServer).GetAllTickTransactionsV2(ctx, req.(*GetTickTransactionsRequestV2))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ArchiveService_GetTransferTickTransactionsV2_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetTickTransactionsRequestV2)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ArchiveServiceServer).GetTransferTickTransactionsV2(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ArchiveService_GetTransferTickTransactionsV2_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ArchiveServiceServer).GetTransferTickTransactionsV2(ctx, req.(*GetTickTransactionsRequestV2))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ArchiveService_GetApprovedTickTransactionsV2_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetTickTransactionsRequestV2)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ArchiveServiceServer).GetApprovedTickTransactionsV2(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ArchiveService_GetApprovedTickTransactionsV2_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ArchiveServiceServer).GetApprovedTickTransactionsV2(ctx, req.(*GetTickTransactionsRequestV2))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ArchiveService_GetTransactionV2_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetTransactionRequestV2)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ArchiveServiceServer).GetTransactionV2(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ArchiveService_GetTransactionV2_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ArchiveServiceServer).GetTransactionV2(ctx, req.(*GetTransactionRequestV2))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -563,8 +666,20 @@ var ArchiveService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*ArchiveServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "GetTransactionData",
-			Handler:    _ArchiveService_GetTransactionData_Handler,
+			MethodName: "GetAllTickTransactionsV2",
+			Handler:    _ArchiveService_GetAllTickTransactionsV2_Handler,
+		},
+		{
+			MethodName: "GetTransferTickTransactionsV2",
+			Handler:    _ArchiveService_GetTransferTickTransactionsV2_Handler,
+		},
+		{
+			MethodName: "GetApprovedTickTransactionsV2",
+			Handler:    _ArchiveService_GetApprovedTickTransactionsV2_Handler,
+		},
+		{
+			MethodName: "GetTransactionV2",
+			Handler:    _ArchiveService_GetTransactionV2_Handler,
 		},
 		{
 			MethodName: "GetTickData",
