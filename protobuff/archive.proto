@@ -197,6 +197,41 @@ message ProcessedTickIntervalsPerEpoch {
   repeated ProcessedTickInterval intervals = 2;
 }
 
+//SendMany Transaction
+message SendManyTransfer {
+  string dest_id = 1;
+  int64 amount = 2;
+}
+
+message SendManyTransaction {
+  string source_id = 1;
+  uint32 tick_number = 2;
+  repeated SendManyTransfer transfers = 3;
+  int64 total_amount = 4;
+  string signature_hex = 5;
+  string tx_id = 6;
+}
+
+//Wrapper around send many transaction and additional data
+message SendManyTransactionData {
+  SendManyTransaction transaction = 2;
+  uint64 timestamp = 3;
+  bool money_flew = 4;
+}
+
+message GetSendManyTransactionRequestV2 {
+  string tx_id = 1;
+}
+
+message GetSendManyTransactionResponseV2 {
+  SendManyTransaction transaction = 2;
+  uint64 timestamp = 3;
+  bool money_flew = 4;
+}
+
+
+//Normal Transaction
+
 // Wrapper around transaction and additional data
 message TransactionData {
   Transaction transaction = 1;
@@ -205,7 +240,6 @@ message TransactionData {
 }
 
 //Ticks
-
 // Tick Transactions
 message GetTickTransactionsRequestV2 {
   uint32 tick_number = 1;
@@ -246,12 +280,24 @@ service ArchiveService {
   };
 
   //Transaction
+
+  //Normal
   rpc GetTransactionV2(GetTransactionRequestV2) returns (GetTransactionResponseV2) {
     option (google.api.http) = {
       get: "/v2/transaction/{tx_id}"
     };
   };
 
+  //SendMany
+  rpc GetSendManyTransactionV2(GetSendManyTransactionRequestV2) returns (GetSendManyTransactionResponseV2) {
+    option (google.api.http) = {
+      get: "/v2/transaction/{tx_id}/sendmany"
+    };
+  };
+
+  //Identity
+
+  //V1 Endpoints
   rpc GetTickData(GetTickDataRequest) returns (GetTickDataResponse){
     option (google.api.http) = {
       get: "/v1/ticks/{tick_number}/tick-data"

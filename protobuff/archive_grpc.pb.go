@@ -24,6 +24,7 @@ const (
 	ArchiveService_GetTransferTickTransactionsV2_FullMethodName  = "/qubic.archiver.archive.pb.ArchiveService/GetTransferTickTransactionsV2"
 	ArchiveService_GetApprovedTickTransactionsV2_FullMethodName  = "/qubic.archiver.archive.pb.ArchiveService/GetApprovedTickTransactionsV2"
 	ArchiveService_GetTransactionV2_FullMethodName               = "/qubic.archiver.archive.pb.ArchiveService/GetTransactionV2"
+	ArchiveService_GetSendManyTransactionV2_FullMethodName       = "/qubic.archiver.archive.pb.ArchiveService/GetSendManyTransactionV2"
 	ArchiveService_GetTickData_FullMethodName                    = "/qubic.archiver.archive.pb.ArchiveService/GetTickData"
 	ArchiveService_GetQuorumTickData_FullMethodName              = "/qubic.archiver.archive.pb.ArchiveService/GetQuorumTickData"
 	ArchiveService_GetTickTransactions_FullMethodName            = "/qubic.archiver.archive.pb.ArchiveService/GetTickTransactions"
@@ -48,8 +49,11 @@ type ArchiveServiceClient interface {
 	GetAllTickTransactionsV2(ctx context.Context, in *GetTickTransactionsRequestV2, opts ...grpc.CallOption) (*GetTickTransactionsResponseV2, error)
 	GetTransferTickTransactionsV2(ctx context.Context, in *GetTickTransactionsRequestV2, opts ...grpc.CallOption) (*GetTickTransactionsResponseV2, error)
 	GetApprovedTickTransactionsV2(ctx context.Context, in *GetTickTransactionsRequestV2, opts ...grpc.CallOption) (*GetTickTransactionsResponseV2, error)
-	// Transaction
+	// Normal
 	GetTransactionV2(ctx context.Context, in *GetTransactionRequestV2, opts ...grpc.CallOption) (*GetTransactionResponseV2, error)
+	// SendMany
+	GetSendManyTransactionV2(ctx context.Context, in *GetSendManyTransactionRequestV2, opts ...grpc.CallOption) (*GetSendManyTransactionResponseV2, error)
+	// V1 Endpoints
 	GetTickData(ctx context.Context, in *GetTickDataRequest, opts ...grpc.CallOption) (*GetTickDataResponse, error)
 	GetQuorumTickData(ctx context.Context, in *GetQuorumTickDataRequest, opts ...grpc.CallOption) (*GetQuorumTickDataResponse, error)
 	GetTickTransactions(ctx context.Context, in *GetTickTransactionsRequest, opts ...grpc.CallOption) (*GetTickTransactionsResponse, error)
@@ -104,6 +108,15 @@ func (c *archiveServiceClient) GetApprovedTickTransactionsV2(ctx context.Context
 func (c *archiveServiceClient) GetTransactionV2(ctx context.Context, in *GetTransactionRequestV2, opts ...grpc.CallOption) (*GetTransactionResponseV2, error) {
 	out := new(GetTransactionResponseV2)
 	err := c.cc.Invoke(ctx, ArchiveService_GetTransactionV2_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *archiveServiceClient) GetSendManyTransactionV2(ctx context.Context, in *GetSendManyTransactionRequestV2, opts ...grpc.CallOption) (*GetSendManyTransactionResponseV2, error) {
+	out := new(GetSendManyTransactionResponseV2)
+	err := c.cc.Invoke(ctx, ArchiveService_GetSendManyTransactionV2_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -244,8 +257,11 @@ type ArchiveServiceServer interface {
 	GetAllTickTransactionsV2(context.Context, *GetTickTransactionsRequestV2) (*GetTickTransactionsResponseV2, error)
 	GetTransferTickTransactionsV2(context.Context, *GetTickTransactionsRequestV2) (*GetTickTransactionsResponseV2, error)
 	GetApprovedTickTransactionsV2(context.Context, *GetTickTransactionsRequestV2) (*GetTickTransactionsResponseV2, error)
-	// Transaction
+	// Normal
 	GetTransactionV2(context.Context, *GetTransactionRequestV2) (*GetTransactionResponseV2, error)
+	// SendMany
+	GetSendManyTransactionV2(context.Context, *GetSendManyTransactionRequestV2) (*GetSendManyTransactionResponseV2, error)
+	// V1 Endpoints
 	GetTickData(context.Context, *GetTickDataRequest) (*GetTickDataResponse, error)
 	GetQuorumTickData(context.Context, *GetQuorumTickDataRequest) (*GetQuorumTickDataResponse, error)
 	GetTickTransactions(context.Context, *GetTickTransactionsRequest) (*GetTickTransactionsResponse, error)
@@ -278,6 +294,9 @@ func (UnimplementedArchiveServiceServer) GetApprovedTickTransactionsV2(context.C
 }
 func (UnimplementedArchiveServiceServer) GetTransactionV2(context.Context, *GetTransactionRequestV2) (*GetTransactionResponseV2, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTransactionV2 not implemented")
+}
+func (UnimplementedArchiveServiceServer) GetSendManyTransactionV2(context.Context, *GetSendManyTransactionRequestV2) (*GetSendManyTransactionResponseV2, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetSendManyTransactionV2 not implemented")
 }
 func (UnimplementedArchiveServiceServer) GetTickData(context.Context, *GetTickDataRequest) (*GetTickDataResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTickData not implemented")
@@ -402,6 +421,24 @@ func _ArchiveService_GetTransactionV2_Handler(srv interface{}, ctx context.Conte
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ArchiveServiceServer).GetTransactionV2(ctx, req.(*GetTransactionRequestV2))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ArchiveService_GetSendManyTransactionV2_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetSendManyTransactionRequestV2)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ArchiveServiceServer).GetSendManyTransactionV2(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ArchiveService_GetSendManyTransactionV2_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ArchiveServiceServer).GetSendManyTransactionV2(ctx, req.(*GetSendManyTransactionRequestV2))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -680,6 +717,10 @@ var ArchiveService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetTransactionV2",
 			Handler:    _ArchiveService_GetTransactionV2_Handler,
+		},
+		{
+			MethodName: "GetSendManyTransactionV2",
+			Handler:    _ArchiveService_GetSendManyTransactionV2_Handler,
 		},
 		{
 			MethodName: "GetTickData",
