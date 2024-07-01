@@ -281,7 +281,6 @@ message GetTickTransactionsResponseV2 {
 // Get Transaction
 message GetTransactionRequestV2 {
   string tx_id = 1;
-  bool send_many = 2;
 }
 message GetTransactionResponseV2 {
   Transaction transaction = 1;
