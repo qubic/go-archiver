@@ -9,9 +9,39 @@ import (
 	"github.com/qubic/go-node-connector/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-func (s *Server) GetAllTickTransactionsV2(ctx context.Context, req *protobuff.GetTickTransactionsRequestV2) (*protobuff.GetTickTransactionsResponseV2, error) {
+func (s *Server) GetLatestTickV2(ctx context.Context, req *emptypb.Empty) (*protobuff.GetLatestTickResponseV2, error) {
+	return s.GetLatestTick(ctx, req)
+}
+
+func (s *Server) GetTickV2(ctx context.Context, req *protobuff.GetTickRequestV2) (*protobuff.GetTickResponseV2, error) {
+
+	//TODO: Implement
+
+	return nil, status.Errorf(codes.Unimplemented, "Not yet implemented")
+}
+
+func (s *Server) GetTickQuorumDataV2(ctx context.Context, req *protobuff.GetTickRequestV2) (*protobuff.GetQuorumTickDataResponse, error) {
+	return s.GetQuorumTickData(ctx, &protobuff.GetQuorumTickDataRequest{
+		TickNumber: req.TickNumber,
+	})
+}
+
+func (s *Server) GetTickChainHashV2(ctx context.Context, req *protobuff.GetTickRequestV2) (*protobuff.GetChainHashResponse, error) {
+	return s.GetChainHash(ctx, &protobuff.GetChainHashRequest{
+		TickNumber: req.TickNumber,
+	})
+}
+
+func (s *Server) GetTickStoreHashV2(ctx context.Context, req *protobuff.GetTickRequestV2) (*protobuff.GetChainHashResponse, error) {
+	return s.GetStoreHash(ctx, &protobuff.GetChainHashRequest{
+		TickNumber: req.TickNumber,
+	})
+}
+
+func (s *Server) GetAllTickTransactionsV2(ctx context.Context, req *protobuff.GetTickRequestV2) (*protobuff.GetTickTransactionsResponseV2, error) {
 	lastProcessedTick, err := s.store.GetLastProcessedTick(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "getting last processed tick: %v", err)
@@ -70,7 +100,7 @@ func (s *Server) GetAllTickTransactionsV2(ctx context.Context, req *protobuff.Ge
 	return &protobuff.GetTickTransactionsResponseV2{Transactions: transactions}, nil
 }
 
-func (s *Server) GetTransferTickTransactionsV2(ctx context.Context, req *protobuff.GetTickTransactionsRequestV2) (*protobuff.GetTickTransactionsResponseV2, error) {
+func (s *Server) GetTransferTickTransactionsV2(ctx context.Context, req *protobuff.GetTickRequestV2) (*protobuff.GetTickTransactionsResponseV2, error) {
 	lastProcessedTick, err := s.store.GetLastProcessedTick(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "getting last processed tick: %v", err)
@@ -129,7 +159,7 @@ func (s *Server) GetTransferTickTransactionsV2(ctx context.Context, req *protobu
 	return &protobuff.GetTickTransactionsResponseV2{Transactions: transactions}, nil
 }
 
-func (s *Server) GetApprovedTickTransactionsV2(ctx context.Context, req *protobuff.GetTickTransactionsRequestV2) (*protobuff.GetTickTransactionsResponseV2, error) {
+func (s *Server) GetApprovedTickTransactionsV2(ctx context.Context, req *protobuff.GetTickRequestV2) (*protobuff.GetTickTransactionsResponseV2, error) {
 	lastProcessedTick, err := s.store.GetLastProcessedTick(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "getting last processed tick: %v", err)
@@ -274,4 +304,46 @@ func (s *Server) GetSendManyTransactionV2(ctx context.Context, req *protobuff.Ge
 		Timestamp:   transactionInfo.timestamp,
 		MoneyFlew:   transactionInfo.moneyFlew,
 	}, nil
+}
+
+func (s *Server) GetIdentityTransfersInTickRangeV2(ctx context.Context, req *protobuff.GetTransferTransactionsPerTickRequest) (*protobuff.GetIdentityTransfersInTickRangeResponseV2, error) {
+	txs, err := s.store.GetTransferTransactions(ctx, req.Identity, uint64(req.GetStartTick()), uint64(req.GetEndTick()))
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "getting transfer transactions: %v", err)
+	}
+
+	var totalTransactions []*protobuff.PerTickIdentityTransfers
+
+	for _, transactionsPerTick := range txs {
+
+		var tickTransactions []*protobuff.TransactionData
+
+		for _, transaction := range transactionsPerTick.Transactions {
+			transactionInfo, err := getTransactionInfo(ctx, s.store, transaction.TxId, transaction.TickNumber)
+			if err != nil {
+				return nil, status.Errorf(codes.Internal, "getting transaction info: %v", err)
+			}
+
+			transactionData := &protobuff.TransactionData{
+				Transaction: transaction,
+				Timestamp:   transactionInfo.timestamp,
+				MoneyFlew:   transactionInfo.moneyFlew,
+			}
+
+			tickTransactions = append(tickTransactions, transactionData)
+		}
+
+		transfers := &protobuff.PerTickIdentityTransfers{
+			Transactions: tickTransactions,
+			Identity:     transactionsPerTick.Identity,
+			TickNumber:   transactionsPerTick.TickNumber,
+		}
+
+		totalTransactions = append(totalTransactions, transfers)
+	}
+
+	return &protobuff.GetIdentityTransfersInTickRangeResponseV2{
+		Transactions: totalTransactions,
+	}, nil
+
 }
