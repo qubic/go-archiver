@@ -165,10 +165,6 @@ message GetHealthCheckResponse {
   bool status = 1;
 }
 
-message GetLatestTickResponse {
-  uint32 latest_tick = 1;
-}
-
 message GetTransferTransactionsPerTickRequest {
   string identity = 1;
   uint32 start_tick = 2;
@@ -197,6 +193,67 @@ message ProcessedTickIntervalsPerEpoch {
   repeated ProcessedTickInterval intervals = 2;
 }
 
+message Tick {
+  uint32 computor_index = 1;
+  uint32 epoch = 2;
+  uint32 tick_number = 3;
+  uint64 timestamp = 4;
+  bytes var_struct = 5; //Will change to return with unmarshalled info
+  bytes time_lock = 6;
+  repeated string transaction_ids = 7;
+  repeated int64 contract_fees = 8;
+  string signature_hex = 9;
+}
+
+message GetTickResponseV2 {
+  Tick tick_Data = 1;
+}
+
+message PerTickIdentityTransfers {
+  uint32 tick_number = 1;
+  string identity = 2;
+  repeated TransactionData transactions = 3;
+}
+
+message GetIdentityTransfersInTickRangeResponseV2 {
+  repeated PerTickIdentityTransfers transactions = 1;
+}
+
+//SendMany Transaction
+message SendManyTransfer {
+  string dest_id = 1;
+  int64 amount = 2;
+}
+
+message SendManyTransaction {
+  string source_id = 1;
+  uint32 tick_number = 2;
+  repeated SendManyTransfer transfers = 3;
+  int64 total_amount = 4;
+  string signature_hex = 5;
+  string tx_id = 6;
+}
+
+//Wrapper around send many transaction and additional data
+message SendManyTransactionData {
+  SendManyTransaction transaction = 2;
+  uint64 timestamp = 3;
+  bool money_flew = 4;
+}
+
+message GetSendManyTransactionRequestV2 {
+  string tx_id = 1;
+}
+
+message GetSendManyTransactionResponseV2 {
+  SendManyTransaction transaction = 2;
+  uint64 timestamp = 3;
+  bool money_flew = 4;
+}
+
+
+//Normal Transaction
+
 // Wrapper around transaction and additional data
 message TransactionData {
   Transaction transaction = 1;
@@ -206,8 +263,14 @@ message TransactionData {
 
 //Ticks
 
+// Latest Tick
+
+message GetLatestTickResponseV2 {
+  uint32 latest_tick = 1;
+}
+
 // Tick Transactions
-message GetTickTransactionsRequestV2 {
+message GetTickRequestV2 {
   uint32 tick_number = 1;
 }
 message GetTickTransactionsResponseV2 {
@@ -228,30 +291,83 @@ message GetTransactionResponseV2 {
 
 service ArchiveService {
 
-  //Tick
-  rpc GetAllTickTransactionsV2(GetTickTransactionsRequestV2) returns (GetTickTransactionsResponseV2){
+  // Latest Tick
+  rpc GetLatestTickV2(google.protobuf.Empty) returns (GetLatestTickResponseV2){
+    option (google.api.http) = {
+      get: "/v2/tick/latest"
+    };
+  };
+
+  // General data - To be released at a later date
+  /*rpc GetTickV2(GetTickRequestV2) returns (GetTickResponseV2) {
+    option (google.api.http) = {
+      get: "/v2/tick/{tick_number}"
+    };
+  };*/
+
+  // Quorum data
+  rpc GetTickQuorumDataV2(GetTickRequestV2) returns (GetQuorumTickDataResponse) { // Uses V1 response
+    option (google.api.http) = {
+      get: "/v2/tick/{tick_number}/quorum-data"
+    };
+  };
+
+  // Chain hash
+  rpc GetTickChainHashV2(GetTickRequestV2) returns (GetChainHashResponse) { // Uses V1 response
+    option (google.api.http) = {
+      get: "/v2/tick/{tick_number}/hash"
+    };
+  }
+
+  // Store hash
+  rpc GetTickStoreHashV2(GetTickRequestV2) returns (GetChainHashResponse) { // Uses V1 response
+    option (google.api.http) = {
+      get: "/v2/tick/{tick_number}/store-hash"
+    };
+  }
+
+
+  // Tick transactions
+  rpc GetAllTickTransactionsV2(GetTickRequestV2) returns (GetTickTransactionsResponseV2){
     option (google.api.http) = {
       get: "/v2/tick/{tick_number}/transactions"
     };
   };
-  rpc GetTransferTickTransactionsV2(GetTickTransactionsRequestV2) returns (GetTickTransactionsResponseV2){
+  rpc GetTransferTickTransactionsV2(GetTickRequestV2) returns (GetTickTransactionsResponseV2){
     option (google.api.http) = {
       get: "/v2/tick/{tick_number}/transactions/transfers"
     };
   };
-  rpc GetApprovedTickTransactionsV2(GetTickTransactionsRequestV2) returns (GetTickTransactionsResponseV2){
+  rpc GetApprovedTickTransactionsV2(GetTickRequestV2) returns (GetTickTransactionsResponseV2){
     option (google.api.http) = {
       get: "/v2/tick/{tick_number}/transactions/transfers/approved"
     };
   };
 
   //Transaction
+
+  //Normal
   rpc GetTransactionV2(GetTransactionRequestV2) returns (GetTransactionResponseV2) {
     option (google.api.http) = {
       get: "/v2/transaction/{tx_id}"
     };
   };
 
+  //SendMany
+  rpc GetSendManyTransactionV2(GetSendManyTransactionRequestV2) returns (GetSendManyTransactionResponseV2) {
+    option (google.api.http) = {
+      get: "/v2/transaction/{tx_id}/sendmany"
+    };
+  };
+
+  //Identity
+  rpc GetIdentityTransfersInTickRangeV2(GetTransferTransactionsPerTickRequest) returns (GetIdentityTransfersInTickRangeResponseV2) { // Uses V1 request
+    option (google.api.http) = {
+      get: "/v2/identity/{identity}/transfers"
+    };
+  };
+
+  //V1 Endpoints
   rpc GetTickData(GetTickDataRequest) returns (GetTickDataResponse){
     option (google.api.http) = {
       get: "/v1/ticks/{tick_number}/tick-data"
@@ -319,7 +435,7 @@ service ArchiveService {
     };
   };
 
-  rpc GetLatestTick(google.protobuf.Empty) returns (GetLatestTickResponse) {
+  rpc GetLatestTick(google.protobuf.Empty) returns (GetLatestTickResponseV2) {
     option (google.api.http) = {
       get: "/v1/latestTick"
     };
