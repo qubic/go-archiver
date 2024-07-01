@@ -11,20 +11,20 @@ import (
 )
 
 func Validate(ctx context.Context, tickTxStatus types.TransactionStatus, tickTxs types.Transactions) (*protobuff.TickTransactionsStatus, error) {
-	//if tickTxStatus.TxCount != uint32(len(tickTxs)) {
-	//	return nil, errors.Errorf("Mismatched tx length. Tick tx status count: %d - len(tickTx): %d", tickTxStatus.TxCount, len(tickTxs))
-	//}
+	if tickTxStatus.TxCount != uint32(len(tickTxs)) {
+		return nil, errors.Errorf("Mismatched tx length. Tick tx status count: %d - len(tickTx): %d", tickTxStatus.TxCount, len(tickTxs))
+	}
 
-	//tickTxDigests, err := getTickTxDigests(tickTxs)
-	//if err != nil {
-	//	return nil, errors.Wrap(err, "getting tick tx digests")
-	//}
+	tickTxDigests, err := getTickTxDigests(tickTxs)
+	if err != nil {
+		return nil, errors.Wrap(err, "getting tick tx digests")
+	}
 
-	//if !equalDigests(tickTxDigests, tickTxStatus.TransactionDigests) {
-	//	return nil, errors.New("digests not equal")
-	//}
+	if !equalDigests(tickTxDigests, tickTxStatus.TransactionDigests) {
+		return nil, errors.New("digests not equal")
+	}
 
-	proto, err := qubicToProto(tickTxs, tickTxStatus)
+	proto, err := qubicToProto(tickTxStatus)
 	if err != nil {
 		return nil, errors.Wrap(err, "qubic to proto")
 	}

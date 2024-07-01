@@ -92,7 +92,7 @@ services:
       - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:80"
     ports:
-      - "80:80"
+      - "8009:80"
       - "127.0.0.1:8081:8080"
     depends_on:
       - "qubic-archiver"

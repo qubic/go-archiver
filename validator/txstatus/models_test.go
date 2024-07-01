@@ -25,7 +25,7 @@ func TestQubicToProto(t *testing.T) {
 		},
 	}
 
-	res, err := qubicToProto(types.Transactions{}, tickTransactionStatus)
+	res, err := qubicToProto(tickTransactionStatus)
 	if err != nil {
 		t.Fatalf("Got err when converting qubic to proto. err: %s", err.Error())
 	}

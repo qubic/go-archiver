@@ -4,27 +4,16 @@ import (
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-node-connector/types"
-	"log"
 )
 
-func qubicToProto(txs types.Transactions, model types.TransactionStatus) (*protobuff.TickTransactionsStatus, error) {
+func qubicToProto(model types.TransactionStatus) (*protobuff.TickTransactionsStatus, error) {
 	tickTransactions := make([]*protobuff.TransactionStatus, 0, model.TxCount)
-	txsIdMap, err := createTxsIdMap(txs)
-	if err != nil {
-		return nil, errors.Wrap(err, "error creating txs id map")
-	}
-
 	for index, txDigest := range model.TransactionDigests {
 		var id types.Identity
 		id, err := id.FromPubKey(txDigest, true)
 		if err != nil {
 			return nil, errors.Wrap(err, "converting digest to id")
 		}
-		if _, ok := txsIdMap[id.String()]; !ok {
-			log.Printf("Skipping tx status with id: %s\n", id.String())
-			continue
-		}
-
 		moneyFlew := getMoneyFlewFromBits(model.MoneyFlew, index)
 
 		tx := &protobuff.TransactionStatus{
@@ -36,25 +25,6 @@ func qubicToProto(txs types.Transactions, model types.TransactionStatus) (*proto
 	}
 
 	return &protobuff.TickTransactionsStatus{Transactions: tickTransactions}, nil
-}
-
-func createTxsIdMap(txs types.Transactions) (map[string]struct{}, error) {
-	txsIdMap := make(map[string]struct{}, len(txs))
-	for _, tx := range txs {
-		digest, err := tx.Digest()
-		if err != nil {
-			return nil, errors.Wrapf(err, "creating tx digest for tx with src pubkey %s", tx.SourcePublicKey)
-		}
-
-		id, err := tx.ID()
-		if err != nil {
-			return nil, errors.Wrapf(err, "converting tx with digest %s to id", digest)
-		}
-
-		txsIdMap[id] = struct{}{}
-	}
-
-	return txsIdMap, nil
 }
 
 func getMoneyFlewFromBits(input [(types.NumberOfTransactionsPerTick + 7) / 8]byte, digestIndex int) bool {
