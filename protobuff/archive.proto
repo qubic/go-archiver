@@ -281,6 +281,7 @@ message GetTickTransactionsResponseV2 {
 // Get Transaction
 message GetTransactionRequestV2 {
   string tx_id = 1;
+  bool send_many = 2;
 }
 message GetTransactionResponseV2 {
   Transaction transaction = 1;
@@ -288,59 +289,48 @@ message GetTransactionResponseV2 {
   bool money_flew = 3;
 }
 
+message GetTickTransactionsRequestV2 {
+  uint32 tick_number = 1;
+  bool transfers = 2;
+  bool approved = 3;
+}
+
 
 service ArchiveService {
-
-  // Latest Tick
-  rpc GetLatestTickV2(google.protobuf.Empty) returns (GetLatestTickResponseV2){
-    option (google.api.http) = {
-      get: "/v2/tick/latest"
-    };
-  };
 
   // General data - To be released at a later date
   /*rpc GetTickV2(GetTickRequestV2) returns (GetTickResponseV2) {
     option (google.api.http) = {
-      get: "/v2/tick/{tick_number}"
+      get: "/v2/ticks/{tick_number}"
     };
   };*/
 
   // Quorum data
   rpc GetTickQuorumDataV2(GetTickRequestV2) returns (GetQuorumTickDataResponse) { // Uses V1 response
     option (google.api.http) = {
-      get: "/v2/tick/{tick_number}/quorum-data"
+      get: "/v2/ticks/{tick_number}/quorum-data"
     };
   };
 
   // Chain hash
   rpc GetTickChainHashV2(GetTickRequestV2) returns (GetChainHashResponse) { // Uses V1 response
     option (google.api.http) = {
-      get: "/v2/tick/{tick_number}/hash"
+      get: "/v2/ticks/{tick_number}/hash"
     };
   }
 
   // Store hash
   rpc GetTickStoreHashV2(GetTickRequestV2) returns (GetChainHashResponse) { // Uses V1 response
     option (google.api.http) = {
-      get: "/v2/tick/{tick_number}/store-hash"
+      get: "/v2/ticks/{tick_number}/store-hash"
     };
   }
 
 
   // Tick transactions
-  rpc GetAllTickTransactionsV2(GetTickRequestV2) returns (GetTickTransactionsResponseV2){
+  rpc GetTickTransactionsV2(GetTickTransactionsRequestV2) returns (GetTickTransactionsResponseV2){
     option (google.api.http) = {
-      get: "/v2/tick/{tick_number}/transactions"
-    };
-  };
-  rpc GetTransferTickTransactionsV2(GetTickRequestV2) returns (GetTickTransactionsResponseV2){
-    option (google.api.http) = {
-      get: "/v2/tick/{tick_number}/transactions/transfers"
-    };
-  };
-  rpc GetApprovedTickTransactionsV2(GetTickRequestV2) returns (GetTickTransactionsResponseV2){
-    option (google.api.http) = {
-      get: "/v2/tick/{tick_number}/transactions/transfers/approved"
+      get: "/v2/ticks/{tick_number}/transactions"
     };
   };
 
@@ -349,21 +339,21 @@ service ArchiveService {
   //Normal
   rpc GetTransactionV2(GetTransactionRequestV2) returns (GetTransactionResponseV2) {
     option (google.api.http) = {
-      get: "/v2/transaction/{tx_id}"
+      get: "/v2/transactions/{tx_id}"
     };
   };
 
   //SendMany
   rpc GetSendManyTransactionV2(GetSendManyTransactionRequestV2) returns (GetSendManyTransactionResponseV2) {
     option (google.api.http) = {
-      get: "/v2/transaction/{tx_id}/sendmany"
+      get: "/v2/transactions/{tx_id}/sendmany"
     };
   };
 
   //Identity
   rpc GetIdentityTransfersInTickRangeV2(GetTransferTransactionsPerTickRequest) returns (GetIdentityTransfersInTickRangeResponseV2) { // Uses V1 request
     option (google.api.http) = {
-      get: "/v2/identity/{identity}/transfers"
+      get: "/v2/identities/{identity}/transfers"
     };
   };
 

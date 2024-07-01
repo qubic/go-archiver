@@ -41,6 +41,24 @@ func (s *Server) GetTickStoreHashV2(ctx context.Context, req *protobuff.GetTickR
 	})
 }
 
+func (s *Server) GetTickTransactionsV2(ctx context.Context, req *protobuff.GetTickTransactionsRequestV2) (*protobuff.GetTickTransactionsResponseV2, error) {
+
+	tickRequest := &protobuff.GetTickRequestV2{
+		TickNumber: req.TickNumber,
+	}
+
+	if req.Approved {
+		return s.GetApprovedTickTransactionsV2(ctx, tickRequest)
+	}
+
+	if req.Transfers {
+		return s.GetTransferTickTransactionsV2(ctx, tickRequest)
+	}
+
+	return s.GetAllTickTransactionsV2(ctx, tickRequest)
+
+}
+
 func (s *Server) GetAllTickTransactionsV2(ctx context.Context, req *protobuff.GetTickRequestV2) (*protobuff.GetTickTransactionsResponseV2, error) {
 	lastProcessedTick, err := s.store.GetLastProcessedTick(ctx)
 	if err != nil {
