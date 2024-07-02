@@ -12,7 +12,7 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-func (s *Server) GetLatestTickV2(ctx context.Context, req *emptypb.Empty) (*protobuff.GetLatestTickResponseV2, error) {
+func (s *Server) GetLatestTickV2(ctx context.Context, req *emptypb.Empty) (*protobuff.GetLatestTickResponse, error) {
 	return s.GetLatestTick(ctx, req)
 }
 
@@ -43,19 +43,19 @@ func (s *Server) GetTickStoreHashV2(ctx context.Context, req *protobuff.GetTickR
 
 func (s *Server) GetTickTransactionsV2(ctx context.Context, req *protobuff.GetTickTransactionsRequestV2) (*protobuff.GetTickTransactionsResponseV2, error) {
 
-	tickRequest := &protobuff.GetTickRequestV2{
+	tickRequest := protobuff.GetTickRequestV2{
 		TickNumber: req.TickNumber,
 	}
 
 	if req.Approved {
-		return s.GetApprovedTickTransactionsV2(ctx, tickRequest)
+		return s.GetApprovedTickTransactionsV2(ctx, &tickRequest)
 	}
 
 	if req.Transfers {
-		return s.GetTransferTickTransactionsV2(ctx, tickRequest)
+		return s.GetTransferTickTransactionsV2(ctx, &tickRequest)
 	}
 
-	return s.GetAllTickTransactionsV2(ctx, tickRequest)
+	return s.GetAllTickTransactionsV2(ctx, &tickRequest)
 
 }
 

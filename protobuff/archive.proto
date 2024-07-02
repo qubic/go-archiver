@@ -265,7 +265,7 @@ message TransactionData {
 
 // Latest Tick
 
-message GetLatestTickResponseV2 {
+message GetLatestTickResponse {
   uint32 latest_tick = 1;
 }
 
@@ -424,7 +424,7 @@ service ArchiveService {
     };
   };
 
-  rpc GetLatestTick(google.protobuf.Empty) returns (GetLatestTickResponseV2) {
+  rpc GetLatestTick(google.protobuf.Empty) returns (GetLatestTickResponse) {
     option (google.api.http) = {
       get: "/v1/latestTick"
     };

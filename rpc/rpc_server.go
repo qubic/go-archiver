@@ -359,13 +359,13 @@ func (s *Server) GetHealthCheck(ctx context.Context, _ *emptypb.Empty) (*protobu
 
 }
 
-func (s *Server) GetLatestTick(ctx context.Context, _ *emptypb.Empty) (*protobuff.GetLatestTickResponseV2, error) {
+func (s *Server) GetLatestTick(ctx context.Context, _ *emptypb.Empty) (*protobuff.GetLatestTickResponse, error) {
 	chainTick, err := fetchChainTick(ctx, s.chainTickFetchUrl)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "fetching chain tick: %v", err)
 	}
 
-	return &protobuff.GetLatestTickResponseV2{LatestTick: uint32(chainTick)}, nil
+	return &protobuff.GetLatestTickResponse{LatestTick: uint32(chainTick)}, nil
 }
 
 func (s *Server) GetTransferTransactionsPerTick(ctx context.Context, req *protobuff.GetTransferTransactionsPerTickRequest) (*protobuff.GetTransferTransactionsPerTickResponse, error) {
