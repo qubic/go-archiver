@@ -27,6 +27,11 @@ var _ protobuff.ArchiveServiceServer = &Server{}
 
 var emptyTd = &protobuff.TickData{}
 
+type TransactionInfo struct {
+	timestamp uint64
+	moneyFlew bool
+}
+
 type Server struct {
 	protobuff.UnimplementedArchiveServiceServer
 	listenAddrGRPC    string
@@ -46,6 +51,25 @@ func NewServer(listenAddrGRPC, listenAddrHTTP string, syncThreshold int, chainTi
 		store:             store,
 		pool:              pool,
 	}
+}
+
+func getTransactionInfo(ctx context.Context, pebbleStore *store.PebbleStore, transactionId string, tickNumber uint32) (*TransactionInfo, error) {
+
+	txStatus, err := pebbleStore.GetTransactionStatus(ctx, transactionId)
+	if err != nil {
+		return nil, errors.Wrap(err, "getting transaction status")
+	}
+
+	tickData, err := pebbleStore.GetTickData(ctx, tickNumber)
+	if err != nil {
+		return nil, errors.Wrap(err, "getting tick data")
+	}
+
+	return &TransactionInfo{
+		timestamp: tickData.Timestamp,
+		moneyFlew: txStatus.MoneyFlew,
+	}, nil
+
 }
 
 func (s *Server) GetTickData(ctx context.Context, req *protobuff.GetTickDataRequest) (*protobuff.GetTickDataResponse, error) {
