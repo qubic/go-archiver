@@ -294,6 +294,13 @@ message GetTickTransactionsRequestV2 {
   bool approved = 3;
 }
 
+message GetTransferTransactionsPerTickRequestV2 {
+  string identity = 1;
+  uint32 start_tick = 2;
+  uint32 end_tick = 3;
+  bool sc_only=4;
+}
+
 
 service ArchiveService {
 
@@ -350,7 +357,7 @@ service ArchiveService {
   };
 
   //Identity
-  rpc GetIdentityTransfersInTickRangeV2(GetTransferTransactionsPerTickRequest) returns (GetIdentityTransfersInTickRangeResponseV2) { // Uses V1 request
+  rpc GetIdentityTransfersInTickRangeV2(GetTransferTransactionsPerTickRequestV2) returns (GetIdentityTransfersInTickRangeResponseV2) { // Uses V1 request
     option (google.api.http) = {
       get: "/v2/identities/{identity}/transfers"
     };
