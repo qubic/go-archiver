@@ -324,7 +324,7 @@ func (s *Server) GetSendManyTransactionV2(ctx context.Context, req *protobuff.Ge
 	}, nil
 }
 
-func (s *Server) GetIdentityTransfersInTickRangeV2(ctx context.Context, req *protobuff.GetTransferTransactionsPerTickRequest) (*protobuff.GetIdentityTransfersInTickRangeResponseV2, error) {
+func (s *Server) GetIdentityTransfersInTickRangeV2(ctx context.Context, req *protobuff.GetTransferTransactionsPerTickRequestV2) (*protobuff.GetIdentityTransfersInTickRangeResponseV2, error) {
 	txs, err := s.store.GetTransferTransactions(ctx, req.Identity, uint64(req.GetStartTick()), uint64(req.GetEndTick()))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "getting transfer transactions: %v", err)
@@ -340,6 +340,10 @@ func (s *Server) GetIdentityTransfersInTickRangeV2(ctx context.Context, req *pro
 			transactionInfo, err := getTransactionInfo(ctx, s.store, transaction.TxId, transaction.TickNumber)
 			if err != nil {
 				return nil, status.Errorf(codes.Internal, "getting transaction info: %v", err)
+			}
+
+			if req.ScOnly == true && transaction.GetInputType() == 0 {
+				continue
 			}
 
 			transactionData := &protobuff.TransactionData{
