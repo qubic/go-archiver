@@ -159,6 +159,7 @@ message GetStatusResponse {
   map<uint32, uint32> last_processed_ticks_per_epoch = 2;
   repeated SkippedTicksInterval skipped_ticks = 3;
   repeated ProcessedTickIntervalsPerEpoch processed_tick_intervals_per_epoch = 4;
+  map<uint32, uint32> empty_ticks_per_epoch = 5;
 }
 
 message GetHealthCheckResponse {
