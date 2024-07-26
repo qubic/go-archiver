@@ -91,13 +91,15 @@ func run() error {
 
 	if cfg.EmptyTicks.CalculateAll == true {
 
-		epochs, err := ps.GetLastProcessedTicksPerEpoch(context.Background())
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		defer cancel()
+		epochs, err := ps.GetLastProcessedTicksPerEpoch(ctx)
 		if err != nil {
 			return errors.Wrap(err, "getting epoch list from db")
 		}
 
 		for epoch, _ := range epochs {
-			emptyTicksPerEpoch, err := tick.CalculateEmptyTicksForEpoch(context.Background(), ps, epoch)
+			emptyTicksPerEpoch, err := tick.CalculateEmptyTicksForEpoch(ctx, ps, epoch)
 			if err != nil {
 				return errors.Wrapf(err, "calculating empty ticks for epoch %d", epoch)
 			}

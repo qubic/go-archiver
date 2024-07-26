@@ -691,11 +691,11 @@ func (s *PebbleStore) GetEmptyTicksPerEpoch(epoch uint32) (uint32, error) {
 	return emptyTicksCount, nil
 }
 
-func (s *PebbleStore) GetEmptyTicksForAllEpochs(epochs map[uint32]uint32) (map[uint32]uint32, error) {
+func (s *PebbleStore) GetEmptyTicksForEpochs(epochs []uint32) (map[uint32]uint32, error) {
 
 	emptyTickMap := make(map[uint32]uint32, len(epochs))
 
-	for epoch, _ := range epochs {
+	for _, epoch := range epochs {
 		emptyTicks, err := s.GetEmptyTicksPerEpoch(epoch)
 		if err != nil {
 			return nil, errors.Wrapf(err, "getting empty ticks for epoch %d", epoch)

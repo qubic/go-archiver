@@ -289,7 +289,12 @@ func (s *Server) GetStatus(ctx context.Context, _ *emptypb.Empty) (*protobuff.Ge
 		return nil, status.Errorf(codes.Internal, "getting processed tick intervals")
 	}
 
-	emptyTicksForAllEpochs, err := s.store.GetEmptyTicksForAllEpochs(lastProcessedTicksPerEpoch)
+	var epochs []uint32
+	for epoch, _ := range lastProcessedTicksPerEpoch {
+		epochs = append(epochs, epoch)
+	}
+
+	emptyTicksForAllEpochs, err := s.store.GetEmptyTicksForEpochs(epochs)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "getting empty ticks for all epochs: %v", err)
 	}

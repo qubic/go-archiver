@@ -47,13 +47,6 @@ func CheckIfTickIsEmptyProto(tickData *protobuff.TickData) bool {
 		return true
 	}
 
-	if tickData.VarStruct == nil {
-		return true
-	}
-
-	if tickData.TransactionIds == nil {
-		return true
-	}
 	return false
 }
 
