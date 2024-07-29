@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/ardanlabs/conf"
 	"github.com/cockroachdb/pebble"
@@ -8,6 +9,7 @@ import (
 	"github.com/qubic/go-archiver/processor"
 	"github.com/qubic/go-archiver/rpc"
 	"github.com/qubic/go-archiver/store"
+	"github.com/qubic/go-archiver/validator/tick"
 	qubic "github.com/qubic/go-node-connector"
 	"log"
 	"os"
@@ -48,6 +50,9 @@ func run() error {
 			StorageFolder      string        `conf:"default:store"`
 			ProcessTickTimeout time.Duration `conf:"default:5s"`
 		}
+		EmptyTicks struct {
+			CalculateAll bool `conf:"default:false"`
+		}
 	}
 
 	if err := conf.Parse(os.Args[1:], prefix, &cfg); err != nil {
@@ -84,6 +89,30 @@ func run() error {
 
 	ps := store.NewPebbleStore(db, nil)
 
+	if cfg.EmptyTicks.CalculateAll == true {
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		defer cancel()
+		epochs, err := ps.GetLastProcessedTicksPerEpoch(ctx)
+		if err != nil {
+			return errors.Wrap(err, "getting epoch list from db")
+		}
+
+		for epoch, _ := range epochs {
+			emptyTicksPerEpoch, err := tick.CalculateEmptyTicksForEpoch(ctx, ps, epoch)
+			if err != nil {
+				return errors.Wrapf(err, "calculating empty ticks for epoch %d", epoch)
+			}
+
+			err = ps.SetEmptyTicksPerEpoch(epoch, emptyTicksPerEpoch)
+			if err != nil {
+				return errors.Wrap(err, "saving emptyTickCount to database")
+			}
+		}
+
+		return nil
+	}
+
 	p, err := qubic.NewPoolConnection(qubic.PoolConfig{
 		InitialCap:         cfg.Pool.InitialCap,
 		MaxCap:             cfg.Pool.MaxCap,
@@ -98,7 +127,10 @@ func run() error {
 	}
 
 	rpcServer := rpc.NewServer(cfg.Server.GrpcHost, cfg.Server.HttpHost, cfg.Server.NodeSyncThreshold, cfg.Server.ChainTickFetchUrl, ps, p)
-	rpcServer.Start()
+	err = rpcServer.Start()
+	if err != nil {
+		return errors.Wrap(err, "starting rpc server")
+	}
 
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)

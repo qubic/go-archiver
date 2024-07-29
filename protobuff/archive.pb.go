@@ -1635,6 +1635,7 @@ type GetStatusResponse struct {
 	LastProcessedTicksPerEpoch     map[uint32]uint32                 `protobuf:"bytes,2,rep,name=last_processed_ticks_per_epoch,json=lastProcessedTicksPerEpoch,proto3" json:"last_processed_ticks_per_epoch,omitempty" protobuf_key:"varint,1,opt,name=key,proto3" protobuf_val:"varint,2,opt,name=value,proto3"`
 	SkippedTicks                   []*SkippedTicksInterval           `protobuf:"bytes,3,rep,name=skipped_ticks,json=skippedTicks,proto3" json:"skipped_ticks,omitempty"`
 	ProcessedTickIntervalsPerEpoch []*ProcessedTickIntervalsPerEpoch `protobuf:"bytes,4,rep,name=processed_tick_intervals_per_epoch,json=processedTickIntervalsPerEpoch,proto3" json:"processed_tick_intervals_per_epoch,omitempty"`
+	EmptyTicksPerEpoch             map[uint32]uint32                 `protobuf:"bytes,5,rep,name=empty_ticks_per_epoch,json=emptyTicksPerEpoch,proto3" json:"empty_ticks_per_epoch,omitempty" protobuf_key:"varint,1,opt,name=key,proto3" protobuf_val:"varint,2,opt,name=value,proto3"`
 }
 
 func (x *GetStatusResponse) Reset() {
@@ -1693,6 +1694,13 @@ func (x *GetStatusResponse) GetSkippedTicks() []*SkippedTicksInterval {
 func (x *GetStatusResponse) GetProcessedTickIntervalsPerEpoch() []*ProcessedTickIntervalsPerEpoch {
 	if x != nil {
 		return x.ProcessedTickIntervalsPerEpoch
+	}
+	return nil
+}
+
+func (x *GetStatusResponse) GetEmptyTicksPerEpoch() map[uint32]uint32 {
+	if x != nil {
+		return x.EmptyTicksPerEpoch
 	}
 	return nil
 }
@@ -3336,7 +3344,7 @@ var file_archive_proto_rawDesc = []byte{
 	0x6b, 0x5f, 0x6e, 0x75, 0x6d, 0x62, 0x65, 0x72, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x0a,
 	0x74, 0x69, 0x63, 0x6b, 0x4e, 0x75, 0x6d, 0x62, 0x65, 0x72, 0x12, 0x14, 0x0a, 0x05, 0x65, 0x70,
 	0x6f, 0x63, 0x68, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x05, 0x65, 0x70, 0x6f, 0x63, 0x68,
-	0x22, 0xad, 0x04, 0x0a, 0x11, 0x47, 0x65, 0x74, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x52, 0x65,
+	0x22, 0xed, 0x05, 0x0a, 0x11, 0x47, 0x65, 0x74, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x52, 0x65,
 	0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x58, 0x0a, 0x13, 0x6c, 0x61, 0x73, 0x74, 0x5f, 0x70,
 	0x72, 0x6f, 0x63, 0x65, 0x73, 0x73, 0x65, 0x64, 0x5f, 0x74, 0x69, 0x63, 0x6b, 0x18, 0x01, 0x20,
 	0x01, 0x28, 0x0b, 0x32, 0x28, 0x2e, 0x71, 0x75, 0x62, 0x69, 0x63, 0x2e, 0x61, 0x72, 0x63, 0x68,
@@ -3366,8 +3374,20 @@ var file_archive_proto_rawDesc = []byte{
 	0x49, 0x6e, 0x74, 0x65, 0x72, 0x76, 0x61, 0x6c, 0x73, 0x50, 0x65, 0x72, 0x45, 0x70, 0x6f, 0x63,
 	0x68, 0x52, 0x1e, 0x70, 0x72, 0x6f, 0x63, 0x65, 0x73, 0x73, 0x65, 0x64, 0x54, 0x69, 0x63, 0x6b,
 	0x49, 0x6e, 0x74, 0x65, 0x72, 0x76, 0x61, 0x6c, 0x73, 0x50, 0x65, 0x72, 0x45, 0x70, 0x6f, 0x63,
-	0x68, 0x1a, 0x4d, 0x0a, 0x1f, 0x4c, 0x61, 0x73, 0x74, 0x50, 0x72, 0x6f, 0x63, 0x65, 0x73, 0x73,
-	0x65, 0x64, 0x54, 0x69, 0x63, 0x6b, 0x73, 0x50, 0x65, 0x72, 0x45, 0x70, 0x6f, 0x63, 0x68, 0x45,
+	0x68, 0x12, 0x77, 0x0a, 0x15, 0x65, 0x6d, 0x70, 0x74, 0x79, 0x5f, 0x74, 0x69, 0x63, 0x6b, 0x73,
+	0x5f, 0x70, 0x65, 0x72, 0x5f, 0x65, 0x70, 0x6f, 0x63, 0x68, 0x18, 0x05, 0x20, 0x03, 0x28, 0x0b,
+	0x32, 0x44, 0x2e, 0x71, 0x75, 0x62, 0x69, 0x63, 0x2e, 0x61, 0x72, 0x63, 0x68, 0x69, 0x76, 0x65,
+	0x72, 0x2e, 0x61, 0x72, 0x63, 0x68, 0x69, 0x76, 0x65, 0x2e, 0x70, 0x62, 0x2e, 0x47, 0x65, 0x74,
+	0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x2e, 0x45,
+	0x6d, 0x70, 0x74, 0x79, 0x54, 0x69, 0x63, 0x6b, 0x73, 0x50, 0x65, 0x72, 0x45, 0x70, 0x6f, 0x63,
+	0x68, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x52, 0x12, 0x65, 0x6d, 0x70, 0x74, 0x79, 0x54, 0x69, 0x63,
+	0x6b, 0x73, 0x50, 0x65, 0x72, 0x45, 0x70, 0x6f, 0x63, 0x68, 0x1a, 0x4d, 0x0a, 0x1f, 0x4c, 0x61,
+	0x73, 0x74, 0x50, 0x72, 0x6f, 0x63, 0x65, 0x73, 0x73, 0x65, 0x64, 0x54, 0x69, 0x63, 0x6b, 0x73,
+	0x50, 0x65, 0x72, 0x45, 0x70, 0x6f, 0x63, 0x68, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x12, 0x10, 0x0a,
+	0x03, 0x6b, 0x65, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x03, 0x6b, 0x65, 0x79, 0x12,
+	0x14, 0x0a, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x05,
+	0x76, 0x61, 0x6c, 0x75, 0x65, 0x3a, 0x02, 0x38, 0x01, 0x1a, 0x45, 0x0a, 0x17, 0x45, 0x6d, 0x70,
+	0x74, 0x79, 0x54, 0x69, 0x63, 0x6b, 0x73, 0x50, 0x65, 0x72, 0x45, 0x70, 0x6f, 0x63, 0x68, 0x45,
 	0x6e, 0x74, 0x72, 0x79, 0x12, 0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28,
 	0x0d, 0x52, 0x03, 0x6b, 0x65, 0x79, 0x12, 0x14, 0x0a, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x18,
 	0x02, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x3a, 0x02, 0x38, 0x01,
@@ -3798,7 +3818,7 @@ func file_archive_proto_rawDescGZIP() []byte {
 	return file_archive_proto_rawDescData
 }
 
-var file_archive_proto_msgTypes = make([]protoimpl.MessageInfo, 55)
+var file_archive_proto_msgTypes = make([]protoimpl.MessageInfo, 56)
 var file_archive_proto_goTypes = []interface{}{
 	(*TickData)(nil),                                  // 0: qubic.archiver.archive.pb.TickData
 	(*GetTickDataRequest)(nil),                        // 1: qubic.archiver.archive.pb.GetTickDataRequest
@@ -3855,7 +3875,8 @@ var file_archive_proto_goTypes = []interface{}{
 	(*GetTransferTransactionsPerTickRequestV2)(nil),   // 52: qubic.archiver.archive.pb.GetTransferTransactionsPerTickRequestV2
 	nil,                   // 53: qubic.archiver.archive.pb.QuorumTickData.QuorumDiffPerComputorEntry
 	nil,                   // 54: qubic.archiver.archive.pb.GetStatusResponse.LastProcessedTicksPerEpochEntry
-	(*emptypb.Empty)(nil), // 55: google.protobuf.Empty
+	nil,                   // 55: qubic.archiver.archive.pb.GetStatusResponse.EmptyTicksPerEpochEntry
+	(*emptypb.Empty)(nil), // 56: google.protobuf.Empty
 }
 var file_archive_proto_depIdxs = []int32{
 	0,  // 0: qubic.archiver.archive.pb.GetTickDataResponse.tick_data:type_name -> qubic.archiver.archive.pb.TickData
@@ -3874,65 +3895,66 @@ var file_archive_proto_depIdxs = []int32{
 	54, // 13: qubic.archiver.archive.pb.GetStatusResponse.last_processed_ticks_per_epoch:type_name -> qubic.archiver.archive.pb.GetStatusResponse.LastProcessedTicksPerEpochEntry
 	18, // 14: qubic.archiver.archive.pb.GetStatusResponse.skipped_ticks:type_name -> qubic.archiver.archive.pb.SkippedTicksInterval
 	35, // 15: qubic.archiver.archive.pb.GetStatusResponse.processed_tick_intervals_per_epoch:type_name -> qubic.archiver.archive.pb.ProcessedTickIntervalsPerEpoch
-	26, // 16: qubic.archiver.archive.pb.GetTransferTransactionsPerTickResponse.transfer_transactions_per_tick:type_name -> qubic.archiver.archive.pb.TransferTransactionsPerTick
-	34, // 17: qubic.archiver.archive.pb.ProcessedTickIntervalsPerEpoch.intervals:type_name -> qubic.archiver.archive.pb.ProcessedTickInterval
-	36, // 18: qubic.archiver.archive.pb.GetTickResponseV2.tick_Data:type_name -> qubic.archiver.archive.pb.Tick
-	45, // 19: qubic.archiver.archive.pb.PerTickIdentityTransfers.transactions:type_name -> qubic.archiver.archive.pb.TransactionData
-	38, // 20: qubic.archiver.archive.pb.GetIdentityTransfersInTickRangeResponseV2.transactions:type_name -> qubic.archiver.archive.pb.PerTickIdentityTransfers
-	40, // 21: qubic.archiver.archive.pb.SendManyTransaction.transfers:type_name -> qubic.archiver.archive.pb.SendManyTransfer
-	41, // 22: qubic.archiver.archive.pb.SendManyTransactionData.transaction:type_name -> qubic.archiver.archive.pb.SendManyTransaction
-	41, // 23: qubic.archiver.archive.pb.GetSendManyTransactionResponseV2.transaction:type_name -> qubic.archiver.archive.pb.SendManyTransaction
-	3,  // 24: qubic.archiver.archive.pb.TransactionData.transaction:type_name -> qubic.archiver.archive.pb.Transaction
-	45, // 25: qubic.archiver.archive.pb.GetTickTransactionsResponseV2.transactions:type_name -> qubic.archiver.archive.pb.TransactionData
-	3,  // 26: qubic.archiver.archive.pb.GetTransactionResponseV2.transaction:type_name -> qubic.archiver.archive.pb.Transaction
-	16, // 27: qubic.archiver.archive.pb.QuorumTickData.QuorumDiffPerComputorEntry.value:type_name -> qubic.archiver.archive.pb.QuorumDiff
-	47, // 28: qubic.archiver.archive.pb.ArchiveService.GetTickQuorumDataV2:input_type -> qubic.archiver.archive.pb.GetTickRequestV2
-	47, // 29: qubic.archiver.archive.pb.ArchiveService.GetTickChainHashV2:input_type -> qubic.archiver.archive.pb.GetTickRequestV2
-	47, // 30: qubic.archiver.archive.pb.ArchiveService.GetTickStoreHashV2:input_type -> qubic.archiver.archive.pb.GetTickRequestV2
-	51, // 31: qubic.archiver.archive.pb.ArchiveService.GetTickTransactionsV2:input_type -> qubic.archiver.archive.pb.GetTickTransactionsRequestV2
-	49, // 32: qubic.archiver.archive.pb.ArchiveService.GetTransactionV2:input_type -> qubic.archiver.archive.pb.GetTransactionRequestV2
-	43, // 33: qubic.archiver.archive.pb.ArchiveService.GetSendManyTransactionV2:input_type -> qubic.archiver.archive.pb.GetSendManyTransactionRequestV2
-	52, // 34: qubic.archiver.archive.pb.ArchiveService.GetIdentityTransfersInTickRangeV2:input_type -> qubic.archiver.archive.pb.GetTransferTransactionsPerTickRequestV2
-	1,  // 35: qubic.archiver.archive.pb.ArchiveService.GetTickData:input_type -> qubic.archiver.archive.pb.GetTickDataRequest
-	21, // 36: qubic.archiver.archive.pb.ArchiveService.GetQuorumTickData:input_type -> qubic.archiver.archive.pb.GetQuorumTickDataRequest
-	12, // 37: qubic.archiver.archive.pb.ArchiveService.GetTickTransactions:input_type -> qubic.archiver.archive.pb.GetTickTransactionsRequest
-	12, // 38: qubic.archiver.archive.pb.ArchiveService.GetTickTransferTransactions:input_type -> qubic.archiver.archive.pb.GetTickTransactionsRequest
-	14, // 39: qubic.archiver.archive.pb.ArchiveService.GetTickApprovedTransactions:input_type -> qubic.archiver.archive.pb.GetTickApprovedTransactionsRequest
-	32, // 40: qubic.archiver.archive.pb.ArchiveService.GetChainHash:input_type -> qubic.archiver.archive.pb.GetChainHashRequest
-	32, // 41: qubic.archiver.archive.pb.ArchiveService.GetStoreHash:input_type -> qubic.archiver.archive.pb.GetChainHashRequest
-	8,  // 42: qubic.archiver.archive.pb.ArchiveService.GetTransaction:input_type -> qubic.archiver.archive.pb.GetTransactionRequest
-	10, // 43: qubic.archiver.archive.pb.ArchiveService.GetTransactionStatus:input_type -> qubic.archiver.archive.pb.GetTransactionStatusRequest
-	30, // 44: qubic.archiver.archive.pb.ArchiveService.GetTransferTransactionsPerTick:input_type -> qubic.archiver.archive.pb.GetTransferTransactionsPerTickRequest
-	24, // 45: qubic.archiver.archive.pb.ArchiveService.GetComputors:input_type -> qubic.archiver.archive.pb.GetComputorsRequest
-	55, // 46: qubic.archiver.archive.pb.ArchiveService.GetStatus:input_type -> google.protobuf.Empty
-	55, // 47: qubic.archiver.archive.pb.ArchiveService.GetLatestTick:input_type -> google.protobuf.Empty
-	55, // 48: qubic.archiver.archive.pb.ArchiveService.GetHealthCheck:input_type -> google.protobuf.Empty
-	22, // 49: qubic.archiver.archive.pb.ArchiveService.GetTickQuorumDataV2:output_type -> qubic.archiver.archive.pb.GetQuorumTickDataResponse
-	33, // 50: qubic.archiver.archive.pb.ArchiveService.GetTickChainHashV2:output_type -> qubic.archiver.archive.pb.GetChainHashResponse
-	33, // 51: qubic.archiver.archive.pb.ArchiveService.GetTickStoreHashV2:output_type -> qubic.archiver.archive.pb.GetChainHashResponse
-	48, // 52: qubic.archiver.archive.pb.ArchiveService.GetTickTransactionsV2:output_type -> qubic.archiver.archive.pb.GetTickTransactionsResponseV2
-	50, // 53: qubic.archiver.archive.pb.ArchiveService.GetTransactionV2:output_type -> qubic.archiver.archive.pb.GetTransactionResponseV2
-	44, // 54: qubic.archiver.archive.pb.ArchiveService.GetSendManyTransactionV2:output_type -> qubic.archiver.archive.pb.GetSendManyTransactionResponseV2
-	39, // 55: qubic.archiver.archive.pb.ArchiveService.GetIdentityTransfersInTickRangeV2:output_type -> qubic.archiver.archive.pb.GetIdentityTransfersInTickRangeResponseV2
-	2,  // 56: qubic.archiver.archive.pb.ArchiveService.GetTickData:output_type -> qubic.archiver.archive.pb.GetTickDataResponse
-	22, // 57: qubic.archiver.archive.pb.ArchiveService.GetQuorumTickData:output_type -> qubic.archiver.archive.pb.GetQuorumTickDataResponse
-	13, // 58: qubic.archiver.archive.pb.ArchiveService.GetTickTransactions:output_type -> qubic.archiver.archive.pb.GetTickTransactionsResponse
-	13, // 59: qubic.archiver.archive.pb.ArchiveService.GetTickTransferTransactions:output_type -> qubic.archiver.archive.pb.GetTickTransactionsResponse
-	15, // 60: qubic.archiver.archive.pb.ArchiveService.GetTickApprovedTransactions:output_type -> qubic.archiver.archive.pb.GetTickApprovedTransactionsResponse
-	33, // 61: qubic.archiver.archive.pb.ArchiveService.GetChainHash:output_type -> qubic.archiver.archive.pb.GetChainHashResponse
-	33, // 62: qubic.archiver.archive.pb.ArchiveService.GetStoreHash:output_type -> qubic.archiver.archive.pb.GetChainHashResponse
-	9,  // 63: qubic.archiver.archive.pb.ArchiveService.GetTransaction:output_type -> qubic.archiver.archive.pb.GetTransactionResponse
-	11, // 64: qubic.archiver.archive.pb.ArchiveService.GetTransactionStatus:output_type -> qubic.archiver.archive.pb.GetTransactionStatusResponse
-	31, // 65: qubic.archiver.archive.pb.ArchiveService.GetTransferTransactionsPerTick:output_type -> qubic.archiver.archive.pb.GetTransferTransactionsPerTickResponse
-	25, // 66: qubic.archiver.archive.pb.ArchiveService.GetComputors:output_type -> qubic.archiver.archive.pb.GetComputorsResponse
-	28, // 67: qubic.archiver.archive.pb.ArchiveService.GetStatus:output_type -> qubic.archiver.archive.pb.GetStatusResponse
-	46, // 68: qubic.archiver.archive.pb.ArchiveService.GetLatestTick:output_type -> qubic.archiver.archive.pb.GetLatestTickResponse
-	29, // 69: qubic.archiver.archive.pb.ArchiveService.GetHealthCheck:output_type -> qubic.archiver.archive.pb.GetHealthCheckResponse
-	49, // [49:70] is the sub-list for method output_type
-	28, // [28:49] is the sub-list for method input_type
-	28, // [28:28] is the sub-list for extension type_name
-	28, // [28:28] is the sub-list for extension extendee
-	0,  // [0:28] is the sub-list for field type_name
+	55, // 16: qubic.archiver.archive.pb.GetStatusResponse.empty_ticks_per_epoch:type_name -> qubic.archiver.archive.pb.GetStatusResponse.EmptyTicksPerEpochEntry
+	26, // 17: qubic.archiver.archive.pb.GetTransferTransactionsPerTickResponse.transfer_transactions_per_tick:type_name -> qubic.archiver.archive.pb.TransferTransactionsPerTick
+	34, // 18: qubic.archiver.archive.pb.ProcessedTickIntervalsPerEpoch.intervals:type_name -> qubic.archiver.archive.pb.ProcessedTickInterval
+	36, // 19: qubic.archiver.archive.pb.GetTickResponseV2.tick_Data:type_name -> qubic.archiver.archive.pb.Tick
+	45, // 20: qubic.archiver.archive.pb.PerTickIdentityTransfers.transactions:type_name -> qubic.archiver.archive.pb.TransactionData
+	38, // 21: qubic.archiver.archive.pb.GetIdentityTransfersInTickRangeResponseV2.transactions:type_name -> qubic.archiver.archive.pb.PerTickIdentityTransfers
+	40, // 22: qubic.archiver.archive.pb.SendManyTransaction.transfers:type_name -> qubic.archiver.archive.pb.SendManyTransfer
+	41, // 23: qubic.archiver.archive.pb.SendManyTransactionData.transaction:type_name -> qubic.archiver.archive.pb.SendManyTransaction
+	41, // 24: qubic.archiver.archive.pb.GetSendManyTransactionResponseV2.transaction:type_name -> qubic.archiver.archive.pb.SendManyTransaction
+	3,  // 25: qubic.archiver.archive.pb.TransactionData.transaction:type_name -> qubic.archiver.archive.pb.Transaction
+	45, // 26: qubic.archiver.archive.pb.GetTickTransactionsResponseV2.transactions:type_name -> qubic.archiver.archive.pb.TransactionData
+	3,  // 27: qubic.archiver.archive.pb.GetTransactionResponseV2.transaction:type_name -> qubic.archiver.archive.pb.Transaction
+	16, // 28: qubic.archiver.archive.pb.QuorumTickData.QuorumDiffPerComputorEntry.value:type_name -> qubic.archiver.archive.pb.QuorumDiff
+	47, // 29: qubic.archiver.archive.pb.ArchiveService.GetTickQuorumDataV2:input_type -> qubic.archiver.archive.pb.GetTickRequestV2
+	47, // 30: qubic.archiver.archive.pb.ArchiveService.GetTickChainHashV2:input_type -> qubic.archiver.archive.pb.GetTickRequestV2
+	47, // 31: qubic.archiver.archive.pb.ArchiveService.GetTickStoreHashV2:input_type -> qubic.archiver.archive.pb.GetTickRequestV2
+	51, // 32: qubic.archiver.archive.pb.ArchiveService.GetTickTransactionsV2:input_type -> qubic.archiver.archive.pb.GetTickTransactionsRequestV2
+	49, // 33: qubic.archiver.archive.pb.ArchiveService.GetTransactionV2:input_type -> qubic.archiver.archive.pb.GetTransactionRequestV2
+	43, // 34: qubic.archiver.archive.pb.ArchiveService.GetSendManyTransactionV2:input_type -> qubic.archiver.archive.pb.GetSendManyTransactionRequestV2
+	52, // 35: qubic.archiver.archive.pb.ArchiveService.GetIdentityTransfersInTickRangeV2:input_type -> qubic.archiver.archive.pb.GetTransferTransactionsPerTickRequestV2
+	1,  // 36: qubic.archiver.archive.pb.ArchiveService.GetTickData:input_type -> qubic.archiver.archive.pb.GetTickDataRequest
+	21, // 37: qubic.archiver.archive.pb.ArchiveService.GetQuorumTickData:input_type -> qubic.archiver.archive.pb.GetQuorumTickDataRequest
+	12, // 38: qubic.archiver.archive.pb.ArchiveService.GetTickTransactions:input_type -> qubic.archiver.archive.pb.GetTickTransactionsRequest
+	12, // 39: qubic.archiver.archive.pb.ArchiveService.GetTickTransferTransactions:input_type -> qubic.archiver.archive.pb.GetTickTransactionsRequest
+	14, // 40: qubic.archiver.archive.pb.ArchiveService.GetTickApprovedTransactions:input_type -> qubic.archiver.archive.pb.GetTickApprovedTransactionsRequest
+	32, // 41: qubic.archiver.archive.pb.ArchiveService.GetChainHash:input_type -> qubic.archiver.archive.pb.GetChainHashRequest
+	32, // 42: qubic.archiver.archive.pb.ArchiveService.GetStoreHash:input_type -> qubic.archiver.archive.pb.GetChainHashRequest
+	8,  // 43: qubic.archiver.archive.pb.ArchiveService.GetTransaction:input_type -> qubic.archiver.archive.pb.GetTransactionRequest
+	10, // 44: qubic.archiver.archive.pb.ArchiveService.GetTransactionStatus:input_type -> qubic.archiver.archive.pb.GetTransactionStatusRequest
+	30, // 45: qubic.archiver.archive.pb.ArchiveService.GetTransferTransactionsPerTick:input_type -> qubic.archiver.archive.pb.GetTransferTransactionsPerTickRequest
+	24, // 46: qubic.archiver.archive.pb.ArchiveService.GetComputors:input_type -> qubic.archiver.archive.pb.GetComputorsRequest
+	56, // 47: qubic.archiver.archive.pb.ArchiveService.GetStatus:input_type -> google.protobuf.Empty
+	56, // 48: qubic.archiver.archive.pb.ArchiveService.GetLatestTick:input_type -> google.protobuf.Empty
+	56, // 49: qubic.archiver.archive.pb.ArchiveService.GetHealthCheck:input_type -> google.protobuf.Empty
+	22, // 50: qubic.archiver.archive.pb.ArchiveService.GetTickQuorumDataV2:output_type -> qubic.archiver.archive.pb.GetQuorumTickDataResponse
+	33, // 51: qubic.archiver.archive.pb.ArchiveService.GetTickChainHashV2:output_type -> qubic.archiver.archive.pb.GetChainHashResponse
+	33, // 52: qubic.archiver.archive.pb.ArchiveService.GetTickStoreHashV2:output_type -> qubic.archiver.archive.pb.GetChainHashResponse
+	48, // 53: qubic.archiver.archive.pb.ArchiveService.GetTickTransactionsV2:output_type -> qubic.archiver.archive.pb.GetTickTransactionsResponseV2
+	50, // 54: qubic.archiver.archive.pb.ArchiveService.GetTransactionV2:output_type -> qubic.archiver.archive.pb.GetTransactionResponseV2
+	44, // 55: qubic.archiver.archive.pb.ArchiveService.GetSendManyTransactionV2:output_type -> qubic.archiver.archive.pb.GetSendManyTransactionResponseV2
+	39, // 56: qubic.archiver.archive.pb.ArchiveService.GetIdentityTransfersInTickRangeV2:output_type -> qubic.archiver.archive.pb.GetIdentityTransfersInTickRangeResponseV2
+	2,  // 57: qubic.archiver.archive.pb.ArchiveService.GetTickData:output_type -> qubic.archiver.archive.pb.GetTickDataResponse
+	22, // 58: qubic.archiver.archive.pb.ArchiveService.GetQuorumTickData:output_type -> qubic.archiver.archive.pb.GetQuorumTickDataResponse
+	13, // 59: qubic.archiver.archive.pb.ArchiveService.GetTickTransactions:output_type -> qubic.archiver.archive.pb.GetTickTransactionsResponse
+	13, // 60: qubic.archiver.archive.pb.ArchiveService.GetTickTransferTransactions:output_type -> qubic.archiver.archive.pb.GetTickTransactionsResponse
+	15, // 61: qubic.archiver.archive.pb.ArchiveService.GetTickApprovedTransactions:output_type -> qubic.archiver.archive.pb.GetTickApprovedTransactionsResponse
+	33, // 62: qubic.archiver.archive.pb.ArchiveService.GetChainHash:output_type -> qubic.archiver.archive.pb.GetChainHashResponse
+	33, // 63: qubic.archiver.archive.pb.ArchiveService.GetStoreHash:output_type -> qubic.archiver.archive.pb.GetChainHashResponse
+	9,  // 64: qubic.archiver.archive.pb.ArchiveService.GetTransaction:output_type -> qubic.archiver.archive.pb.GetTransactionResponse
+	11, // 65: qubic.archiver.archive.pb.ArchiveService.GetTransactionStatus:output_type -> qubic.archiver.archive.pb.GetTransactionStatusResponse
+	31, // 66: qubic.archiver.archive.pb.ArchiveService.GetTransferTransactionsPerTick:output_type -> qubic.archiver.archive.pb.GetTransferTransactionsPerTickResponse
+	25, // 67: qubic.archiver.archive.pb.ArchiveService.GetComputors:output_type -> qubic.archiver.archive.pb.GetComputorsResponse
+	28, // 68: qubic.archiver.archive.pb.ArchiveService.GetStatus:output_type -> qubic.archiver.archive.pb.GetStatusResponse
+	46, // 69: qubic.archiver.archive.pb.ArchiveService.GetLatestTick:output_type -> qubic.archiver.archive.pb.GetLatestTickResponse
+	29, // 70: qubic.archiver.archive.pb.ArchiveService.GetHealthCheck:output_type -> qubic.archiver.archive.pb.GetHealthCheckResponse
+	50, // [50:71] is the sub-list for method output_type
+	29, // [29:50] is the sub-list for method input_type
+	29, // [29:29] is the sub-list for extension type_name
+	29, // [29:29] is the sub-list for extension extendee
+	0,  // [0:29] is the sub-list for field type_name
 }
 
 func init() { file_archive_proto_init() }
@@ -4584,7 +4606,7 @@ func file_archive_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_archive_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   55,
+			NumMessages:   56,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
