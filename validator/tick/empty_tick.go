@@ -24,6 +24,7 @@ func CalculateEmptyTicksForEpoch(ctx context.Context, ps *store.PebbleStore, epo
 		var emptyTicks uint32
 
 		for _, interval := range e.Intervals {
+			fmt.Printf("Interbal: %d -> %d\n", interval.InitialProcessedTick, interval.LastProcessedTick)
 			for tickOffset := range interval.LastProcessedTick - interval.InitialProcessedTick + 1 {
 				tickNumber := tickOffset + interval.InitialProcessedTick
 
@@ -33,7 +34,7 @@ func CalculateEmptyTicksForEpoch(ctx context.Context, ps *store.PebbleStore, epo
 				}
 
 				if CheckIfTickIsEmptyProto(tickData) {
-					fmt.Printf("Found empty tick.\n")
+					fmt.Printf("Found empty tick: %d\n", tickNumber)
 					emptyTicks += 1
 					continue
 				}
@@ -45,7 +46,7 @@ func CalculateEmptyTicksForEpoch(ctx context.Context, ps *store.PebbleStore, epo
 }
 
 func CheckIfTickIsEmptyProto(tickData *protobuff.TickData) bool {
-	if tickData == nil {
+	if tickData == nil || tickData.VarStruct == nil {
 		return true
 	}
 
