@@ -51,7 +51,8 @@ func run() error {
 			ProcessTickTimeout time.Duration `conf:"default:5s"`
 		}
 		EmptyTicks struct {
-			CalculateAll bool `conf:"default:false"`
+			CalculateAll bool          `conf:"default:false"`
+			Timeout      time.Duration `conf:"default:30m"`
 		}
 	}
 
@@ -91,7 +92,7 @@ func run() error {
 
 	if cfg.EmptyTicks.CalculateAll == true {
 
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		ctx, cancel := context.WithTimeout(context.Background(), cfg.EmptyTicks.Timeout)
 		defer cancel()
 		epochs, err := ps.GetLastProcessedTicksPerEpoch(ctx)
 		if err != nil {
@@ -99,6 +100,7 @@ func run() error {
 		}
 
 		for epoch, _ := range epochs {
+			fmt.Printf("Calculating empty ticks for epoch %d\n", epoch)
 			emptyTicksPerEpoch, err := tick.CalculateEmptyTicksForEpoch(ctx, ps, epoch)
 			if err != nil {
 				return errors.Wrapf(err, "calculating empty ticks for epoch %d", epoch)

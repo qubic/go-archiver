@@ -2,6 +2,7 @@ package tick
 
 import (
 	"context"
+	"fmt"
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-archiver/store"
@@ -32,6 +33,7 @@ func CalculateEmptyTicksForEpoch(ctx context.Context, ps *store.PebbleStore, epo
 				}
 
 				if CheckIfTickIsEmptyProto(tickData) {
+					fmt.Printf("Found empty tick.\n")
 					emptyTicks += 1
 					continue
 				}
