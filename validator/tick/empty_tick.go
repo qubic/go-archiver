@@ -24,7 +24,7 @@ func CalculateEmptyTicksForEpoch(ctx context.Context, ps *store.PebbleStore, epo
 		var emptyTicks uint32
 
 		for _, interval := range e.Intervals {
-			fmt.Printf("Interbal: %d -> %d\n", interval.InitialProcessedTick, interval.LastProcessedTick)
+			fmt.Printf("Interval: %d -> %d\n", interval.InitialProcessedTick, interval.LastProcessedTick)
 			for tickOffset := range interval.LastProcessedTick - interval.InitialProcessedTick + 1 {
 				tickNumber := tickOffset + interval.InitialProcessedTick
 
