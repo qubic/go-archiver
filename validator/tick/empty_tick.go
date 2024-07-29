@@ -10,6 +10,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+var emptyTickData = &protobuff.TickData{}
+
 func CalculateEmptyTicksForEpoch(ctx context.Context, ps *store.PebbleStore, epoch uint32) (uint32, error) {
 
 	epochs, err := ps.GetProcessedTickIntervals(ctx)
@@ -48,7 +50,7 @@ func CalculateEmptyTicksForEpoch(ctx context.Context, ps *store.PebbleStore, epo
 
 func CheckIfTickIsEmptyProto(tickData *protobuff.TickData) bool {
 
-	if tickData == nil || proto.Equal(tickData, &protobuff.TickData{}) {
+	if tickData == nil || proto.Equal(tickData, emptyTickData) {
 		return true
 	}
 
