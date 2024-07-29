@@ -7,6 +7,7 @@ import (
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-node-connector/types"
+	"google.golang.org/protobuf/proto"
 )
 
 func CalculateEmptyTicksForEpoch(ctx context.Context, ps *store.PebbleStore, epoch uint32) (uint32, error) {
@@ -46,7 +47,8 @@ func CalculateEmptyTicksForEpoch(ctx context.Context, ps *store.PebbleStore, epo
 }
 
 func CheckIfTickIsEmptyProto(tickData *protobuff.TickData) bool {
-	if tickData == nil || tickData.VarStruct == nil {
+
+	if tickData == nil || proto.Equal(tickData, &protobuff.TickData{}) {
 		return true
 	}
 
