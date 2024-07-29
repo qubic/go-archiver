@@ -660,7 +660,7 @@ func (s *PebbleStore) GetProcessedTickIntervals(ctx context.Context) ([]*protobu
 	return processedTickIntervals, nil
 }
 
-func (s *PebbleStore) SetEmptyTicksPerEpoch(epoch uint32, emptyTicksCount uint32) error {
+func (s *PebbleStore) SetEmptyTicksForEpoch(epoch uint32, emptyTicksCount uint32) error {
 	key := emptyTicksPerEpochKey(epoch)
 
 	value := make([]byte, 4)
@@ -673,13 +673,13 @@ func (s *PebbleStore) SetEmptyTicksPerEpoch(epoch uint32, emptyTicksCount uint32
 	return nil
 }
 
-func (s *PebbleStore) GetEmptyTicksPerEpoch(epoch uint32) (uint32, error) {
+func (s *PebbleStore) GetEmptyTicksForEpoch(epoch uint32) (uint32, error) {
 	key := emptyTicksPerEpochKey(epoch)
 
 	value, closer, err := s.db.Get(key)
 	if err != nil {
 		if errors.Is(err, pebble.ErrNotFound) {
-			return 0, nil
+			return 0, err
 		}
 
 		return 0, errors.Wrapf(err, "getting emptyTickCount for epoch %d", epoch)
@@ -696,9 +696,11 @@ func (s *PebbleStore) GetEmptyTicksForEpochs(epochs []uint32) (map[uint32]uint32
 	emptyTickMap := make(map[uint32]uint32, len(epochs))
 
 	for _, epoch := range epochs {
-		emptyTicks, err := s.GetEmptyTicksPerEpoch(epoch)
+		emptyTicks, err := s.GetEmptyTicksForEpoch(epoch)
 		if err != nil {
-			return nil, errors.Wrapf(err, "getting empty ticks for epoch %d", epoch)
+			if !errors.Is(err, pebble.ErrNotFound) {
+				return nil, errors.Wrapf(err, "getting empty ticks for epoch %d", epoch)
+			}
 		}
 		emptyTickMap[epoch] = emptyTicks
 	}
