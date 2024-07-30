@@ -3,11 +3,13 @@ package tick
 import (
 	"context"
 	"fmt"
+	"github.com/cockroachdb/pebble"
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-node-connector/types"
 	"google.golang.org/protobuf/proto"
+	"time"
 )
 
 var emptyTickData = &protobuff.TickData{}
@@ -64,4 +66,39 @@ func CheckIfTickIsEmpty(tickData types.TickData) (bool, error) {
 	}
 
 	return CheckIfTickIsEmptyProto(data), nil
+}
+
+func CalculateEmptyTicksForAllEpochs(ps *store.PebbleStore) error {
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	epochs, err := ps.GetLastProcessedTicksPerEpoch(ctx)
+	if err != nil {
+		return errors.Wrap(err, "getting epoch list from db")
+	}
+
+	for epoch, _ := range epochs {
+
+		_, err := ps.GetEmptyTicksForEpoch(epoch)
+		if err == nil {
+			return nil // We have the empty ticks
+		}
+		if !errors.Is(err, pebble.ErrNotFound) {
+			return errors.Wrap(err, "checking if epoch has empty ticks") // Some other error occured
+		}
+
+		fmt.Printf("Calculating empty ticks for epoch %d\n", epoch)
+		emptyTicksPerEpoch, err := CalculateEmptyTicksForEpoch(ctx, ps, epoch)
+		if err != nil {
+			return errors.Wrapf(err, "calculating empty ticks for epoch %d", epoch)
+		}
+
+		err = ps.SetEmptyTicksForEpoch(epoch, emptyTicksPerEpoch)
+		if err != nil {
+			return errors.Wrap(err, "saving emptyTickCount to database")
+		}
+
+	}
+	return nil
 }

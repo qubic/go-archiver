@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/cockroachdb/pebble"
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-archiver/store"
@@ -163,9 +164,11 @@ func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumb
 	}
 
 	if isEmpty {
-		emptyTicks, err := v.store.GetEmptyTicksPerEpoch(uint32(epoch))
+		emptyTicks, err := v.store.GetEmptyTicksForEpoch(uint32(epoch))
 		if err != nil {
-			return errors.Wrap(err, "getting empty ticks for current epoch")
+			if !errors.Is(err, pebble.ErrNotFound) {
+				return errors.Wrap(err, "getting empty ticks for current epoch")
+			}
 		}
 
 		if emptyTicks == 0 {
@@ -174,7 +177,7 @@ func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumb
 
 		emptyTicks += 1
 
-		err = v.store.SetEmptyTicksPerEpoch(uint32(epoch), emptyTicks)
+		err = v.store.SetEmptyTicksForEpoch(uint32(epoch), emptyTicks)
 		if err != nil {
 			return errors.Wrap(err, "setting current ticks for current epoch")
 		}

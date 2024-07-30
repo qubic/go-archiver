@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"github.com/ardanlabs/conf"
 	"github.com/cockroachdb/pebble"
@@ -50,10 +49,6 @@ func run() error {
 			StorageFolder      string        `conf:"default:store"`
 			ProcessTickTimeout time.Duration `conf:"default:5s"`
 		}
-		EmptyTicks struct {
-			CalculateAll bool          `conf:"default:false"`
-			Timeout      time.Duration `conf:"default:30m"`
-		}
 	}
 
 	if err := conf.Parse(os.Args[1:], prefix, &cfg); err != nil {
@@ -90,29 +85,9 @@ func run() error {
 
 	ps := store.NewPebbleStore(db, nil)
 
-	if cfg.EmptyTicks.CalculateAll == true {
-
-		ctx, cancel := context.WithTimeout(context.Background(), cfg.EmptyTicks.Timeout)
-		defer cancel()
-		epochs, err := ps.GetLastProcessedTicksPerEpoch(ctx)
-		if err != nil {
-			return errors.Wrap(err, "getting epoch list from db")
-		}
-
-		for epoch, _ := range epochs {
-			fmt.Printf("Calculating empty ticks for epoch %d\n", epoch)
-			emptyTicksPerEpoch, err := tick.CalculateEmptyTicksForEpoch(ctx, ps, epoch)
-			if err != nil {
-				return errors.Wrapf(err, "calculating empty ticks for epoch %d", epoch)
-			}
-
-			err = ps.SetEmptyTicksPerEpoch(epoch, emptyTicksPerEpoch)
-			if err != nil {
-				return errors.Wrap(err, "saving emptyTickCount to database")
-			}
-		}
-
-		return nil
+	err = tick.CalculateEmptyTicksForAllEpochs(ps)
+	if err != nil {
+		return errors.Wrap(err, "calculating empty ticks for all epochs")
 	}
 
 	p, err := qubic.NewPoolConnection(qubic.PoolConfig{
