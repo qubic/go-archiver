@@ -708,3 +708,13 @@ func (s *PebbleStore) GetEmptyTicksForEpochs(epochs []uint32) (map[uint32]uint32
 	return emptyTickMap, nil
 
 }
+
+func (s *PebbleStore) DeleteEmptyTicksKeyForEpoch(epoch uint32) error {
+	key := emptyTicksPerEpochKey(epoch)
+
+	err := s.db.Delete(key, pebble.Sync)
+	if err != nil {
+		return errors.Wrapf(err, "deleting empty ticks key for epoch %d", epoch)
+	}
+	return nil
+}
