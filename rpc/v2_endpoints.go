@@ -1,8 +1,11 @@
 package rpc
 
 import (
+	"cmp"
 	"context"
 	"encoding/hex"
+	"slices"
+
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-archiver/store"
@@ -362,6 +365,14 @@ func (s *Server) GetIdentityTransfersInTickRangeV2(ctx context.Context, req *pro
 		}
 
 		totalTransactions = append(totalTransactions, transfers)
+	}
+
+	if req.Desc == true {
+
+		slices.SortFunc(totalTransactions, func(a, b *protobuff.PerTickIdentityTransfers) int {
+			return -cmp.Compare(a.TickNumber, b.TickNumber)
+		})
+
 	}
 
 	return &protobuff.GetIdentityTransfersInTickRangeResponseV2{
