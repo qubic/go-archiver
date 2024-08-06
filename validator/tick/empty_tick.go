@@ -70,7 +70,7 @@ func CheckIfTickIsEmpty(tickData types.TickData) (bool, error) {
 
 func CalculateEmptyTicksForAllEpochs(ps *store.PebbleStore) error {
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
 	epochs, err := ps.GetLastProcessedTicksPerEpoch(ctx)
@@ -100,5 +100,25 @@ func CalculateEmptyTicksForAllEpochs(ps *store.PebbleStore) error {
 		}
 
 	}
+	return nil
+}
+
+func ResetEmptyTicksForAllEpochs(ps *store.PebbleStore) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	epochs, err := ps.GetLastProcessedTicksPerEpoch(ctx)
+	if err != nil {
+		return errors.Wrap(err, "getting epoch list from db")
+	}
+
+	for epoch, _ := range epochs {
+		fmt.Printf("Reseting empty ticks for epoch: %d\n", epoch)
+		err := ps.DeleteEmptyTicksKeyForEpoch(epoch)
+		if err != nil {
+			return errors.Wrap(err, "deleting empty tick key")
+		}
+	}
+
 	return nil
 }

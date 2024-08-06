@@ -1,2 +1,13 @@
 .idea/
 .DS_Store
+
+# Exclude store files
+store/*.sst
+store/CURRENT
+store/LOCK
+store/MANIFEST-*
+store/OPTIONS-*
+store/*.log
+
+go-archiver
+*.swagger.json

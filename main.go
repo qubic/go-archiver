@@ -49,6 +49,9 @@ func run() error {
 			StorageFolder      string        `conf:"default:store"`
 			ProcessTickTimeout time.Duration `conf:"default:5s"`
 		}
+		Store struct {
+			ResetEmptyTickKeys bool `conf:"default:false"`
+		}
 	}
 
 	if err := conf.Parse(os.Args[1:], prefix, &cfg); err != nil {
@@ -84,6 +87,14 @@ func run() error {
 	defer db.Close()
 
 	ps := store.NewPebbleStore(db, nil)
+
+	if cfg.Store.ResetEmptyTickKeys {
+		fmt.Printf("Resetting empty ticks for all epochs...\n")
+		err = tick.ResetEmptyTicksForAllEpochs(ps)
+		if err != nil {
+			return errors.Wrap(err, "resetting empty ticks keys")
+		}
+	}
 
 	err = tick.CalculateEmptyTicksForAllEpochs(ps)
 	if err != nil {
