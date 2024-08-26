@@ -24,7 +24,7 @@ func qubicToProto(tickData types.TickData) (*protobuff.TickData, error) {
 		Epoch:          uint32(tickData.Epoch),
 		TickNumber:     tickData.Tick,
 		Timestamp:      uint64(timestamp),
-		VarStruct:      tickData.UnionData[:],
+		VarStruct:      varStructToProto(tickData.UnionData),
 		TimeLock:       tickData.Timelock[:],
 		TransactionIds: transactionIds,
 		ContractFees:   contractFeesToProto(tickData.ContractFees),
@@ -58,4 +58,12 @@ func contractFeesToProto(contractFees [1024]int64) []int64 {
 		protoContractFees = append(protoContractFees, fee)
 	}
 	return protoContractFees
+}
+
+func varStructToProto(varStruct [256]byte) []byte {
+	if varStruct == [256]byte{} {
+		return []byte{}
+	}
+
+	return varStruct[:]
 }
