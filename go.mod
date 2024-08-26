@@ -9,7 +9,7 @@ require (
 	github.com/google/go-cmp v0.6.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.19.1
 	github.com/pkg/errors v0.9.1
-	github.com/qubic/go-node-connector v0.7.1
+	github.com/qubic/go-node-connector v0.10.0
 	github.com/qubic/go-schnorrq v1.0.0
 	github.com/stretchr/testify v1.8.4
 	go.uber.org/zap v1.26.0
