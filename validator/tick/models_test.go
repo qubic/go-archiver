@@ -53,7 +53,6 @@ func TestQubicToProto(t *testing.T) {
 		t.Fatalf("idTwo.FromPubKey() unexpected error: %v", err)
 	}
 
-	unionData := [256]byte{1, 2, 3, 4, 5}
 	timeLock := [32]byte{6, 4, 7, 4, 2}
 	transactionDigests := [1024][32]byte{digestOne, digestTwo}
 	contractFees := [1024]int64{1, 2, 3, 4, 5, 6, 7, 8, 9}
@@ -69,7 +68,6 @@ func TestQubicToProto(t *testing.T) {
 		Day:                5,
 		Month:              6,
 		Year:               23,
-		UnionData:          unionData,
 		Timelock:           timeLock,
 		TransactionDigests: transactionDigests,
 		ContractFees:       contractFees,
@@ -81,7 +79,6 @@ func TestQubicToProto(t *testing.T) {
 		Epoch:          20,
 		TickNumber:     100,
 		Timestamp:      1685937782001,
-		VarStruct:      unionData[:],
 		TimeLock:       timeLock[:],
 		TransactionIds: []string{idOne.String(), idTwo.String()},
 		ContractFees:   []int64{1, 2, 3, 4, 5, 6, 7, 8, 9},
