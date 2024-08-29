@@ -3041,6 +3041,7 @@ type GetTransferTransactionsPerTickRequestV2 struct {
 	EndTick   uint32 `protobuf:"varint,3,opt,name=end_tick,json=endTick,proto3" json:"end_tick,omitempty"`
 	ScOnly    bool   `protobuf:"varint,4,opt,name=sc_only,json=scOnly,proto3" json:"sc_only,omitempty"`
 	Desc      bool   `protobuf:"varint,5,opt,name=desc,proto3" json:"desc,omitempty"`
+	Count     uint32 `protobuf:"varint,6,opt,name=count,proto3" json:"count,omitempty"`
 }
 
 func (x *GetTransferTransactionsPerTickRequestV2) Reset() {
