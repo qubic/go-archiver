@@ -87,13 +87,9 @@ message GetTickApprovedTransactionsResponse {
   repeated Transaction approved_transactions = 1;
 }
 
-message QuorumDiff {
-  string salted_resource_testing_digest_hex = 1;
-  string salted_spectrum_digest_hex = 2;
-  string salted_universe_digest_hex = 3;
-  string salted_computer_digest_hex = 4;
-  string expected_next_tick_tx_digest_hex = 5;
-  string signature_hex = 6;
+message QuorumTickData {
+  QuorumTickStructure quorum_tick_structure = 1;
+  map<uint32, QuorumDiff> quorum_diff_per_computor = 2;
 }
 
 message QuorumTickStructure {
@@ -107,6 +103,15 @@ message QuorumTickStructure {
   string tx_digest_hex = 9;
 }
 
+message QuorumDiff {
+  string salted_resource_testing_digest_hex = 1;
+  string salted_spectrum_digest_hex = 2;
+  string salted_universe_digest_hex = 3;
+  string salted_computer_digest_hex = 4;
+  string expected_next_tick_tx_digest_hex = 5;
+  string signature_hex = 6;
+}
+
 message SkippedTicksInterval {
   uint32 start_tick = 1;
   uint32 end_tick = 2;
@@ -116,9 +121,14 @@ message SkippedTicksIntervalList {
   repeated SkippedTicksInterval skipped_ticks = 1;
 }
 
-message QuorumTickData {
+message QuorumTickDataV2 {
   QuorumTickStructure quorum_tick_structure = 1;
-  map<uint32, QuorumDiff> quorum_diff_per_computor = 2;
+  map<uint32, QuorumDiffV2> quorum_diff_per_computor = 2;
+}
+
+message QuorumDiffV2 {
+  string expected_next_tick_tx_digest_hex = 5;
+  string signature_hex = 6;
 }
 
 message GetQuorumTickDataRequest {
