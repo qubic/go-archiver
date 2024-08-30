@@ -101,6 +101,8 @@ func run() error {
 		}
 	}
 
+	_ = ""
+
 	err = tick.CalculateEmptyTicksForAllEpochs(ps)
 	if err != nil {
 		return errors.Wrap(err, "calculating empty ticks for all epochs")
