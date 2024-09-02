@@ -91,6 +91,8 @@ func run() error {
 		return errors.Wrap(err, "creating db")
 	}
 
+	defer db.Close()
+
 	ps := store.NewPebbleStore(db, nil)
 
 	if cfg.Store.ResetEmptyTickKeys {
@@ -100,8 +102,6 @@ func run() error {
 			return errors.Wrap(err, "resetting empty ticks keys")
 		}
 	}
-
-	_ = ""
 
 	err = tick.CalculateEmptyTicksForAllEpochs(ps)
 	if err != nil {
