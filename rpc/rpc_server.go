@@ -54,15 +54,21 @@ func NewServer(listenAddrGRPC, listenAddrHTTP string, syncThreshold int, chainTi
 }
 
 func getTransactionInfo(ctx context.Context, pebbleStore *store.PebbleStore, transactionId string, tickNumber uint32) (*TransactionInfo, error) {
-
-	txStatus, err := pebbleStore.GetTransactionStatus(ctx, transactionId)
-	if err != nil {
-		return nil, errors.Wrap(err, "getting transaction status")
-	}
-
 	tickData, err := pebbleStore.GetTickData(ctx, tickNumber)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting tick data")
+	}
+
+	txStatus, err := pebbleStore.GetTransactionStatus(ctx, transactionId)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return &TransactionInfo{
+				timestamp: tickData.Timestamp,
+				moneyFlew: false,
+			}, nil
+		}
+
+		return nil, errors.Wrap(err, "getting transaction status")
 	}
 
 	return &TransactionInfo{
