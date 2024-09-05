@@ -330,7 +330,7 @@ func (s *Server) GetSendManyTransactionV2(ctx context.Context, req *protobuff.Ge
 func (s *Server) GetIdentityTransfersInTickRangeV2(ctx context.Context, req *protobuff.GetTransferTransactionsPerTickRequestV2) (*protobuff.GetIdentityTransfersInTickRangeResponseV2, error) {
 	txs, err := s.store.GetTransferTransactions(ctx, req.Identity, uint64(req.GetStartTick()), uint64(req.GetEndTick()))
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "getting transfer transactions: %v", err)
+		return nil, status.Errorf(codes.Internal, "getting transfer transactions: %s", err.Error())
 	}
 
 	var totalTransactions []*protobuff.PerTickIdentityTransfers
@@ -342,7 +342,7 @@ func (s *Server) GetIdentityTransfersInTickRangeV2(ctx context.Context, req *pro
 		for _, transaction := range transactionsPerTick.Transactions {
 			transactionInfo, err := getTransactionInfo(ctx, s.store, transaction.TxId, transaction.TickNumber)
 			if err != nil {
-				return nil, status.Errorf(codes.Internal, "getting transaction info: %v", err)
+				return nil, status.Errorf(codes.Internal, "Got Err: %s when getting transaction info for tx id: %s", err.Error(), transaction.TxId)
 			}
 
 			if req.ScOnly == true && transaction.GetInputType() == 0 {
