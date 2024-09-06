@@ -155,10 +155,20 @@ func getDigestFromQuorumTickData(data types.QuorumTickVote) ([32]byte, error) {
 	return digest, nil
 }
 
-func Store(ctx context.Context, store *store.PebbleStore, tickNumber uint32, quorumVotes types.QuorumVotes) error {
-	protoModel := qubicToProto(quorumVotes)
+func Store(ctx context.Context, store *store.PebbleStore, tickNumber uint32, quorumVotes types.QuorumVotes, storeFullTickData bool) error {
 
-	err := store.SetQuorumTickData(ctx, tickNumber, protoModel)
+	if !storeFullTickData {
+		protoModel := qubicToProto(quorumVotes)
+
+		err := store.SetQuorumTickData(ctx, tickNumber, protoModel)
+		if err != nil {
+			return errors.Wrap(err, "set quorum votes")
+		}
+	}
+
+	protoModel := qubicToProtoV2(quorumVotes)
+
+	err := store.SetQuorumTickDataV2(ctx, tickNumber, protoModel)
 	if err != nil {
 		return errors.Wrap(err, "set quorum votes")
 	}

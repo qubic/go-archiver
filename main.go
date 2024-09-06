@@ -50,7 +50,9 @@ func run() error {
 			ProcessTickTimeout time.Duration `conf:"default:5s"`
 		}
 		Store struct {
-			ResetEmptyTickKeys bool `conf:"default:false"`
+			ResetEmptyTickKeys bool   `conf:"default:false"`
+			CompressionType    string `conf:"default:Zstd"`
+			StoreFullVoteData  bool   `conf:"default:false"`
 		}
 	}
 
@@ -80,17 +82,10 @@ func run() error {
 	}
 	log.Printf("main: Config :\n%v\n", out)
 
-	/*db, err := pebble.Open(cfg.Qubic.StorageFolder, &pebble.Options{})
+	db, err := openDB(cfg.Qubic.StorageFolder, cfg.Store.CompressionType)
 	if err != nil {
-		log.Fatalf("err opening pebble: %s", err.Error())
+		return errors.Wrap(err, "opening db")
 	}
-	defer db.Close()*/
-
-	db, err := CreateDBWithZstdCompression(cfg.Qubic.StorageFolder)
-	if err != nil {
-		return errors.Wrap(err, "creating db")
-	}
-
 	defer db.Close()
 
 	ps := store.NewPebbleStore(db, nil)
@@ -130,7 +125,7 @@ func run() error {
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
 
-	proc := processor.NewProcessor(p, ps, cfg.Qubic.ProcessTickTimeout)
+	proc := processor.NewProcessor(p, ps, cfg.Qubic.ProcessTickTimeout, cfg.Store.StoreFullVoteData)
 	procErrors := make(chan error, 1)
 
 	// Start the service listening for requests.
@@ -148,7 +143,21 @@ func run() error {
 	}
 }
 
-func CreateDBWithZstdCompression(path string) (*pebble.DB, error) {
+func openDB(path string, compressionType string) (*pebble.DB, error) {
+	switch compressionType {
+	case "Zstd":
+		return createDBWithZstdCompression(path)
+	case "Snappy":
+		db, err := pebble.Open(path, &pebble.Options{})
+		if err != nil {
+			return nil, errors.Wrap(err, "opening db with snappy compression")
+		}
+		return db, nil
+	}
+	return nil, errors.New("unknown compression type")
+}
+
+func createDBWithZstdCompression(path string) (*pebble.DB, error) {
 
 	levelOptions := pebble.LevelOptions{
 		BlockRestartInterval: 16,
@@ -167,7 +176,7 @@ func CreateDBWithZstdCompression(path string) (*pebble.DB, error) {
 
 	db, err := pebble.Open(path, &pebbleOptions)
 	if err != nil {
-		return nil, errors.Wrap(err, "opening db")
+		return nil, errors.Wrap(err, "opening db with zstd compression")
 	}
 
 	return db, nil
