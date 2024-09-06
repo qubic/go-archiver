@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"encoding/hex"
+	"github.com/qubic/go-archiver/utils"
 	"slices"
 
 	"github.com/pkg/errors"
@@ -379,4 +380,179 @@ func (s *Server) GetIdentityTransfersInTickRangeV2(ctx context.Context, req *pro
 		Transactions: totalTransactions,
 	}, nil
 
+}
+
+func (s *Server) GetQuorumTickDataV2(ctx context.Context, req *protobuff.GetQuorumTickDataRequest) (*protobuff.GetQuorumTickDataResponse, error) {
+
+	lastProcessedTick, err := s.store.GetLastProcessedTick(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "getting last processed tick: %v", err)
+	}
+	if req.TickNumber > lastProcessedTick.TickNumber {
+		st := status.Newf(codes.FailedPrecondition, "requested tick number %d is greater than last processed tick %d", req.TickNumber, lastProcessedTick.TickNumber)
+		st, err = st.WithDetails(&protobuff.LastProcessedTick{LastProcessedTick: lastProcessedTick.TickNumber})
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "creating custom status")
+		}
+
+		return nil, st.Err()
+	}
+
+	processedTickIntervalsPerEpoch, err := s.store.GetProcessedTickIntervals(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "getting processed tick intervals per epoch")
+	}
+
+	wasSkipped, nextAvailableTick := wasTickSkippedByArchive(req.TickNumber, processedTickIntervalsPerEpoch)
+	if wasSkipped == true {
+		st := status.Newf(codes.OutOfRange, "provided tick number %d was skipped by the system, next available tick is %d", req.TickNumber, nextAvailableTick)
+		st, err = st.WithDetails(&protobuff.NextAvailableTick{NextTickNumber: nextAvailableTick})
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "creating custom status")
+		}
+
+		return nil, st.Err()
+	}
+
+	if req.TickNumber == lastProcessedTick.TickNumber {
+
+		tickData, err := s.store.GetQuorumTickDataV2(ctx, req.TickNumber)
+		if err != nil {
+			if errors.Is(err, store.ErrNotFound) {
+				return nil, status.Errorf(codes.NotFound, "quorum tick data not found")
+			}
+			return nil, status.Errorf(codes.Internal, "getting quorum tick data: %v", err)
+		}
+
+		res := protobuff.GetQuorumTickDataResponse{
+			QuorumTickData: &protobuff.QuorumTickData{
+				QuorumTickStructure:   tickData.QuorumTickStructure,
+				QuorumDiffPerComputor: make(map[uint32]*protobuff.QuorumDiff),
+			},
+		}
+
+		for id, diff := range tickData.QuorumDiffPerComputor {
+			res.QuorumTickData.QuorumDiffPerComputor[id] = &protobuff.QuorumDiff{
+				ExpectedNextTickTxDigestHex: diff.ExpectedNextTickTxDigestHex,
+				SignatureHex:                diff.SignatureHex,
+			}
+		}
+
+		return &res, nil
+	}
+
+	nextTick := req.TickNumber + 1
+
+	//Check if next tick was skipped
+	//TODO: check if this is accurate behaviour (if the tick gets skipped, then the data should be in the next available tick)
+	skipped, nextAvailable := wasTickSkippedByArchive(nextAvailableTick, processedTickIntervalsPerEpoch)
+	if skipped {
+		nextTick = nextAvailable
+	}
+
+	//Get quorum data for next tick
+	nextTickQuorumData, err := s.store.GetQuorumTickDataV2(ctx, nextTick)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, status.Errorf(codes.Internal, "quorum data for next tick was not found")
+		}
+		return nil, status.Errorf(codes.Internal, "getting tick data: %v", err)
+	}
+
+	//Get quorum data for current tick
+	currentTickQuorumData, err := s.store.GetQuorumTickDataV2(ctx, req.TickNumber)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, status.Errorf(codes.Internal, "quorum data for  tick was not found")
+		}
+		return nil, status.Errorf(codes.Internal, "getting tick data: %v", err)
+	}
+
+	//Get computors
+	computors, err := s.store.GetComputors(ctx, currentTickQuorumData.QuorumTickStructure.Epoch)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "getting computor list")
+	}
+
+	//Response object
+	res := protobuff.GetQuorumTickDataResponse{
+		QuorumTickData: &protobuff.QuorumTickData{
+			QuorumTickStructure:   currentTickQuorumData.QuorumTickStructure,
+			QuorumDiffPerComputor: make(map[uint32]*protobuff.QuorumDiff),
+		},
+	}
+
+	//Digests
+	spectrumDigest, err := hex.DecodeString(nextTickQuorumData.QuorumTickStructure.PrevSpectrumDigestHex)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "obtaining spectrum digest from next tick quorum data")
+	}
+	universeDigest, err := hex.DecodeString(nextTickQuorumData.QuorumTickStructure.PrevUniverseDigestHex)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "obtaining universe digest from next tick quorum data")
+	}
+	computerDigest, err := hex.DecodeString(nextTickQuorumData.QuorumTickStructure.PrevComputerDigestHex)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "obtaining computer digest from next tick quorum data")
+	}
+	resourceDigest, err := hex.DecodeString(nextTickQuorumData.QuorumTickStructure.PrevResourceTestingDigestHex)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "obtaining resource testing digest from next tick quorum data")
+	}
+
+	//Loop over all computors in current tick data
+	for id, voteDiff := range currentTickQuorumData.QuorumDiffPerComputor {
+
+		identity := types.Identity(computors.Identities[id])
+
+		computorPublicKey, err := identity.ToPubKey(false)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "obtaining public key for computor id: %d", id)
+		}
+
+		var tmp [64]byte
+		copy(computorPublicKey[:], tmp[:32]) // Public key as the first part
+
+		//Salted spectrum digest
+		copy(spectrumDigest[:], tmp[32:])
+		saltedSpectrumDigest, err := utils.K12Hash(tmp[:])
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "hashing salted spectrum digest")
+		}
+
+		//Salted universe digest
+		copy(universeDigest[:], tmp[32:])
+		saltedUniverseDigest, err := utils.K12Hash(tmp[:])
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "hashing salted universe digest")
+		}
+
+		//Salted computer digest
+		copy(computerDigest[:], tmp[32:])
+		saltedComputerDigest, err := utils.K12Hash(tmp[:])
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "hashing salted computer digest")
+		}
+
+		//Salted resource digest
+		var tmp2 [40]byte
+		copy(computorPublicKey[:], tmp2[32:]) // Public key as the first part
+		copy(resourceDigest[:], tmp2[:32])
+		saltedResourceTestingDigest, err := utils.K12Hash(tmp2[:])
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "hashing salted resource testing digest")
+		}
+
+		//Add reconstructed object to response
+		res.QuorumTickData.QuorumDiffPerComputor[id] = &protobuff.QuorumDiff{
+			SaltedResourceTestingDigestHex: hex.EncodeToString(saltedResourceTestingDigest[:]),
+			SaltedSpectrumDigestHex:        hex.EncodeToString(saltedSpectrumDigest[:]),
+			SaltedUniverseDigestHex:        hex.EncodeToString(saltedUniverseDigest[:]),
+			SaltedComputerDigestHex:        hex.EncodeToString(saltedComputerDigest[:]),
+			ExpectedNextTickTxDigestHex:    voteDiff.ExpectedNextTickTxDigestHex,
+			SignatureHex:                   voteDiff.SignatureHex,
+		}
+	}
+
+	return &res, nil
 }

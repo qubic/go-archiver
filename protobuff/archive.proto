@@ -139,6 +139,10 @@ message GetQuorumTickDataResponse {
   QuorumTickData quorum_tick_data = 1;
 }
 
+message GetQuorumTickDataResponseV2 {
+  QuorumTickDataV2 quorum_tick_data = 1;
+}
+
 message Computors {
   uint32 epoch = 1;
   repeated string identities = 2;
@@ -372,6 +376,13 @@ service ArchiveService {
   rpc GetIdentityTransfersInTickRangeV2(GetTransferTransactionsPerTickRequestV2) returns (GetIdentityTransfersInTickRangeResponseV2) { // Uses V1 request
     option (google.api.http) = {
       get: "/v2/identities/{identity}/transfers"
+    };
+  };
+
+  //Quorum
+  rpc GetQuorumTickDataV2(GetQuorumTickDataRequest) returns (GetQuorumTickDataResponse) {
+    option (google.api.http) = {
+      get: "/v2/ticks/{tick_number}/quorum"
     };
   };
 

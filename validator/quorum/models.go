@@ -56,3 +56,25 @@ func convertUint64ToHex(value uint64) string {
 	binary.LittleEndian.PutUint64(b, value)
 	return hex.EncodeToString(b)
 }
+
+func qubicToProtoV2(votes types.QuorumVotes) *protobuff.QuorumTickDataV2 {
+	firstQuorumTickData := votes[0]
+	protoQuorumTickData := protobuff.QuorumTickDataV2{
+		QuorumTickStructure:   qubicTickStructureToProto(firstQuorumTickData),
+		QuorumDiffPerComputor: make(map[uint32]*protobuff.QuorumDiffV2),
+	}
+
+	for _, quorumTickData := range votes {
+		protoQuorumTickData.QuorumDiffPerComputor[uint32(quorumTickData.ComputorIndex)] = qubicDiffToProtoV2(quorumTickData)
+	}
+
+	return &protoQuorumTickData
+}
+
+func qubicDiffToProtoV2(tickVote types.QuorumTickVote) *protobuff.QuorumDiffV2 {
+	protoQuorumDiff := protobuff.QuorumDiffV2{
+		ExpectedNextTickTxDigestHex: hex.EncodeToString(tickVote.ExpectedNextTickTxDigest[:]),
+		SignatureHex:                hex.EncodeToString(tickVote.Signature[:]),
+	}
+	return &protoQuorumDiff
+}

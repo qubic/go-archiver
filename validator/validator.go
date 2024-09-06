@@ -37,7 +37,7 @@ func GoSchnorrqVerify(ctx context.Context, pubkey [32]byte, digest [32]byte, sig
 	return schnorrq.Verify(pubkey, digest, sig)
 }
 
-func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumber uint32) error {
+func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumber uint32, storeFullTickData bool) error {
 	quorumVotes, err := v.qu.GetQuorumVotes(ctx, tickNumber)
 	if err != nil {
 		return errors.Wrap(err, "getting quorum tick data")
@@ -122,7 +122,7 @@ func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumb
 	}
 
 	// proceed to storing tick information
-	err = quorum.Store(ctx, v.store, tickNumber, alignedVotes)
+	err = quorum.Store(ctx, v.store, tickNumber, alignedVotes, storeFullTickData)
 	if err != nil {
 		return errors.Wrap(err, "storing quorum votes")
 	}
