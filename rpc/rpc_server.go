@@ -271,7 +271,6 @@ func (s *Server) GetQuorumTickData(ctx context.Context, req *protobuff.GetQuorum
 
 	nextTick := req.TickNumber + 1
 
-	//Get quorum data for next tick
 	nextTickQuorumData, err := s.store.GetQuorumTickDataV2(ctx, nextTick)
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
@@ -280,7 +279,6 @@ func (s *Server) GetQuorumTickData(ctx context.Context, req *protobuff.GetQuorum
 		return nil, status.Errorf(codes.Internal, "getting tick data: %v", err)
 	}
 
-	//Get quorum data for current tick
 	currentTickQuorumData, err := s.store.GetQuorumTickDataV2(ctx, req.TickNumber)
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
@@ -289,7 +287,6 @@ func (s *Server) GetQuorumTickData(ctx context.Context, req *protobuff.GetQuorum
 		return nil, status.Errorf(codes.Internal, "getting tick data: %v", err)
 	}
 
-	//Get computors
 	computors, err := s.store.GetComputors(ctx, currentTickQuorumData.QuorumTickStructure.Epoch)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "getting computor list")
@@ -300,12 +297,9 @@ func (s *Server) GetQuorumTickData(ctx context.Context, req *protobuff.GetQuorum
 		return nil, status.Errorf(codes.Internal, "reconstructing quorum data: %v", err)
 	}
 
-	//Response object
-	res := protobuff.GetQuorumTickDataResponse{
+	return &protobuff.GetQuorumTickDataResponse{
 		QuorumTickData: reconstructedQuorumData,
-	}
-
-	return &res, nil
+	}, nil
 }
 func (s *Server) GetComputors(ctx context.Context, req *protobuff.GetComputorsRequest) (*protobuff.GetComputorsResponse, error) {
 	computors, err := s.store.GetComputors(ctx, req.Epoch)
