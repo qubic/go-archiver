@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-archiver/store"
+	"github.com/qubic/go-archiver/validator/quorum"
 	qubic "github.com/qubic/go-node-connector"
 	"github.com/qubic/go-node-connector/types"
 	"google.golang.org/grpc"
@@ -242,15 +243,69 @@ func (s *Server) GetQuorumTickData(ctx context.Context, req *protobuff.GetQuorum
 		return nil, st.Err()
 	}
 
-	qtd, err := s.store.GetQuorumTickData(ctx, req.TickNumber)
-	if err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			return nil, status.Errorf(codes.NotFound, "quorum tick data not found")
+	if req.TickNumber == lastProcessedTick.TickNumber {
+		tickData, err := s.store.GetQuorumTickDataV2(ctx, req.TickNumber)
+		if err != nil {
+			if errors.Is(err, store.ErrNotFound) {
+				return nil, status.Errorf(codes.NotFound, "quorum tick data not found")
+			}
+			return nil, status.Errorf(codes.Internal, "getting quorum tick data: %v", err)
 		}
-		return nil, status.Errorf(codes.Internal, "getting quorum tick data: %v", err)
+
+		res := protobuff.GetQuorumTickDataResponse{
+			QuorumTickData: &protobuff.QuorumTickData{
+				QuorumTickStructure:   tickData.QuorumTickStructure,
+				QuorumDiffPerComputor: make(map[uint32]*protobuff.QuorumDiff),
+			},
+		}
+
+		for id, diff := range tickData.QuorumDiffPerComputor {
+			res.QuorumTickData.QuorumDiffPerComputor[id] = &protobuff.QuorumDiff{
+				ExpectedNextTickTxDigestHex: diff.ExpectedNextTickTxDigestHex,
+				SignatureHex:                diff.SignatureHex,
+			}
+		}
+
+		return &res, nil
 	}
 
-	return &protobuff.GetQuorumTickDataResponse{QuorumTickData: qtd}, nil
+	nextTick := req.TickNumber + 1
+
+	//Get quorum data for next tick
+	nextTickQuorumData, err := s.store.GetQuorumTickDataV2(ctx, nextTick)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, status.Errorf(codes.Internal, "quorum data for next tick was not found")
+		}
+		return nil, status.Errorf(codes.Internal, "getting tick data: %v", err)
+	}
+
+	//Get quorum data for current tick
+	currentTickQuorumData, err := s.store.GetQuorumTickDataV2(ctx, req.TickNumber)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, status.Errorf(codes.Internal, "quorum data for  tick was not found")
+		}
+		return nil, status.Errorf(codes.Internal, "getting tick data: %v", err)
+	}
+
+	//Get computors
+	computors, err := s.store.GetComputors(ctx, currentTickQuorumData.QuorumTickStructure.Epoch)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "getting computor list")
+	}
+
+	reconstructedQuorumData, err := quorum.ReconstructQuorumData(currentTickQuorumData, nextTickQuorumData, computors)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "reconstructing quorum data: %v", err)
+	}
+
+	//Response object
+	res := protobuff.GetQuorumTickDataResponse{
+		QuorumTickData: reconstructedQuorumData,
+	}
+
+	return &res, nil
 }
 func (s *Server) GetComputors(ctx context.Context, req *protobuff.GetComputorsRequest) (*protobuff.GetComputorsResponse, error) {
 	computors, err := s.store.GetComputors(ctx, req.Epoch)

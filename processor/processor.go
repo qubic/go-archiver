@@ -29,15 +29,13 @@ type Processor struct {
 	pool               *qubic.Pool
 	ps                 *store.PebbleStore
 	processTickTimeout time.Duration
-	storeFullVoteData  bool
 }
 
-func NewProcessor(p *qubic.Pool, ps *store.PebbleStore, processTickTimeout time.Duration, storeFullVoteData bool) *Processor {
+func NewProcessor(p *qubic.Pool, ps *store.PebbleStore, processTickTimeout time.Duration) *Processor {
 	return &Processor{
 		pool:               p,
 		ps:                 ps,
 		processTickTimeout: processTickTimeout,
-		storeFullVoteData:  storeFullVoteData,
 	}
 }
 
@@ -98,7 +96,7 @@ func (p *Processor) processOneByOne() error {
 	}
 
 	val := validator.New(client, p.ps)
-	err = val.ValidateTick(ctx, tickInfo.InitialTick, nextTick.TickNumber, p.storeFullVoteData)
+	err = val.ValidateTick(ctx, tickInfo.InitialTick, nextTick.TickNumber)
 	if err != nil {
 		return errors.Wrapf(err, "validating tick %d", nextTick.TickNumber)
 	}
