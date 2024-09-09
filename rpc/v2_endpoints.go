@@ -445,7 +445,7 @@ func (s *Server) GetQuorumTickDataV2(ctx context.Context, req *protobuff.GetQuor
 
 	//Check if next tick was skipped
 	//TODO: check if this is accurate behaviour (if the tick gets skipped, then the data should be in the next available tick)
-	skipped, nextAvailable := wasTickSkippedByArchive(nextAvailableTick, processedTickIntervalsPerEpoch)
+	skipped, nextAvailable := wasTickSkippedByArchive(nextTick, processedTickIntervalsPerEpoch)
 	if skipped {
 		nextTick = nextAvailable
 	}
@@ -511,24 +511,24 @@ func (s *Server) GetQuorumTickDataV2(ctx context.Context, req *protobuff.GetQuor
 		}
 
 		var tmp [64]byte
-		copy(computorPublicKey[:], tmp[:32]) // Public key as the first part
+		copy(tmp[:32], computorPublicKey[:]) // Public key as the first part
 
 		//Salted spectrum digest
-		copy(spectrumDigest[:], tmp[32:])
+		copy(tmp[32:], spectrumDigest[:])
 		saltedSpectrumDigest, err := utils.K12Hash(tmp[:])
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "hashing salted spectrum digest")
 		}
 
 		//Salted universe digest
-		copy(universeDigest[:], tmp[32:])
+		copy(tmp[32:], universeDigest[:])
 		saltedUniverseDigest, err := utils.K12Hash(tmp[:])
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "hashing salted universe digest")
 		}
 
 		//Salted computer digest
-		copy(computerDigest[:], tmp[32:])
+		copy(tmp[32:], computerDigest[:])
 		saltedComputerDigest, err := utils.K12Hash(tmp[:])
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "hashing salted computer digest")
@@ -536,8 +536,8 @@ func (s *Server) GetQuorumTickDataV2(ctx context.Context, req *protobuff.GetQuor
 
 		//Salted resource digest
 		var tmp2 [40]byte
-		copy(computorPublicKey[:], tmp2[32:]) // Public key as the first part
-		copy(resourceDigest[:], tmp2[:32])
+		copy(tmp2[:32], computorPublicKey[:]) // Public key as the first part
+		copy(tmp2[32:], resourceDigest[:])
 		saltedResourceTestingDigest, err := utils.K12Hash(tmp2[:])
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "hashing salted resource testing digest")
@@ -545,7 +545,7 @@ func (s *Server) GetQuorumTickDataV2(ctx context.Context, req *protobuff.GetQuor
 
 		//Add reconstructed object to response
 		res.QuorumTickData.QuorumDiffPerComputor[id] = &protobuff.QuorumDiff{
-			SaltedResourceTestingDigestHex: hex.EncodeToString(saltedResourceTestingDigest[:]),
+			SaltedResourceTestingDigestHex: hex.EncodeToString(saltedResourceTestingDigest[:8]),
 			SaltedSpectrumDigestHex:        hex.EncodeToString(saltedSpectrumDigest[:]),
 			SaltedUniverseDigestHex:        hex.EncodeToString(saltedUniverseDigest[:]),
 			SaltedComputerDigestHex:        hex.EncodeToString(saltedComputerDigest[:]),
