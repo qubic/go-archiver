@@ -52,7 +52,7 @@ func run() error {
 		Store struct {
 			ResetEmptyTickKeys bool   `conf:"default:false"`
 			CompressionType    string `conf:"default:Zstd"`
-			StoreFullVoteData  bool   `conf:"default:false"`
+			SaveFullQuorumData bool   `conf:"default:false"`
 		}
 	}
 
@@ -125,7 +125,7 @@ func run() error {
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
 
-	proc := processor.NewProcessor(p, ps, cfg.Qubic.ProcessTickTimeout, cfg.Store.StoreFullVoteData)
+	proc := processor.NewProcessor(p, ps, cfg.Qubic.ProcessTickTimeout, cfg.Store.SaveFullQuorumData)
 	procErrors := make(chan error, 1)
 
 	// Start the service listening for requests.
