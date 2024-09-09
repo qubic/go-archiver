@@ -10,6 +10,12 @@ The archive system consists of two services:
 
 ## IMPORTANT
 
+> [!WARNING]  
+> This version of archiver is **INCOMPATIBLE** by default with versions **v0.x.x**, as it features database compression and a different format for quorum data.  
+> If you wish to enable backwards compatibility, please set `STORE_COMPRESSION_TYPE` to `Snappy` and `STORE_SAVE_FULL_QUORUM_DATA` to `true`. 
+> Archiver **DOES NOT** migrate the database to the new format by itself, and **MAY BREAK** your existing information, if not migrated correctly.
+> For a migration tool, please see the [Archiver DB Migrator](https://github.com/qubic/archiver-db-migrator), and make sure to back up your data!
+
 Before starting the system, open the `docker-compose.yml` file and make sure that you have a reliable peer list setup
 for the `qubic-nodes` service.
 This can be configured using the `QUBIC_NODES_QUBIC_PEER_LIST` environment variable.
@@ -35,6 +41,8 @@ This can be configured using the `QUBIC_NODES_QUBIC_PEER_LIST` environment varia
   $QUBIC_ARCHIVER_QUBIC_NODE_PORT                            <string>    (default: 21841)
   $QUBIC_ARCHIVER_QUBIC_STORAGE_FOLDER                       <string>    (default: store)
   $QUBIC_ARCHIVER_QUBIC_PROCESS_TICK_TIMEOUT                 <duration>  (default: 5s)
+  $QUBIC_ARCHIVER_STORE_COMPRESSION_TYPE                     <string>    (default: Zstd)
+  $QUBIC_ARCHIVER_STORE_SAVE_FULL_VOTE_DATA                  <bool>      (default: false)
 ```
 
 ## Run with docker-compose:
