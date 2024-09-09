@@ -12,9 +12,9 @@ The archive system consists of two services:
 
 > [!WARNING]  
 > This version of archiver is **INCOMPATIBLE** by default with versions **v0.x.x**, as it features database compression and a different format for quorum data.  
-> If you wish to enable backwards compatibility, please set `STORE_COMPRESSION_TYPE` to `Snappy` and `STORE_SAVE_FULL_QUORUM_DATA` to `true`. 
-> Archiver **DOES NOT** migrate the database to the new format by itself, and **MAY BREAK** your existing information, if not migrated correctly.
-> For a migration tool, please see the [Archiver DB Migrator](https://github.com/qubic/archiver-db-migrator), and make sure to back up your data!
+> If you wish to enable backwards compatibility, please set `STORE_COMPRESSION_TYPE` to `Snappy` and `STORE_SAVE_FULL_QUORUM_DATA` to `true`.  
+> Archiver **DOES NOT** migrate the database to the new format by itself, and **MAY BREAK** your existing information, if not migrated correctly.  
+> For a migration tool, please see the [Archiver DB Migrator](https://github.com/qubic/archiver-db-migrator), and make sure to back up your data!  
 
 Before starting the system, open the `docker-compose.yml` file and make sure that you have a reliable peer list setup
 for the `qubic-nodes` service.
