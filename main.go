@@ -50,9 +50,7 @@ func run() error {
 			ProcessTickTimeout time.Duration `conf:"default:5s"`
 		}
 		Store struct {
-			ResetEmptyTickKeys bool   `conf:"default:false"`
-			CompressionType    string `conf:"default:Zstd"`
-			SaveFullQuorumData bool   `conf:"default:false"`
+			ResetEmptyTickKeys bool `conf:"default:false"`
 		}
 	}
 
@@ -82,9 +80,24 @@ func run() error {
 	}
 	log.Printf("main: Config :\n%v\n", out)
 
-	db, err := openDB(cfg.Qubic.StorageFolder, cfg.Store.CompressionType)
+	levelOptions := pebble.LevelOptions{
+		BlockRestartInterval: 16,
+		BlockSize:            4096,
+		BlockSizeThreshold:   90,
+		Compression:          pebble.ZstdCompression,
+		FilterPolicy:         nil,
+		FilterType:           pebble.TableFilter,
+		IndexBlockSize:       4096,
+		TargetFileSize:       2097152,
+	}
+
+	pebbleOptions := pebble.Options{
+		Levels: []pebble.LevelOptions{levelOptions},
+	}
+
+	db, err := pebble.Open(cfg.Qubic.StorageFolder, &pebbleOptions)
 	if err != nil {
-		return errors.Wrap(err, "opening db")
+		return errors.Wrap(err, "opening db with zstd compression")
 	}
 	defer db.Close()
 
@@ -125,7 +138,7 @@ func run() error {
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
 
-	proc := processor.NewProcessor(p, ps, cfg.Qubic.ProcessTickTimeout, cfg.Store.SaveFullQuorumData)
+	proc := processor.NewProcessor(p, ps, cfg.Qubic.ProcessTickTimeout)
 	procErrors := make(chan error, 1)
 
 	// Start the service listening for requests.
@@ -141,43 +154,4 @@ func run() error {
 			return errors.Wrap(err, "archiver error")
 		}
 	}
-}
-
-func openDB(path string, compressionType string) (*pebble.DB, error) {
-	switch compressionType {
-	case "Zstd":
-		return createDBWithZstdCompression(path)
-	case "Snappy":
-		db, err := pebble.Open(path, &pebble.Options{})
-		if err != nil {
-			return nil, errors.Wrap(err, "opening db with snappy compression")
-		}
-		return db, nil
-	}
-	return nil, errors.New("unknown compression type")
-}
-
-func createDBWithZstdCompression(path string) (*pebble.DB, error) {
-
-	levelOptions := pebble.LevelOptions{
-		BlockRestartInterval: 16,
-		BlockSize:            4096,
-		BlockSizeThreshold:   90,
-		Compression:          pebble.ZstdCompression,
-		FilterPolicy:         nil,
-		FilterType:           pebble.TableFilter,
-		IndexBlockSize:       4096,
-		TargetFileSize:       2097152,
-	}
-
-	pebbleOptions := pebble.Options{
-		Levels: []pebble.LevelOptions{levelOptions},
-	}
-
-	db, err := pebble.Open(path, &pebbleOptions)
-	if err != nil {
-		return nil, errors.Wrap(err, "opening db with zstd compression")
-	}
-
-	return db, nil
 }
