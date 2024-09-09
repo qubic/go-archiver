@@ -88,7 +88,6 @@ func ReconstructQuorumData(currentTickQuorumData, nextTickQuorumData *protobuff.
 		QuorumDiffPerComputor: make(map[uint32]*protobuff.QuorumDiff),
 	}
 
-	//Digests
 	spectrumDigest, err := hex.DecodeString(nextTickQuorumData.QuorumTickStructure.PrevSpectrumDigestHex)
 	if err != nil {
 		return nil, errors.Wrap(err, "obtaining spectrum digest from next tick quorum data")
@@ -106,7 +105,6 @@ func ReconstructQuorumData(currentTickQuorumData, nextTickQuorumData *protobuff.
 		return nil, errors.Wrap(err, "obtaining resource testing digest from next tick quorum data")
 	}
 
-	//Loop over all computors in current tick data
 	for id, voteDiff := range currentTickQuorumData.QuorumDiffPerComputor {
 
 		identity := types.Identity(computors.Identities[id])
@@ -117,39 +115,34 @@ func ReconstructQuorumData(currentTickQuorumData, nextTickQuorumData *protobuff.
 		}
 
 		var tmp [64]byte
-		copy(tmp[:32], computorPublicKey[:]) // Public key as the first part
+		copy(tmp[:32], computorPublicKey[:])
 
-		//Salted spectrum digest
 		copy(tmp[32:], spectrumDigest[:])
 		saltedSpectrumDigest, err := utils.K12Hash(tmp[:])
 		if err != nil {
 			return nil, errors.Wrap(err, "hashing salted spectrum digest")
 		}
 
-		//Salted universe digest
 		copy(tmp[32:], universeDigest[:])
 		saltedUniverseDigest, err := utils.K12Hash(tmp[:])
 		if err != nil {
 			return nil, errors.Wrap(err, "hashing salted universe digest")
 		}
 
-		//Salted computer digest
 		copy(tmp[32:], computerDigest[:])
 		saltedComputerDigest, err := utils.K12Hash(tmp[:])
 		if err != nil {
 			return nil, errors.Wrap(err, "hashing salted computer digest")
 		}
 
-		//Salted resource digest
 		var tmp2 [40]byte
-		copy(tmp2[:32], computorPublicKey[:]) // Public key as the first part
+		copy(tmp2[:32], computorPublicKey[:])
 		copy(tmp2[32:], resourceDigest[:])
 		saltedResourceTestingDigest, err := utils.K12Hash(tmp2[:])
 		if err != nil {
 			return nil, errors.Wrap(err, "hashing salted resource testing digest")
 		}
 
-		//Add reconstructed object to response
 		reconstructedQuorumData.QuorumDiffPerComputor[id] = &protobuff.QuorumDiff{
 			SaltedResourceTestingDigestHex: hex.EncodeToString(saltedResourceTestingDigest[:8]),
 			SaltedSpectrumDigestHex:        hex.EncodeToString(saltedSpectrumDigest[:]),
