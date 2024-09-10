@@ -12,12 +12,7 @@ import (
 	"github.com/qubic/go-node-connector/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
-
-func (s *Server) GetLatestTickV2(ctx context.Context, req *emptypb.Empty) (*protobuff.GetLatestTickResponse, error) {
-	return s.GetLatestTick(ctx, req)
-}
 
 func (s *Server) GetTickQuorumDataV2(ctx context.Context, req *protobuff.GetTickRequestV2) (*protobuff.GetQuorumTickDataResponse, error) {
 	return s.GetQuorumTickData(ctx, &protobuff.GetQuorumTickDataRequest{
