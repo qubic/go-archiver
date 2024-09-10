@@ -135,7 +135,7 @@ func TestPebbleStore_QuorumTickData(t *testing.T) {
 	store := NewPebbleStore(db, logger)
 
 	// Sample QuorumTickData for testing
-	quorumData := &pb.QuorumTickData{
+	quorumData := &pb.QuorumTickDataStored{
 		QuorumTickStructure: &pb.QuorumTickStructure{
 			Epoch:                 1,
 			TickNumber:            101,
@@ -145,18 +145,12 @@ func TestPebbleStore_QuorumTickData(t *testing.T) {
 			PrevComputerDigestHex: "prevComputerDigest",
 			TxDigestHex:           "txDigest",
 		},
-		QuorumDiffPerComputor: map[uint32]*pb.QuorumDiff{
+		QuorumDiffPerComputor: map[uint32]*pb.QuorumDiffStored{
 			0: {
-				SaltedSpectrumDigestHex:     "saltedSpectrumDigest",
-				SaltedUniverseDigestHex:     "saltedUniverseDigest",
-				SaltedComputerDigestHex:     "saltedComputerDigest",
 				ExpectedNextTickTxDigestHex: "expectedNextTickTxDigest",
 				SignatureHex:                "signature",
 			},
 			1: {
-				SaltedSpectrumDigestHex:     "saltedSpectrumDigest",
-				SaltedUniverseDigestHex:     "saltedUniverseDigest",
-				SaltedComputerDigestHex:     "saltedComputerDigest",
 				ExpectedNextTickTxDigestHex: "expectedNextTickTxDigest",
 				SignatureHex:                "signature",
 			},
@@ -171,7 +165,7 @@ func TestPebbleStore_QuorumTickData(t *testing.T) {
 	retrievedData, err := store.GetQuorumTickData(ctx, quorumData.QuorumTickStructure.TickNumber)
 	require.NoError(t, err)
 
-	if diff := cmp.Diff(quorumData, retrievedData, cmpopts.IgnoreUnexported(pb.QuorumTickData{}, pb.QuorumTickStructure{}, pb.QuorumDiff{})); diff != "" {
+	if diff := cmp.Diff(quorumData, retrievedData, cmpopts.IgnoreUnexported(pb.QuorumTickDataStored{}, pb.QuorumTickStructure{}, pb.QuorumDiffStored{})); diff != "" {
 		t.Fatalf("Unexpected result: %v", diff)
 	}
 
