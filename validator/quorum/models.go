@@ -59,29 +59,29 @@ func convertUint64ToHex(value uint64) string {
 	return hex.EncodeToString(b)
 }
 
-func qubicToProtoV2(votes types.QuorumVotes) *protobuff.QuorumTickDataV2 {
+func qubicToProtoStored(votes types.QuorumVotes) *protobuff.QuorumTickDataStored {
 	firstQuorumTickData := votes[0]
-	protoQuorumTickData := protobuff.QuorumTickDataV2{
+	protoQuorumTickData := protobuff.QuorumTickDataStored{
 		QuorumTickStructure:   qubicTickStructureToProto(firstQuorumTickData),
-		QuorumDiffPerComputor: make(map[uint32]*protobuff.QuorumDiffV2),
+		QuorumDiffPerComputor: make(map[uint32]*protobuff.QuorumDiffStored),
 	}
 
 	for _, quorumTickData := range votes {
-		protoQuorumTickData.QuorumDiffPerComputor[uint32(quorumTickData.ComputorIndex)] = qubicDiffToProtoV2(quorumTickData)
+		protoQuorumTickData.QuorumDiffPerComputor[uint32(quorumTickData.ComputorIndex)] = qubicDiffToProtoStored(quorumTickData)
 	}
 
 	return &protoQuorumTickData
 }
 
-func qubicDiffToProtoV2(tickVote types.QuorumTickVote) *protobuff.QuorumDiffV2 {
-	protoQuorumDiff := protobuff.QuorumDiffV2{
+func qubicDiffToProtoStored(tickVote types.QuorumTickVote) *protobuff.QuorumDiffStored {
+	protoQuorumDiff := protobuff.QuorumDiffStored{
 		ExpectedNextTickTxDigestHex: hex.EncodeToString(tickVote.ExpectedNextTickTxDigest[:]),
 		SignatureHex:                hex.EncodeToString(tickVote.Signature[:]),
 	}
 	return &protoQuorumDiff
 }
 
-func ReconstructQuorumData(currentTickQuorumData, nextTickQuorumData *protobuff.QuorumTickDataV2, computors *protobuff.Computors) (*protobuff.QuorumTickData, error) {
+func ReconstructQuorumData(currentTickQuorumData, nextTickQuorumData *protobuff.QuorumTickDataStored, computors *protobuff.Computors) (*protobuff.QuorumTickData, error) {
 
 	reconstructedQuorumData := protobuff.QuorumTickData{
 		QuorumTickStructure:   currentTickQuorumData.QuorumTickStructure,

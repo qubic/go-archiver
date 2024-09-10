@@ -244,7 +244,7 @@ func (s *Server) GetQuorumTickData(ctx context.Context, req *protobuff.GetQuorum
 	}
 
 	if req.TickNumber == lastProcessedTick.TickNumber {
-		tickData, err := s.store.GetQuorumTickDataV2(ctx, req.TickNumber)
+		tickData, err := s.store.GetQuorumTickData(ctx, req.TickNumber)
 		if err != nil {
 			if errors.Is(err, store.ErrNotFound) {
 				return nil, status.Errorf(codes.NotFound, "quorum tick data not found")
@@ -271,7 +271,7 @@ func (s *Server) GetQuorumTickData(ctx context.Context, req *protobuff.GetQuorum
 
 	nextTick := req.TickNumber + 1
 
-	nextTickQuorumData, err := s.store.GetQuorumTickDataV2(ctx, nextTick)
+	nextTickQuorumData, err := s.store.GetQuorumTickData(ctx, nextTick)
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			return nil, status.Errorf(codes.Internal, "quorum data for next tick was not found")
@@ -279,7 +279,7 @@ func (s *Server) GetQuorumTickData(ctx context.Context, req *protobuff.GetQuorum
 		return nil, status.Errorf(codes.Internal, "getting tick data: %v", err)
 	}
 
-	currentTickQuorumData, err := s.store.GetQuorumTickDataV2(ctx, req.TickNumber)
+	currentTickQuorumData, err := s.store.GetQuorumTickData(ctx, req.TickNumber)
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			return nil, status.Errorf(codes.Internal, "quorum data for  tick was not found")

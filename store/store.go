@@ -59,44 +59,9 @@ func (s *PebbleStore) SetTickData(ctx context.Context, tickNumber uint32, td *pr
 	return nil
 }
 
-func (s *PebbleStore) GetQuorumTickData(ctx context.Context, tickNumber uint32) (*protobuff.QuorumTickData, error) {
-	key := quorumTickDataKey(tickNumber)
-	value, closer, err := s.db.Get(key)
-	if err != nil {
-		if errors.Is(err, pebble.ErrNotFound) {
-			return nil, ErrNotFound
-		}
-
-		return nil, errors.Wrap(err, "getting quorum tick data")
-	}
-	defer closer.Close()
-
-	var qtd protobuff.QuorumTickData
-	if err := proto.Unmarshal(value, &qtd); err != nil {
-		return nil, errors.Wrap(err, "unmarshalling quorum tick data to protobuf type")
-	}
-
-	return &qtd, err
-}
-
-func (s *PebbleStore) SetQuorumTickData(ctx context.Context, tickNumber uint32, qtd *protobuff.QuorumTickData) error {
+func (s *PebbleStore) SetQuorumTickData(ctx context.Context, tickNumber uint32, qtd *protobuff.QuorumTickDataStored) error {
 	key := quorumTickDataKey(tickNumber)
 	serialized, err := proto.Marshal(qtd)
-	if err != nil {
-		return errors.Wrap(err, "serializing qtd proto")
-	}
-
-	err = s.db.Set(key, serialized, pebble.Sync)
-	if err != nil {
-		return errors.Wrap(err, "setting quorum tick data")
-	}
-
-	return nil
-}
-
-func (s *PebbleStore) SetQuorumTickDataV2(ctx context.Context, tickNumber uint32, qtdV2 *protobuff.QuorumTickDataV2) error {
-	key := quorumTickDataKey(tickNumber)
-	serialized, err := proto.Marshal(qtdV2)
 	if err != nil {
 		return errors.Wrap(err, "serializing qtdV2 proto")
 	}
@@ -109,7 +74,7 @@ func (s *PebbleStore) SetQuorumTickDataV2(ctx context.Context, tickNumber uint32
 	return nil
 }
 
-func (s *PebbleStore) GetQuorumTickDataV2(ctx context.Context, tickNumber uint32) (*protobuff.QuorumTickDataV2, error) {
+func (s *PebbleStore) GetQuorumTickData(ctx context.Context, tickNumber uint32) (*protobuff.QuorumTickDataStored, error) {
 	key := quorumTickDataKey(tickNumber)
 	value, closer, err := s.db.Get(key)
 	if err != nil {
@@ -121,12 +86,12 @@ func (s *PebbleStore) GetQuorumTickDataV2(ctx context.Context, tickNumber uint32
 	}
 	defer closer.Close()
 
-	var qtdV2 protobuff.QuorumTickDataV2
-	if err := proto.Unmarshal(value, &qtdV2); err != nil {
+	var qtd protobuff.QuorumTickDataStored
+	if err := proto.Unmarshal(value, &qtd); err != nil {
 		return nil, errors.Wrap(err, "unmarshalling qtdV2 to protobuf type")
 	}
 
-	return &qtdV2, err
+	return &qtd, err
 }
 
 func (s *PebbleStore) GetComputors(ctx context.Context, epoch uint32) (*protobuff.Computors, error) {
