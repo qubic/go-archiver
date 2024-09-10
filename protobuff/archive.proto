@@ -379,12 +379,6 @@ service ArchiveService {
     };
   };
 
-  //Quorum
-  rpc GetQuorumTickDataV2(GetQuorumTickDataRequest) returns (GetQuorumTickDataResponse) {
-    option (google.api.http) = {
-      get: "/v2/ticks/{tick_number}/quorum"
-    };
-  };
 
   //V1 Endpoints
   rpc GetTickData(GetTickDataRequest) returns (GetTickDataResponse){
