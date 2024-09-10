@@ -320,12 +320,6 @@ message GetTransferTransactionsPerTickRequestV2 {
 
 service ArchiveService {
 
-  // General data - To be released at a later date
-  /*rpc GetTickV2(GetTickRequestV2) returns (GetTickResponseV2) {
-    option (google.api.http) = {
-      get: "/v2/ticks/{tick_number}"
-    };
-  };*/
 
   // Quorum data
   rpc GetTickQuorumDataV2(GetTickRequestV2) returns (GetQuorumTickDataResponse) { // Uses V1 response
