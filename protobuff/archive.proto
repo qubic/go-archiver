@@ -121,12 +121,12 @@ message SkippedTicksIntervalList {
   repeated SkippedTicksInterval skipped_ticks = 1;
 }
 
-message QuorumTickDataV2 {
+message QuorumTickDataStored {
   QuorumTickStructure quorum_tick_structure = 1;
-  map<uint32, QuorumDiffV2> quorum_diff_per_computor = 2;
+  map<uint32, QuorumDiffStored> quorum_diff_per_computor = 2;
 }
 
-message QuorumDiffV2 {
+message QuorumDiffStored {
   string expected_next_tick_tx_digest_hex = 5;
   string signature_hex = 6;
 }
@@ -139,8 +139,8 @@ message GetQuorumTickDataResponse {
   QuorumTickData quorum_tick_data = 1;
 }
 
-message GetQuorumTickDataResponseV2 {
-  QuorumTickDataV2 quorum_tick_data = 1;
+message GetQuorumTickDataResponseStored {
+  QuorumTickDataStored quorum_tick_data = 1;
 }
 
 message Computors {
