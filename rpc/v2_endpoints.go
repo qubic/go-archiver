@@ -19,13 +19,6 @@ func (s *Server) GetLatestTickV2(ctx context.Context, req *emptypb.Empty) (*prot
 	return s.GetLatestTick(ctx, req)
 }
 
-func (s *Server) GetTickV2(ctx context.Context, req *protobuff.GetTickRequestV2) (*protobuff.GetTickResponseV2, error) {
-
-	//TODO: Implement
-
-	return nil, status.Errorf(codes.Unimplemented, "Not yet implemented")
-}
-
 func (s *Server) GetTickQuorumDataV2(ctx context.Context, req *protobuff.GetTickRequestV2) (*protobuff.GetQuorumTickDataResponse, error) {
 	return s.GetQuorumTickData(ctx, &protobuff.GetQuorumTickDataRequest{
 		TickNumber: req.TickNumber,
