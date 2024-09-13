@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package qubic.archiver.archive.pb;
+package org.qubic.archiver.proto;
 
 option go_package = "github.com/qubic/go-archiver/protobuff/";
 import "google/api/annotations.proto";
