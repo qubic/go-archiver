@@ -535,6 +535,10 @@ func (s *Server) GetTransactionStatus(ctx context.Context, req *protobuff.GetTra
 		return nil, status.Errorf(codes.Internal, "getting tx status: %v", err)
 	}
 
+	if txStatus.MoneyFlew == false {
+		return &protobuff.GetTransactionStatusResponse{TransactionStatus: &protobuff.TransactionStatus{TxId: tx.TxId, MoneyFlew: false}}, nil
+	}
+
 	if tx.InputType == 1 && tx.InputSize == 1000 && tx.DestId == "EAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAVWRF" {
 		moneyFlew, err := recomputeSendManyMoneyFlew(tx)
 		if err != nil {
