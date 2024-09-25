@@ -300,26 +300,6 @@ func (s *PebbleStore) GetLastProcessedTick(ctx context.Context) (*protobuff.Proc
 	}
 	defer closer.Close()
 
-	// handle old data format, to be removed in the future
-	if len(value) == 8 {
-		tickNumber := uint32(binary.LittleEndian.Uint64(value))
-		ticksPerEpoch, err := s.GetLastProcessedTicksPerEpoch(ctx)
-		if err != nil {
-			return nil, errors.Wrap(err, "getting last processed ticks per epoch")
-		}
-		var epoch uint32
-		for e, tick := range ticksPerEpoch {
-			if tick == tickNumber {
-				epoch = e
-				break
-			}
-		}
-		return &protobuff.ProcessedTick{
-			TickNumber: tickNumber,
-			Epoch:      epoch,
-		}, nil
-	}
-
 	var lpt protobuff.ProcessedTick
 	if err := proto.Unmarshal(value, &lpt); err != nil {
 		return nil, errors.Wrap(err, "unmarshalling lpt to protobuff type")
