@@ -698,3 +698,40 @@ func (s *PebbleStore) DeleteEmptyTicksKeyForEpoch(epoch uint32) error {
 	}
 	return nil
 }
+
+func (s *PebbleStore) SetLastTickQuorumDataPerEpoch(quorumData *protobuff.QuorumTickData, epoch uint32) error {
+	key := lastTickQuorumDataPerEpochKey(epoch)
+
+	serialized, err := proto.Marshal(quorumData)
+	if err != nil {
+		return errors.Wrapf(err, "serializing quorum tick data for last tick of epoch %d", epoch)
+	}
+
+	err = s.db.Set(key, serialized, pebble.Sync)
+	if err != nil {
+		return errors.Wrapf(err, "setting last tick quorum tick data for epoch %d", epoch)
+	}
+	return nil
+}
+
+func (s *PebbleStore) GetLastTickQuorumDataPerEpoch(epoch uint32) (*protobuff.QuorumTickData, error) {
+	key := lastTickQuorumDataPerEpochKey(epoch)
+
+	value, closer, err := s.db.Get(key)
+	if err != nil {
+		if errors.Is(err, pebble.ErrNotFound) {
+			return nil, err
+		}
+		return nil, errors.Wrapf(err, "getting last tick quorum data for epoch %d", epoch)
+	}
+	defer closer.Close()
+
+	var quorumData *protobuff.QuorumTickData
+
+	err = proto.Unmarshal(value, quorumData)
+	if err != nil {
+		return nil, errors.Wrapf(err, "deserializing quorum tick data for last tick of epoch %d", epoch)
+	}
+
+	return quorumData, nil
+}

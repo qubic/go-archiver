@@ -19,7 +19,14 @@ const (
 	TransactionStatus            = 0x11
 	StoreDigest                  = 0x12
 	EmptyTicksPerEpoch           = 0x13
+	LastTickQuorumDataPerEpoch   = 0x14
 )
+
+func lastTickQuorumDataPerEpochKey(epoch uint32) []byte {
+	key := []byte{LastTickQuorumDataPerEpoch}
+	key = binary.BigEndian.AppendUint64(key, uint64(epoch))
+	return key
+}
 
 func emptyTicksPerEpochKey(epoch uint32) []byte {
 	key := []byte{EmptyTicksPerEpoch}
