@@ -726,12 +726,12 @@ func (s *PebbleStore) GetLastTickQuorumDataPerEpoch(epoch uint32) (*protobuff.Qu
 	}
 	defer closer.Close()
 
-	var quorumData *protobuff.QuorumTickData
+	var quorumData protobuff.QuorumTickData
 
-	err = proto.Unmarshal(value, quorumData)
+	err = proto.Unmarshal(value, &quorumData)
 	if err != nil {
 		return nil, errors.Wrapf(err, "deserializing quorum tick data for last tick of epoch %d", epoch)
 	}
 
-	return quorumData, nil
+	return &quorumData, nil
 }
