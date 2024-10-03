@@ -46,7 +46,7 @@ func run() error {
 		}
 		Qubic struct {
 			NodePort           string        `conf:"default:21841"`
-			StorageFolder      string        `conf:"default:storage"`
+			StorageFolder      string        `conf:"default:store"`
 			ProcessTickTimeout time.Duration `conf:"default:5s"`
 		}
 		Store struct {
