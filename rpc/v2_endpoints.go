@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"encoding/hex"
+	"github.com/cockroachdb/pebble"
 	"slices"
 
 	"github.com/pkg/errors"
@@ -365,6 +366,64 @@ func (s *Server) GetIdentityTransfersInTickRangeV2(ctx context.Context, req *pro
 
 	return &protobuff.GetIdentityTransfersInTickRangeResponseV2{
 		Transactions: totalTransactions,
+	}, nil
+
+}
+
+func (s *Server) GetEmptyTickListV2(ctx context.Context, req *protobuff.GetEmptyTickListRequestV2) (*protobuff.GetEmptyTickListResponseV2, error) {
+
+	if req.PageSize <= 0 {
+		return nil, status.Errorf(codes.FailedPrecondition, "page size must be at least 1")
+	}
+
+	emptyTicks, err := s.store.GetEmptyTickListPerEpoch(req.Epoch)
+	if err != nil {
+		if errors.Is(err, pebble.ErrNotFound) {
+			return nil, status.Errorf(codes.NotFound, "no empty ticks found for epoch %d", req.Epoch)
+		}
+		return nil, status.Errorf(codes.Internal, "getting empty tick list: %v", err)
+	}
+
+	pageCount := len(emptyTicks) / int(req.PageSize)
+	if len(emptyTicks)%int(req.PageSize) != 0 {
+		pageCount += 1
+	}
+	currentPage := int(req.Page)
+	if currentPage <= 0 {
+		currentPage = 1
+	}
+	if currentPage > pageCount {
+		return nil, status.Errorf(codes.NotFound, "cannot find specified page. last page: %d", pageCount)
+	}
+
+	startingIndex := (currentPage - 1) * int(req.PageSize)
+	endingIndex := startingIndex + int(req.PageSize)
+	if endingIndex > len(emptyTicks) {
+		endingIndex = len(emptyTicks)
+	}
+
+	selectedTicks := emptyTicks[startingIndex:endingIndex]
+
+	nextPage := currentPage + 1
+	if currentPage == pageCount {
+		nextPage = -1
+	}
+
+	previousPage := currentPage - 1
+	if currentPage == 1 {
+		previousPage = -1
+	}
+
+	return &protobuff.GetEmptyTickListResponseV2{
+		EmptyTicks: selectedTicks,
+		Pagination: &protobuff.Pagination{
+			TotalRecords: int32(len(emptyTicks)),
+			CurrentPage:  int32(currentPage),
+			TotalPages:   int32(pageCount),
+			PageSize:     req.PageSize,
+			NextPage:     int32(nextPage),
+			PreviousPage: int32(previousPage),
+		},
 	}, nil
 
 }
