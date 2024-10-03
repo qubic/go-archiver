@@ -125,7 +125,7 @@ func (s *Server) GetTickData(ctx context.Context, req *protobuff.GetTickDataRequ
 	}
 
 	if tick.CheckIfTickIsEmptyProto(tickData) {
-		return nil, status.Errorf(codes.NotFound, "requested tick %d is empty", req.TickNumber)
+		tickData = nil
 	}
 
 	return &protobuff.GetTickDataResponse{TickData: tickData}, nil
@@ -715,7 +715,7 @@ func (s *Server) Start() error {
 	if s.listenAddrHTTP != "" {
 		go func() {
 			mux := runtime.NewServeMux(runtime.WithMarshalerOption(runtime.MIMEWildcard, &runtime.JSONPb{
-				MarshalOptions: protojson.MarshalOptions{EmitDefaultValues: true, EmitUnpopulated: false},
+				MarshalOptions: protojson.MarshalOptions{EmitDefaultValues: true, EmitUnpopulated: true},
 			}))
 			opts := []grpc.DialOption{
 				grpc.WithTransportCredentials(insecure.NewCredentials()),
