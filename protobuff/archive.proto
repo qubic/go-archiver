@@ -333,18 +333,15 @@ service ArchiveService {
       get: "/v2/ticks/{tick_number}/store-hash"
     };
   }
-
-
-  // Tick transactions
+  
+  // Returns the list of transactions for the given tick, including timestamp and transfer status.
   rpc GetTickTransactionsV2(GetTickTransactionsRequestV2) returns (GetTickTransactionsResponseV2){
     option (google.api.http) = {
       get: "/v2/ticks/{tick_number}/transactions"
     };
   };
 
-  //Transaction
-
-  //Normal
+  // Returns the information for the given transaction id, including timestamp and transfer status. 
   rpc GetTransactionV2(GetTransactionRequestV2) returns (GetTransactionResponseV2) {
     option (google.api.http) = {
       get: "/v2/transactions/{tx_id}"
@@ -358,14 +355,14 @@ service ArchiveService {
     };
   };
 
-  //Identity
+  // Returns the list of transfers for the given identity, their status and timestamp, grouped by tick.
   rpc GetIdentityTransfersInTickRangeV2(GetTransferTransactionsPerTickRequestV2) returns (GetIdentityTransfersInTickRangeResponseV2) { // Uses V1 request
     option (google.api.http) = {
       get: "/v2/identities/{identity}/transfers"
     };
   };
 
-  //V1 Endpoints
+  // Returns the information for the given tick.
   rpc GetTickData(GetTickDataRequest) returns (GetTickDataResponse){
     option (google.api.http) = {
       get: "/v1/ticks/{tick_number}/tick-data"
@@ -376,21 +373,29 @@ service ArchiveService {
       get: "/v1/ticks/{tick_number}/quorum-tick-data"
     };
   };
+
+  // Deprecated: Use /v2/ticks/{tick_number}/transactions instead.
   rpc GetTickTransactions(GetTickTransactionsRequest) returns (GetTickTransactionsResponse) {
     option (google.api.http) = {
       get: "/v1/ticks/{tick_number}/transactions"
     };
   };
+
+  // Deprecated: Use /v2/ticks/{tick_number}/transactions instead.
   rpc GetTickTransferTransactions(GetTickTransactionsRequest) returns (GetTickTransactionsResponse) {
     option (google.api.http) = {
       get: "/v1/ticks/{tick_number}/transfer-transactions"
     };
   };
+
+  // Deprecated: Use /v2/ticks/{tick_number}/transactions instead.
   rpc GetTickApprovedTransactions (GetTickApprovedTransactionsRequest) returns (GetTickApprovedTransactionsResponse) {
     option (google.api.http) = {
       get: "/v1/ticks/{tick_number}/approved-transactions"
     };
   }
+
+  // Returns the hash of the given processed tick. This is mainly used to compare archiver instances and verify they process ticks the same.
   rpc GetChainHash(GetChainHashRequest) returns (GetChainHashResponse) {
     option (google.api.http) = {
       get: "/v1/ticks/{tick_number}/chain-hash"
@@ -403,43 +408,49 @@ service ArchiveService {
     };
   };
 
+  // Deprecated: Use /v2/transactions/{tx_id} instead.
   rpc GetTransaction(GetTransactionRequest) returns (GetTransactionResponse) {
     option (google.api.http) = {
       get: "/v1/transactions/{tx_id}"
     };
   };
 
+  // Deprecated: Use /v2/transactions/{tx_id} instead.
   rpc GetTransactionStatus (GetTransactionStatusRequest) returns (GetTransactionStatusResponse) {
     option (google.api.http) = {
       get: "/v1/tx-status/{tx_id}"
     };
   }
 
+  // Deprecated: Use /v2/identities/{identity}/transfers instead.
   rpc GetTransferTransactionsPerTick(GetTransferTransactionsPerTickRequest) returns (GetTransferTransactionsPerTickResponse) {
     option (google.api.http) = {
       get: "/v1/identities/{identity}/transfer-transactions"
     };
   };
 
+  // Returns the list of computors for the given epoch.
   rpc GetComputors(GetComputorsRequest) returns (GetComputorsResponse) {
     option (google.api.http) = {
       get: "/v1/epochs/{epoch}/computors"
     };
   };
 
+  // Returns information regarding the status of the archiver instance.
   rpc GetStatus(google.protobuf.Empty) returns (GetStatusResponse) {
     option (google.api.http) = {
       get: "/v1/status"
     };
   };
 
+  // Returns the latest tick processed by the archiver instance.
   rpc GetLatestTick(google.protobuf.Empty) returns (GetLatestTickResponse) {
     option (google.api.http) = {
       get: "/v1/latestTick"
     };
   };
 
-
+  // A method that is mainly used by the load-balancer to decide if the instance should be added to the balancing rotation based on if it's up-to-date with the network or not.
   rpc GetHealthCheck(google.protobuf.Empty) returns (GetHealthCheckResponse){
     option (google.api.http) = {
       get: "/v1/healthcheck"
