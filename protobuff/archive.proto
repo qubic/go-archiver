@@ -301,6 +301,7 @@ message GetTransferTransactionsPerTickRequestV2 {
   uint32 end_tick = 3;
   bool sc_only = 4;
   bool desc = 5;
+  uint32 count = 6;
 }
 
 

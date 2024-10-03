@@ -375,6 +375,12 @@ func (s *Server) GetIdentityTransfersInTickRangeV2(ctx context.Context, req *pro
 
 	}
 
+	if req.Count > 0 && len(totalTransactions) > int(req.Count) {
+
+		totalTransactions = totalTransactions[:req.Count]
+
+	}
+
 	return &protobuff.GetIdentityTransfersInTickRangeResponseV2{
 		Transactions: totalTransactions,
 	}, nil
