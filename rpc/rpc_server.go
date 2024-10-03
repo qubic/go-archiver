@@ -10,6 +10,7 @@ import (
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-archiver/validator/quorum"
+	"github.com/qubic/go-archiver/validator/tick"
 	qubic "github.com/qubic/go-node-connector"
 	"github.com/qubic/go-node-connector/types"
 	"google.golang.org/grpc"
@@ -121,6 +122,10 @@ func (s *Server) GetTickData(ctx context.Context, req *protobuff.GetTickDataRequ
 
 	if tickData == emptyTd {
 		tickData = nil
+	}
+
+	if tick.CheckIfTickIsEmptyProto(tickData) {
+		return nil, status.Errorf(codes.NotFound, "requested tick %d is empty", req.TickNumber)
 	}
 
 	return &protobuff.GetTickDataResponse{TickData: tickData}, nil
