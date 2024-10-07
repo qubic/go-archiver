@@ -27,6 +27,7 @@ const (
 	ArchiveService_GetTransactionV2_FullMethodName                  = "/org.qubic.archiver.proto.ArchiveService/GetTransactionV2"
 	ArchiveService_GetSendManyTransactionV2_FullMethodName          = "/org.qubic.archiver.proto.ArchiveService/GetSendManyTransactionV2"
 	ArchiveService_GetIdentityTransfersInTickRangeV2_FullMethodName = "/org.qubic.archiver.proto.ArchiveService/GetIdentityTransfersInTickRangeV2"
+	ArchiveService_GetEpochTickListV2_FullMethodName                = "/org.qubic.archiver.proto.ArchiveService/GetEpochTickListV2"
 	ArchiveService_GetEmptyTickListV2_FullMethodName                = "/org.qubic.archiver.proto.ArchiveService/GetEmptyTickListV2"
 	ArchiveService_GetTickData_FullMethodName                       = "/org.qubic.archiver.proto.ArchiveService/GetTickData"
 	ArchiveService_GetQuorumTickData_FullMethodName                 = "/org.qubic.archiver.proto.ArchiveService/GetQuorumTickData"
@@ -62,6 +63,8 @@ type ArchiveServiceClient interface {
 	GetSendManyTransactionV2(ctx context.Context, in *GetSendManyTransactionRequestV2, opts ...grpc.CallOption) (*GetSendManyTransactionResponseV2, error)
 	// Identity
 	GetIdentityTransfersInTickRangeV2(ctx context.Context, in *GetTransferTransactionsPerTickRequestV2, opts ...grpc.CallOption) (*GetIdentityTransfersInTickRangeResponseV2, error)
+	// Epoch ticks
+	GetEpochTickListV2(ctx context.Context, in *GetEpochTickListRequestV2, opts ...grpc.CallOption) (*GetEpochTickListResponseV2, error)
 	// Empty tick list
 	GetEmptyTickListV2(ctx context.Context, in *GetEmptyTickListRequestV2, opts ...grpc.CallOption) (*GetEmptyTickListResponseV2, error)
 	// V1 Endpoints
@@ -146,6 +149,15 @@ func (c *archiveServiceClient) GetSendManyTransactionV2(ctx context.Context, in 
 func (c *archiveServiceClient) GetIdentityTransfersInTickRangeV2(ctx context.Context, in *GetTransferTransactionsPerTickRequestV2, opts ...grpc.CallOption) (*GetIdentityTransfersInTickRangeResponseV2, error) {
 	out := new(GetIdentityTransfersInTickRangeResponseV2)
 	err := c.cc.Invoke(ctx, ArchiveService_GetIdentityTransfersInTickRangeV2_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *archiveServiceClient) GetEpochTickListV2(ctx context.Context, in *GetEpochTickListRequestV2, opts ...grpc.CallOption) (*GetEpochTickListResponseV2, error) {
+	out := new(GetEpochTickListResponseV2)
+	err := c.cc.Invoke(ctx, ArchiveService_GetEpochTickListV2_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -305,6 +317,8 @@ type ArchiveServiceServer interface {
 	GetSendManyTransactionV2(context.Context, *GetSendManyTransactionRequestV2) (*GetSendManyTransactionResponseV2, error)
 	// Identity
 	GetIdentityTransfersInTickRangeV2(context.Context, *GetTransferTransactionsPerTickRequestV2) (*GetIdentityTransfersInTickRangeResponseV2, error)
+	// Epoch ticks
+	GetEpochTickListV2(context.Context, *GetEpochTickListRequestV2) (*GetEpochTickListResponseV2, error)
 	// Empty tick list
 	GetEmptyTickListV2(context.Context, *GetEmptyTickListRequestV2) (*GetEmptyTickListResponseV2, error)
 	// V1 Endpoints
@@ -349,6 +363,9 @@ func (UnimplementedArchiveServiceServer) GetSendManyTransactionV2(context.Contex
 }
 func (UnimplementedArchiveServiceServer) GetIdentityTransfersInTickRangeV2(context.Context, *GetTransferTransactionsPerTickRequestV2) (*GetIdentityTransfersInTickRangeResponseV2, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetIdentityTransfersInTickRangeV2 not implemented")
+}
+func (UnimplementedArchiveServiceServer) GetEpochTickListV2(context.Context, *GetEpochTickListRequestV2) (*GetEpochTickListResponseV2, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetEpochTickListV2 not implemented")
 }
 func (UnimplementedArchiveServiceServer) GetEmptyTickListV2(context.Context, *GetEmptyTickListRequestV2) (*GetEmptyTickListResponseV2, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetEmptyTickListV2 not implemented")
@@ -530,6 +547,24 @@ func _ArchiveService_GetIdentityTransfersInTickRangeV2_Handler(srv interface{}, 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ArchiveServiceServer).GetIdentityTransfersInTickRangeV2(ctx, req.(*GetTransferTransactionsPerTickRequestV2))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ArchiveService_GetEpochTickListV2_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetEpochTickListRequestV2)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ArchiveServiceServer).GetEpochTickListV2(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ArchiveService_GetEpochTickListV2_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ArchiveServiceServer).GetEpochTickListV2(ctx, req.(*GetEpochTickListRequestV2))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -838,6 +873,10 @@ var ArchiveService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetIdentityTransfersInTickRangeV2",
 			Handler:    _ArchiveService_GetIdentityTransfersInTickRangeV2_Handler,
+		},
+		{
+			MethodName: "GetEpochTickListV2",
+			Handler:    _ArchiveService_GetEpochTickListV2_Handler,
 		},
 		{
 			MethodName: "GetEmptyTickListV2",
