@@ -20,7 +20,14 @@ const (
 	StoreDigest                  = 0x12
 	EmptyTicksPerEpoch           = 0x13
 	LastTickQuorumDataPerEpoch   = 0x14
+	EmptyTickListPerEpoch        = 0x15
 )
+
+func emptyTickListPerEpochKey(epoch uint32) []byte {
+	key := []byte{EmptyTickListPerEpoch}
+	key = binary.BigEndian.AppendUint64(key, uint64(epoch))
+	return key
+}
 
 func lastTickQuorumDataPerEpochKey(epoch uint32) []byte {
 	key := []byte{LastTickQuorumDataPerEpoch}

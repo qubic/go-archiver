@@ -816,3 +816,72 @@ func TestPebbleStore_LastProcessedTickIntervals(t *testing.T) {
 	diff := cmp.Diff(gotCombined, expectedCombined, cmpopts.IgnoreUnexported(pb.ProcessedTickInterval{}, pb.ProcessedTickIntervalsPerEpoch{}))
 	require.True(t, cmp.Equal(diff, ""))
 }
+
+func TestPebbleStore_SetAndGetEmptyTickListForEpoch(t *testing.T) {
+
+	// Setup test environment
+	dbDir, err := os.MkdirTemp("", "pebble_test")
+	require.NoError(t, err)
+	defer os.RemoveAll(dbDir)
+
+	db, err := pebble.Open(filepath.Join(dbDir, "testdb"), &pebble.Options{})
+	require.NoError(t, err)
+	defer db.Close()
+
+	logger, _ := zap.NewDevelopment()
+	store := NewPebbleStore(db, logger)
+
+	epoch := uint32(130)
+
+	emptyTickList := []uint32{
+		16393119, 16393320, 16393310, 13390319,
+		16393419, 13363379, 16493319, 17393419,
+		16393619, 13393319, 16798319, 15393719}
+
+	err = store.SetEmptyTickListPerEpoch(epoch, emptyTickList)
+	require.NoError(t, err, "setting empty tick list")
+
+	got, err := store.GetEmptyTickListPerEpoch(epoch)
+	require.NoError(t, err, "getting empty tick list")
+
+	diff := cmp.Diff(got, emptyTickList)
+	require.True(t, cmp.Equal(diff, ""))
+
+}
+
+func TestPebbleStore_AppendToEmptyTickList(t *testing.T) {
+	// Setup test environment
+	dbDir, err := os.MkdirTemp("", "pebble_test")
+	require.NoError(t, err)
+	defer os.RemoveAll(dbDir)
+
+	db, err := pebble.Open(filepath.Join(dbDir, "testdb"), &pebble.Options{})
+	require.NoError(t, err)
+	defer db.Close()
+
+	logger, _ := zap.NewDevelopment()
+	store := NewPebbleStore(db, logger)
+
+	epoch := uint32(130)
+
+	emptyTickList := []uint32{
+		16393119, 16393320, 16393310, 13390319,
+		16393419, 13363379, 16493319, 17393419,
+		16393619, 13393319, 16798319, 15393719}
+
+	toAppend := uint32(10000000)
+
+	err = store.SetEmptyTickListPerEpoch(epoch, emptyTickList)
+	require.NoError(t, err, "setting empty tick list")
+
+	err = store.AppendEmptyTickToEmptyTickListPerEpoch(epoch, toAppend)
+	require.NoError(t, err, "appending to empty tick list")
+
+	expected := append(emptyTickList, toAppend)
+
+	got, err := store.GetEmptyTickListPerEpoch(epoch)
+	require.NoError(t, err, "getting empty tick list")
+
+	diff := cmp.Diff(got, expected)
+	require.True(t, cmp.Equal(diff, ""))
+}
