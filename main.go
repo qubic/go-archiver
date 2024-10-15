@@ -80,9 +80,24 @@ func run() error {
 	}
 	log.Printf("main: Config :\n%v\n", out)
 
-	db, err := pebble.Open(cfg.Qubic.StorageFolder, &pebble.Options{})
+	levelOptions := pebble.LevelOptions{
+		BlockRestartInterval: 16,
+		BlockSize:            4096,
+		BlockSizeThreshold:   90,
+		Compression:          pebble.ZstdCompression,
+		FilterPolicy:         nil,
+		FilterType:           pebble.TableFilter,
+		IndexBlockSize:       4096,
+		TargetFileSize:       2097152,
+	}
+
+	pebbleOptions := pebble.Options{
+		Levels: []pebble.LevelOptions{levelOptions},
+	}
+
+	db, err := pebble.Open(cfg.Qubic.StorageFolder, &pebbleOptions)
 	if err != nil {
-		log.Fatalf("err opening pebble: %s", err.Error())
+		return errors.Wrap(err, "opening db with zstd compression")
 	}
 	defer db.Close()
 

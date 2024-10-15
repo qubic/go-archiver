@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"encoding/hex"
+	"github.com/cockroachdb/pebble"
 	"slices"
 
 	"github.com/pkg/errors"
@@ -12,19 +13,7 @@ import (
 	"github.com/qubic/go-node-connector/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
-
-func (s *Server) GetLatestTickV2(ctx context.Context, req *emptypb.Empty) (*protobuff.GetLatestTickResponse, error) {
-	return s.GetLatestTick(ctx, req)
-}
-
-func (s *Server) GetTickV2(ctx context.Context, req *protobuff.GetTickRequestV2) (*protobuff.GetTickResponseV2, error) {
-
-	//TODO: Implement
-
-	return nil, status.Errorf(codes.Unimplemented, "Not yet implemented")
-}
 
 func (s *Server) GetTickQuorumDataV2(ctx context.Context, req *protobuff.GetTickRequestV2) (*protobuff.GetQuorumTickDataResponse, error) {
 	return s.GetQuorumTickData(ctx, &protobuff.GetQuorumTickDataRequest{
@@ -377,6 +366,169 @@ func (s *Server) GetIdentityTransfersInTickRangeV2(ctx context.Context, req *pro
 
 	return &protobuff.GetIdentityTransfersInTickRangeResponseV2{
 		Transactions: totalTransactions,
+	}, nil
+
+}
+
+func (s *Server) GetEmptyTickListV2(ctx context.Context, req *protobuff.GetEmptyTickListRequestV2) (*protobuff.GetEmptyTickListResponseV2, error) {
+
+	if req.PageSize <= 0 {
+		return nil, status.Errorf(codes.FailedPrecondition, "page size must be at least 1")
+	}
+
+	emptyTicks, err := s.store.GetEmptyTickListPerEpoch(req.Epoch)
+	if err != nil {
+		if errors.Is(err, pebble.ErrNotFound) {
+			return nil, status.Errorf(codes.NotFound, "no empty ticks found for epoch %d", req.Epoch)
+		}
+		return nil, status.Errorf(codes.Internal, "getting empty tick list: %v", err)
+	}
+
+	pageCount := len(emptyTicks) / int(req.PageSize)
+	if len(emptyTicks)%int(req.PageSize) != 0 {
+		pageCount += 1
+	}
+	currentPage := int(req.Page)
+	if currentPage <= 0 {
+		currentPage = 1
+	}
+	if currentPage > pageCount {
+		return nil, status.Errorf(codes.NotFound, "cannot find specified page. last page: %d", pageCount)
+	}
+
+	startingIndex := (currentPage - 1) * int(req.PageSize)
+	endingIndex := startingIndex + int(req.PageSize)
+	if endingIndex > len(emptyTicks) {
+		endingIndex = len(emptyTicks)
+	}
+
+	selectedTicks := emptyTicks[startingIndex:endingIndex]
+
+	nextPage := currentPage + 1
+	if currentPage == pageCount {
+		nextPage = -1
+	}
+
+	previousPage := currentPage - 1
+	if currentPage == 1 {
+		previousPage = -1
+	}
+
+	return &protobuff.GetEmptyTickListResponseV2{
+		EmptyTicks: selectedTicks,
+		Pagination: &protobuff.Pagination{
+			TotalRecords: int32(len(emptyTicks)),
+			CurrentPage:  int32(currentPage),
+			TotalPages:   int32(pageCount),
+			PageSize:     req.PageSize,
+			NextPage:     int32(nextPage),
+			PreviousPage: int32(previousPage),
+		},
+	}, nil
+
+}
+
+func (s *Server) GetEpochTickListV2(ctx context.Context, req *protobuff.GetEpochTickListRequestV2) (*protobuff.GetEpochTickListResponseV2, error) {
+
+	if req.PageSize <= 0 {
+		return nil, status.Errorf(codes.FailedPrecondition, "page size must be at least 1")
+	}
+
+	intervals, err := s.store.GetProcessedTickIntervals(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get tick intervals: %v", err)
+	}
+
+	var processedTickIntervalsForEpoch []*protobuff.ProcessedTickInterval
+
+	for _, interval := range intervals {
+		if interval.Epoch != req.Epoch {
+			continue
+		}
+		processedTickIntervalsForEpoch = interval.Intervals
+	}
+
+	if len(processedTickIntervalsForEpoch) == 0 {
+		return nil, status.Errorf(codes.Internal, "no processed tick intervals found for epoch %d", req.Epoch)
+	}
+
+	emptyTicksForEpoch, err := s.store.GetEmptyTickListPerEpoch(req.Epoch)
+	if err != nil {
+		if errors.Is(err, pebble.ErrNotFound) {
+			return nil, status.Errorf(codes.NotFound, "no empty ticks found for epoch %d", req.Epoch)
+		}
+		return nil, status.Errorf(codes.Internal, "getting empty tick list: %v", err)
+	}
+
+	tickMap := make(map[uint32]bool)
+
+	for _, interval := range processedTickIntervalsForEpoch {
+
+		for i := interval.InitialProcessedTick; i <= interval.LastProcessedTick; i++ {
+			tickMap[i] = false
+		}
+	}
+
+	for _, tick := range emptyTicksForEpoch {
+		_, exists := tickMap[tick]
+		if exists {
+			tickMap[tick] = true
+		}
+	}
+
+	var result []*protobuff.TickStatus
+
+	for tick, isEmpty := range tickMap {
+		result = append(result, &protobuff.TickStatus{
+			TickNumber: tick,
+			IsEmpty:    isEmpty,
+		})
+	}
+
+	slices.SortFunc(result, func(a, b *protobuff.TickStatus) int {
+		return cmp.Compare(a.TickNumber, b.TickNumber)
+	})
+
+	pageCount := len(result) / int(req.PageSize)
+	if len(result)%int(req.PageSize) != 0 {
+		pageCount += 1
+	}
+	currentPage := int(req.Page)
+	if currentPage <= 0 {
+		currentPage = 1
+	}
+	if currentPage > pageCount {
+		return nil, status.Errorf(codes.NotFound, "cannot find specified page. last page: %d", pageCount)
+	}
+
+	startingIndex := (currentPage - 1) * int(req.PageSize)
+	endingIndex := startingIndex + int(req.PageSize)
+	if endingIndex > len(result) {
+		endingIndex = len(result)
+	}
+
+	selectedTicks := result[startingIndex:endingIndex]
+
+	nextPage := currentPage + 1
+	if currentPage == pageCount {
+		nextPage = -1
+	}
+
+	previousPage := currentPage - 1
+	if currentPage == 1 {
+		previousPage = -1
+	}
+
+	return &protobuff.GetEpochTickListResponseV2{
+		Pagination: &protobuff.Pagination{
+			TotalRecords: int32(len(result)),
+			CurrentPage:  int32(currentPage),
+			TotalPages:   int32(pageCount),
+			PageSize:     req.PageSize,
+			NextPage:     int32(nextPage),
+			PreviousPage: int32(previousPage),
+		},
+		Ticks: selectedTicks,
 	}, nil
 
 }

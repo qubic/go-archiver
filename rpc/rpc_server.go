@@ -4,10 +4,13 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-archiver/store"
+	"github.com/qubic/go-archiver/validator/quorum"
+	"github.com/qubic/go-archiver/validator/tick"
 	qubic "github.com/qubic/go-node-connector"
 	"github.com/qubic/go-node-connector/types"
 	"google.golang.org/grpc"
@@ -118,6 +121,10 @@ func (s *Server) GetTickData(ctx context.Context, req *protobuff.GetTickDataRequ
 	}
 
 	if tickData == emptyTd {
+		tickData = nil
+	}
+
+	if tick.CheckIfTickIsEmptyProto(tickData) {
 		tickData = nil
 	}
 
@@ -237,6 +244,27 @@ func (s *Server) GetQuorumTickData(ctx context.Context, req *protobuff.GetQuorum
 		return nil, status.Errorf(codes.Internal, "getting processed tick intervals per epoch")
 	}
 
+	epoch, err := getTickEpoch(req.TickNumber, processedTickIntervalsPerEpoch)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "getting tick epoch :%v", err)
+	}
+
+	lastTickFlag, err := isLastTick(req.TickNumber, epoch, processedTickIntervalsPerEpoch)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "checking if tick is last tick in it's epoch: %v", err)
+	}
+
+	if lastTickFlag {
+		lastTickQuorumData, err := s.store.GetLastTickQuorumDataPerEpoch(epoch)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "getting quorum data for last processed tick: %v", err)
+		}
+
+		return &protobuff.GetQuorumTickDataResponse{
+			QuorumTickData: lastTickQuorumData,
+		}, nil
+	}
+
 	wasSkipped, nextAvailableTick := wasTickSkippedByArchive(req.TickNumber, processedTickIntervalsPerEpoch)
 	if wasSkipped == true {
 		st := status.Newf(codes.OutOfRange, "provided tick number %d was skipped by the system, next available tick is %d", req.TickNumber, nextAvailableTick)
@@ -248,15 +276,63 @@ func (s *Server) GetQuorumTickData(ctx context.Context, req *protobuff.GetQuorum
 		return nil, st.Err()
 	}
 
-	qtd, err := s.store.GetQuorumTickData(ctx, req.TickNumber)
-	if err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			return nil, status.Errorf(codes.NotFound, "quorum tick data not found")
+	if req.TickNumber == lastProcessedTick.TickNumber {
+		tickData, err := s.store.GetQuorumTickData(ctx, req.TickNumber)
+		if err != nil {
+			if errors.Is(err, store.ErrNotFound) {
+				return nil, status.Errorf(codes.NotFound, "quorum tick data not found")
+			}
+			return nil, status.Errorf(codes.Internal, "getting quorum tick data: %v", err)
 		}
-		return nil, status.Errorf(codes.Internal, "getting quorum tick data: %v", err)
+
+		res := protobuff.GetQuorumTickDataResponse{
+			QuorumTickData: &protobuff.QuorumTickData{
+				QuorumTickStructure:   tickData.QuorumTickStructure,
+				QuorumDiffPerComputor: make(map[uint32]*protobuff.QuorumDiff),
+			},
+		}
+
+		for id, diff := range tickData.QuorumDiffPerComputor {
+			res.QuorumTickData.QuorumDiffPerComputor[id] = &protobuff.QuorumDiff{
+				ExpectedNextTickTxDigestHex: diff.ExpectedNextTickTxDigestHex,
+				SignatureHex:                diff.SignatureHex,
+			}
+		}
+
+		return &res, nil
 	}
 
-	return &protobuff.GetQuorumTickDataResponse{QuorumTickData: qtd}, nil
+	nextTick := req.TickNumber + 1
+
+	nextTickQuorumData, err := s.store.GetQuorumTickData(ctx, nextTick)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, status.Errorf(codes.Internal, "quorum data for next tick was not found")
+		}
+		return nil, status.Errorf(codes.Internal, "getting tick data: %v", err)
+	}
+
+	currentTickQuorumData, err := s.store.GetQuorumTickData(ctx, req.TickNumber)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, status.Errorf(codes.Internal, "quorum data for  tick was not found")
+		}
+		return nil, status.Errorf(codes.Internal, "getting tick data: %v", err)
+	}
+
+	computors, err := s.store.GetComputors(ctx, currentTickQuorumData.QuorumTickStructure.Epoch)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "getting computor list")
+	}
+
+	reconstructedQuorumData, err := quorum.ReconstructQuorumData(currentTickQuorumData, nextTickQuorumData, computors)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "reconstructing quorum data: %v", err)
+	}
+
+	return &protobuff.GetQuorumTickDataResponse{
+		QuorumTickData: reconstructedQuorumData,
+	}, nil
 }
 func (s *Server) GetComputors(ctx context.Context, req *protobuff.GetComputorsRequest) (*protobuff.GetComputorsResponse, error) {
 	computors, err := s.store.GetComputors(ctx, req.Epoch)
@@ -488,6 +564,48 @@ func wasTickSkippedByArchive(tick uint32, processedTicksIntervalPerEpoch []*prot
 	return false, 0
 }
 
+func getTickEpoch(tickNumber uint32, intervals []*protobuff.ProcessedTickIntervalsPerEpoch) (uint32, error) {
+	if len(intervals) == 0 {
+		return 0, errors.New("processed tick interval list is empty")
+	}
+
+	for _, epochInterval := range intervals {
+		for _, interval := range epochInterval.Intervals {
+			if tickNumber >= interval.InitialProcessedTick && tickNumber <= interval.LastProcessedTick {
+				return epochInterval.Epoch, nil
+			}
+		}
+	}
+
+	return 0, errors.New(fmt.Sprintf("unable to find the epoch for tick %d", tickNumber))
+}
+
+func getProcessedTickIntervalsForEpoch(epoch uint32, intervals []*protobuff.ProcessedTickIntervalsPerEpoch) (*protobuff.ProcessedTickIntervalsPerEpoch, error) {
+	for _, interval := range intervals {
+		if interval.Epoch != epoch {
+			continue
+		}
+		return interval, nil
+	}
+
+	return nil, errors.New(fmt.Sprintf("unable to find processed tick intervals for epoch %d", epoch))
+}
+
+func isLastTick(tickNumber uint32, epoch uint32, intervals []*protobuff.ProcessedTickIntervalsPerEpoch) (bool, error) {
+	epochIntervals, err := getProcessedTickIntervalsForEpoch(epoch, intervals)
+	if err != nil {
+		return false, errors.Wrap(err, "getting processed tick intervals per epoch")
+	}
+
+	for _, interval := range epochIntervals.Intervals {
+		if interval.LastProcessedTick == tickNumber {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
 func (s *Server) GetTransactionStatus(ctx context.Context, req *protobuff.GetTransactionStatusRequest) (*protobuff.GetTransactionStatusResponse, error) {
 	id := types.Identity(req.TxId)
 	pubKey, err := id.ToPubKey(true)
@@ -597,7 +715,7 @@ func (s *Server) Start() error {
 	if s.listenAddrHTTP != "" {
 		go func() {
 			mux := runtime.NewServeMux(runtime.WithMarshalerOption(runtime.MIMEWildcard, &runtime.JSONPb{
-				MarshalOptions: protojson.MarshalOptions{EmitDefaultValues: true, EmitUnpopulated: false},
+				MarshalOptions: protojson.MarshalOptions{EmitDefaultValues: true, EmitUnpopulated: true},
 			}))
 			opts := []grpc.DialOption{
 				grpc.WithTransportCredentials(insecure.NewCredentials()),
