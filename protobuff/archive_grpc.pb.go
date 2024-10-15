@@ -20,29 +20,29 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	ArchiveService_GetTickQuorumDataV2_FullMethodName               = "/org.qubic.archiver.proto.ArchiveService/GetTickQuorumDataV2"
-	ArchiveService_GetTickChainHashV2_FullMethodName                = "/org.qubic.archiver.proto.ArchiveService/GetTickChainHashV2"
-	ArchiveService_GetTickStoreHashV2_FullMethodName                = "/org.qubic.archiver.proto.ArchiveService/GetTickStoreHashV2"
-	ArchiveService_GetTickTransactionsV2_FullMethodName             = "/org.qubic.archiver.proto.ArchiveService/GetTickTransactionsV2"
-	ArchiveService_GetTransactionV2_FullMethodName                  = "/org.qubic.archiver.proto.ArchiveService/GetTransactionV2"
-	ArchiveService_GetSendManyTransactionV2_FullMethodName          = "/org.qubic.archiver.proto.ArchiveService/GetSendManyTransactionV2"
-	ArchiveService_GetIdentityTransfersInTickRangeV2_FullMethodName = "/org.qubic.archiver.proto.ArchiveService/GetIdentityTransfersInTickRangeV2"
-	ArchiveService_GetEpochTickListV2_FullMethodName                = "/org.qubic.archiver.proto.ArchiveService/GetEpochTickListV2"
-	ArchiveService_GetEmptyTickListV2_FullMethodName                = "/org.qubic.archiver.proto.ArchiveService/GetEmptyTickListV2"
-	ArchiveService_GetTickData_FullMethodName                       = "/org.qubic.archiver.proto.ArchiveService/GetTickData"
-	ArchiveService_GetQuorumTickData_FullMethodName                 = "/org.qubic.archiver.proto.ArchiveService/GetQuorumTickData"
-	ArchiveService_GetTickTransactions_FullMethodName               = "/org.qubic.archiver.proto.ArchiveService/GetTickTransactions"
-	ArchiveService_GetTickTransferTransactions_FullMethodName       = "/org.qubic.archiver.proto.ArchiveService/GetTickTransferTransactions"
-	ArchiveService_GetTickApprovedTransactions_FullMethodName       = "/org.qubic.archiver.proto.ArchiveService/GetTickApprovedTransactions"
-	ArchiveService_GetChainHash_FullMethodName                      = "/org.qubic.archiver.proto.ArchiveService/GetChainHash"
-	ArchiveService_GetStoreHash_FullMethodName                      = "/org.qubic.archiver.proto.ArchiveService/GetStoreHash"
-	ArchiveService_GetTransaction_FullMethodName                    = "/org.qubic.archiver.proto.ArchiveService/GetTransaction"
-	ArchiveService_GetTransactionStatus_FullMethodName              = "/org.qubic.archiver.proto.ArchiveService/GetTransactionStatus"
-	ArchiveService_GetTransferTransactionsPerTick_FullMethodName    = "/org.qubic.archiver.proto.ArchiveService/GetTransferTransactionsPerTick"
-	ArchiveService_GetComputors_FullMethodName                      = "/org.qubic.archiver.proto.ArchiveService/GetComputors"
-	ArchiveService_GetStatus_FullMethodName                         = "/org.qubic.archiver.proto.ArchiveService/GetStatus"
-	ArchiveService_GetLatestTick_FullMethodName                     = "/org.qubic.archiver.proto.ArchiveService/GetLatestTick"
-	ArchiveService_GetHealthCheck_FullMethodName                    = "/org.qubic.archiver.proto.ArchiveService/GetHealthCheck"
+	ArchiveService_GetTickQuorumDataV2_FullMethodName               = "/qubic.archiver.archive.pb.ArchiveService/GetTickQuorumDataV2"
+	ArchiveService_GetTickChainHashV2_FullMethodName                = "/qubic.archiver.archive.pb.ArchiveService/GetTickChainHashV2"
+	ArchiveService_GetTickStoreHashV2_FullMethodName                = "/qubic.archiver.archive.pb.ArchiveService/GetTickStoreHashV2"
+	ArchiveService_GetTickTransactionsV2_FullMethodName             = "/qubic.archiver.archive.pb.ArchiveService/GetTickTransactionsV2"
+	ArchiveService_GetTransactionV2_FullMethodName                  = "/qubic.archiver.archive.pb.ArchiveService/GetTransactionV2"
+	ArchiveService_GetSendManyTransactionV2_FullMethodName          = "/qubic.archiver.archive.pb.ArchiveService/GetSendManyTransactionV2"
+	ArchiveService_GetIdentityTransfersInTickRangeV2_FullMethodName = "/qubic.archiver.archive.pb.ArchiveService/GetIdentityTransfersInTickRangeV2"
+	ArchiveService_GetEpochTickListV2_FullMethodName                = "/qubic.archiver.archive.pb.ArchiveService/GetEpochTickListV2"
+	ArchiveService_GetEmptyTickListV2_FullMethodName                = "/qubic.archiver.archive.pb.ArchiveService/GetEmptyTickListV2"
+	ArchiveService_GetTickData_FullMethodName                       = "/qubic.archiver.archive.pb.ArchiveService/GetTickData"
+	ArchiveService_GetQuorumTickData_FullMethodName                 = "/qubic.archiver.archive.pb.ArchiveService/GetQuorumTickData"
+	ArchiveService_GetTickTransactions_FullMethodName               = "/qubic.archiver.archive.pb.ArchiveService/GetTickTransactions"
+	ArchiveService_GetTickTransferTransactions_FullMethodName       = "/qubic.archiver.archive.pb.ArchiveService/GetTickTransferTransactions"
+	ArchiveService_GetTickApprovedTransactions_FullMethodName       = "/qubic.archiver.archive.pb.ArchiveService/GetTickApprovedTransactions"
+	ArchiveService_GetChainHash_FullMethodName                      = "/qubic.archiver.archive.pb.ArchiveService/GetChainHash"
+	ArchiveService_GetStoreHash_FullMethodName                      = "/qubic.archiver.archive.pb.ArchiveService/GetStoreHash"
+	ArchiveService_GetTransaction_FullMethodName                    = "/qubic.archiver.archive.pb.ArchiveService/GetTransaction"
+	ArchiveService_GetTransactionStatus_FullMethodName              = "/qubic.archiver.archive.pb.ArchiveService/GetTransactionStatus"
+	ArchiveService_GetTransferTransactionsPerTick_FullMethodName    = "/qubic.archiver.archive.pb.ArchiveService/GetTransferTransactionsPerTick"
+	ArchiveService_GetComputors_FullMethodName                      = "/qubic.archiver.archive.pb.ArchiveService/GetComputors"
+	ArchiveService_GetStatus_FullMethodName                         = "/qubic.archiver.archive.pb.ArchiveService/GetStatus"
+	ArchiveService_GetLatestTick_FullMethodName                     = "/qubic.archiver.archive.pb.ArchiveService/GetLatestTick"
+	ArchiveService_GetHealthCheck_FullMethodName                    = "/qubic.archiver.archive.pb.ArchiveService/GetHealthCheck"
 )
 
 // ArchiveServiceClient is the client API for ArchiveService service.
@@ -55,32 +55,43 @@ type ArchiveServiceClient interface {
 	GetTickChainHashV2(ctx context.Context, in *GetTickRequestV2, opts ...grpc.CallOption) (*GetChainHashResponse, error)
 	// Store hash
 	GetTickStoreHashV2(ctx context.Context, in *GetTickRequestV2, opts ...grpc.CallOption) (*GetChainHashResponse, error)
-	// Tick transactions
+	// Returns the list of transactions for the given tick, including timestamp and transfer status.
 	GetTickTransactionsV2(ctx context.Context, in *GetTickTransactionsRequestV2, opts ...grpc.CallOption) (*GetTickTransactionsResponseV2, error)
-	// Normal
+	// Returns the information for the given transaction id, including timestamp and transfer status.
 	GetTransactionV2(ctx context.Context, in *GetTransactionRequestV2, opts ...grpc.CallOption) (*GetTransactionResponseV2, error)
 	// SendMany
 	GetSendManyTransactionV2(ctx context.Context, in *GetSendManyTransactionRequestV2, opts ...grpc.CallOption) (*GetSendManyTransactionResponseV2, error)
-	// Identity
+	// Returns the list of transfers for the given identity, their status and timestamp, grouped by tick.
 	GetIdentityTransfersInTickRangeV2(ctx context.Context, in *GetTransferTransactionsPerTickRequestV2, opts ...grpc.CallOption) (*GetIdentityTransfersInTickRangeResponseV2, error)
-	// Epoch ticks
+	// Returns the the tick numbers for the the specified epoch, alongside with the 'isEmpty' status. Paginated.
 	GetEpochTickListV2(ctx context.Context, in *GetEpochTickListRequestV2, opts ...grpc.CallOption) (*GetEpochTickListResponseV2, error)
-	// Empty tick list
+	// Returns the list of empty ticks for the specified epoch. Paginated.
 	GetEmptyTickListV2(ctx context.Context, in *GetEmptyTickListRequestV2, opts ...grpc.CallOption) (*GetEmptyTickListResponseV2, error)
-	// V1 Endpoints
+	// Returns the information for the given tick.
 	GetTickData(ctx context.Context, in *GetTickDataRequest, opts ...grpc.CallOption) (*GetTickDataResponse, error)
 	GetQuorumTickData(ctx context.Context, in *GetQuorumTickDataRequest, opts ...grpc.CallOption) (*GetQuorumTickDataResponse, error)
+	// Deprecated: Use /v2/ticks/{tick_number}/transactions instead.
 	GetTickTransactions(ctx context.Context, in *GetTickTransactionsRequest, opts ...grpc.CallOption) (*GetTickTransactionsResponse, error)
+	// Deprecated: Use /v2/ticks/{tick_number}/transactions instead.
 	GetTickTransferTransactions(ctx context.Context, in *GetTickTransactionsRequest, opts ...grpc.CallOption) (*GetTickTransactionsResponse, error)
+	// Deprecated: Use /v2/ticks/{tick_number}/transactions instead.
 	GetTickApprovedTransactions(ctx context.Context, in *GetTickApprovedTransactionsRequest, opts ...grpc.CallOption) (*GetTickApprovedTransactionsResponse, error)
+	// Returns the hash of the given processed tick. This is mainly used to compare archiver instances and verify they process ticks the same.
 	GetChainHash(ctx context.Context, in *GetChainHashRequest, opts ...grpc.CallOption) (*GetChainHashResponse, error)
 	GetStoreHash(ctx context.Context, in *GetChainHashRequest, opts ...grpc.CallOption) (*GetChainHashResponse, error)
+	// Deprecated: Use /v2/transactions/{tx_id} instead.
 	GetTransaction(ctx context.Context, in *GetTransactionRequest, opts ...grpc.CallOption) (*GetTransactionResponse, error)
+	// Deprecated: Use /v2/transactions/{tx_id} instead.
 	GetTransactionStatus(ctx context.Context, in *GetTransactionStatusRequest, opts ...grpc.CallOption) (*GetTransactionStatusResponse, error)
+	// Deprecated: Use /v2/identities/{identity}/transfers instead.
 	GetTransferTransactionsPerTick(ctx context.Context, in *GetTransferTransactionsPerTickRequest, opts ...grpc.CallOption) (*GetTransferTransactionsPerTickResponse, error)
+	// Returns the list of computors for the given epoch.
 	GetComputors(ctx context.Context, in *GetComputorsRequest, opts ...grpc.CallOption) (*GetComputorsResponse, error)
+	// Returns information regarding the status of the archiver instance.
 	GetStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*GetStatusResponse, error)
+	// Returns the latest tick processed by the archiver instance.
 	GetLatestTick(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*GetLatestTickResponse, error)
+	// A method that is mainly used by the load-balancer to decide if the instance should be added to the balancing rotation based on if it's up-to-date with the network or not.
 	GetHealthCheck(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*GetHealthCheckResponse, error)
 }
 
@@ -309,32 +320,43 @@ type ArchiveServiceServer interface {
 	GetTickChainHashV2(context.Context, *GetTickRequestV2) (*GetChainHashResponse, error)
 	// Store hash
 	GetTickStoreHashV2(context.Context, *GetTickRequestV2) (*GetChainHashResponse, error)
-	// Tick transactions
+	// Returns the list of transactions for the given tick, including timestamp and transfer status.
 	GetTickTransactionsV2(context.Context, *GetTickTransactionsRequestV2) (*GetTickTransactionsResponseV2, error)
-	// Normal
+	// Returns the information for the given transaction id, including timestamp and transfer status.
 	GetTransactionV2(context.Context, *GetTransactionRequestV2) (*GetTransactionResponseV2, error)
 	// SendMany
 	GetSendManyTransactionV2(context.Context, *GetSendManyTransactionRequestV2) (*GetSendManyTransactionResponseV2, error)
-	// Identity
+	// Returns the list of transfers for the given identity, their status and timestamp, grouped by tick.
 	GetIdentityTransfersInTickRangeV2(context.Context, *GetTransferTransactionsPerTickRequestV2) (*GetIdentityTransfersInTickRangeResponseV2, error)
-	// Epoch ticks
+	// Returns the the tick numbers for the the specified epoch, alongside with the 'isEmpty' status. Paginated.
 	GetEpochTickListV2(context.Context, *GetEpochTickListRequestV2) (*GetEpochTickListResponseV2, error)
-	// Empty tick list
+	// Returns the list of empty ticks for the specified epoch. Paginated.
 	GetEmptyTickListV2(context.Context, *GetEmptyTickListRequestV2) (*GetEmptyTickListResponseV2, error)
-	// V1 Endpoints
+	// Returns the information for the given tick.
 	GetTickData(context.Context, *GetTickDataRequest) (*GetTickDataResponse, error)
 	GetQuorumTickData(context.Context, *GetQuorumTickDataRequest) (*GetQuorumTickDataResponse, error)
+	// Deprecated: Use /v2/ticks/{tick_number}/transactions instead.
 	GetTickTransactions(context.Context, *GetTickTransactionsRequest) (*GetTickTransactionsResponse, error)
+	// Deprecated: Use /v2/ticks/{tick_number}/transactions instead.
 	GetTickTransferTransactions(context.Context, *GetTickTransactionsRequest) (*GetTickTransactionsResponse, error)
+	// Deprecated: Use /v2/ticks/{tick_number}/transactions instead.
 	GetTickApprovedTransactions(context.Context, *GetTickApprovedTransactionsRequest) (*GetTickApprovedTransactionsResponse, error)
+	// Returns the hash of the given processed tick. This is mainly used to compare archiver instances and verify they process ticks the same.
 	GetChainHash(context.Context, *GetChainHashRequest) (*GetChainHashResponse, error)
 	GetStoreHash(context.Context, *GetChainHashRequest) (*GetChainHashResponse, error)
+	// Deprecated: Use /v2/transactions/{tx_id} instead.
 	GetTransaction(context.Context, *GetTransactionRequest) (*GetTransactionResponse, error)
+	// Deprecated: Use /v2/transactions/{tx_id} instead.
 	GetTransactionStatus(context.Context, *GetTransactionStatusRequest) (*GetTransactionStatusResponse, error)
+	// Deprecated: Use /v2/identities/{identity}/transfers instead.
 	GetTransferTransactionsPerTick(context.Context, *GetTransferTransactionsPerTickRequest) (*GetTransferTransactionsPerTickResponse, error)
+	// Returns the list of computors for the given epoch.
 	GetComputors(context.Context, *GetComputorsRequest) (*GetComputorsResponse, error)
+	// Returns information regarding the status of the archiver instance.
 	GetStatus(context.Context, *emptypb.Empty) (*GetStatusResponse, error)
+	// Returns the latest tick processed by the archiver instance.
 	GetLatestTick(context.Context, *emptypb.Empty) (*GetLatestTickResponse, error)
+	// A method that is mainly used by the load-balancer to decide if the instance should be added to the balancing rotation based on if it's up-to-date with the network or not.
 	GetHealthCheck(context.Context, *emptypb.Empty) (*GetHealthCheckResponse, error)
 	mustEmbedUnimplementedArchiveServiceServer()
 }
@@ -843,7 +865,7 @@ func _ArchiveService_GetHealthCheck_Handler(srv interface{}, ctx context.Context
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var ArchiveService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "org.qubic.archiver.proto.ArchiveService",
+	ServiceName: "qubic.archiver.archive.pb.ArchiveService",
 	HandlerType: (*ArchiveServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
