@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"encoding/binary"
+	"fmt"
 	"github.com/cockroachdb/pebble"
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
@@ -59,7 +60,22 @@ func (s *PebbleStore) SetTickData(ctx context.Context, tickNumber uint32, td *pr
 	return nil
 }
 
-func (s *PebbleStore) GetQuorumTickData(ctx context.Context, tickNumber uint32) (*protobuff.QuorumTickData, error) {
+func (s *PebbleStore) SetQuorumTickData(ctx context.Context, tickNumber uint32, qtd *protobuff.QuorumTickDataStored) error {
+	key := quorumTickDataKey(tickNumber)
+	serialized, err := proto.Marshal(qtd)
+	if err != nil {
+		return errors.Wrap(err, "serializing qtdV2 proto")
+	}
+
+	err = s.db.Set(key, serialized, pebble.Sync)
+	if err != nil {
+		return errors.Wrap(err, "setting quorum tick data")
+	}
+
+	return nil
+}
+
+func (s *PebbleStore) GetQuorumTickData(ctx context.Context, tickNumber uint32) (*protobuff.QuorumTickDataStored, error) {
 	key := quorumTickDataKey(tickNumber)
 	value, closer, err := s.db.Get(key)
 	if err != nil {
@@ -71,27 +87,12 @@ func (s *PebbleStore) GetQuorumTickData(ctx context.Context, tickNumber uint32) 
 	}
 	defer closer.Close()
 
-	var qtd protobuff.QuorumTickData
+	var qtd protobuff.QuorumTickDataStored
 	if err := proto.Unmarshal(value, &qtd); err != nil {
-		return nil, errors.Wrap(err, "unmarshalling quorum tick data to protobuf type")
+		return nil, errors.Wrap(err, "unmarshalling qtdV2 to protobuf type")
 	}
 
 	return &qtd, err
-}
-
-func (s *PebbleStore) SetQuorumTickData(ctx context.Context, tickNumber uint32, qtd *protobuff.QuorumTickData) error {
-	key := quorumTickDataKey(tickNumber)
-	serialized, err := proto.Marshal(qtd)
-	if err != nil {
-		return errors.Wrap(err, "serializing qtd proto")
-	}
-
-	err = s.db.Set(key, serialized, pebble.Sync)
-	if err != nil {
-		return errors.Wrap(err, "setting quorum tick data")
-	}
-
-	return nil
 }
 
 func (s *PebbleStore) GetComputors(ctx context.Context, epoch uint32) (*protobuff.Computors, error) {
@@ -695,6 +696,113 @@ func (s *PebbleStore) DeleteEmptyTicksKeyForEpoch(epoch uint32) error {
 	err := s.db.Delete(key, pebble.Sync)
 	if err != nil {
 		return errors.Wrapf(err, "deleting empty ticks key for epoch %d", epoch)
+	}
+	return nil
+}
+
+func (s *PebbleStore) SetLastTickQuorumDataPerEpoch(quorumData *protobuff.QuorumTickData, epoch uint32) error {
+	key := lastTickQuorumDataPerEpochKey(epoch)
+
+	serialized, err := proto.Marshal(quorumData)
+	if err != nil {
+		return errors.Wrapf(err, "serializing quorum tick data for last tick of epoch %d", epoch)
+	}
+
+	err = s.db.Set(key, serialized, pebble.Sync)
+	if err != nil {
+		return errors.Wrapf(err, "setting last tick quorum tick data for epoch %d", epoch)
+	}
+	return nil
+}
+
+func (s *PebbleStore) GetLastTickQuorumDataPerEpoch(epoch uint32) (*protobuff.QuorumTickData, error) {
+	key := lastTickQuorumDataPerEpochKey(epoch)
+
+	value, closer, err := s.db.Get(key)
+	if err != nil {
+		if errors.Is(err, pebble.ErrNotFound) {
+			return nil, err
+		}
+		return nil, errors.Wrapf(err, "getting last tick quorum data for epoch %d", epoch)
+	}
+	defer closer.Close()
+
+	var quorumData protobuff.QuorumTickData
+
+	err = proto.Unmarshal(value, &quorumData)
+	if err != nil {
+		return nil, errors.Wrapf(err, "deserializing quorum tick data for last tick of epoch %d", epoch)
+	}
+
+	return &quorumData, nil
+}
+
+func (s *PebbleStore) SetEmptyTickListPerEpoch(epoch uint32, emptyTicks []uint32) error {
+	key := emptyTickListPerEpochKey(epoch)
+
+	value := make([]byte, len(emptyTicks)*4)
+	for index, tickNumber := range emptyTicks {
+		binary.LittleEndian.PutUint32(value[index*4:index*4+4], tickNumber)
+	}
+
+	err := s.db.Set(key, value, pebble.Sync)
+	if err != nil {
+		return errors.Wrapf(err, "saving empty tick list for epoch %d", epoch)
+	}
+	return nil
+}
+
+func (s *PebbleStore) GetEmptyTickListPerEpoch(epoch uint32) ([]uint32, error) {
+	key := emptyTickListPerEpochKey(epoch)
+
+	value, closer, err := s.db.Get(key)
+	if err != nil {
+		if errors.Is(err, pebble.ErrNotFound) {
+			return nil, err
+		}
+
+		return nil, errors.Wrapf(err, "getting empty tick list for epoch %d", epoch)
+	}
+	defer closer.Close()
+
+	if len(value)%4 != 0 {
+		return nil, errors.New(fmt.Sprintf("corrupted empty tick list for epoch %d. array length mod 4 != 0. length: %d", epoch, len(value)))
+	}
+
+	var emptyTicks []uint32
+
+	for index := 0; index < (len(value) / 4); index++ {
+		tickNumber := binary.LittleEndian.Uint32(value[index*4 : index*4+4])
+		emptyTicks = append(emptyTicks, tickNumber)
+	}
+
+	return emptyTicks, nil
+
+}
+
+func (s *PebbleStore) AppendEmptyTickToEmptyTickListPerEpoch(epoch uint32, tickNumber uint32) error {
+
+	emptyTicks, err := s.GetEmptyTickListPerEpoch(epoch)
+	if err != nil {
+		return errors.Wrapf(err, "getting empty tick list for epoch %d", epoch)
+	}
+
+	emptyTicks = append(emptyTicks, tickNumber)
+
+	err = s.SetEmptyTickListPerEpoch(epoch, emptyTicks)
+	if err != nil {
+		return errors.Wrapf(err, "saving appended empty tick list")
+	}
+
+	return nil
+}
+
+func (s *PebbleStore) DeleteEmptyTickListKeyForEpoch(epoch uint32) error {
+	key := emptyTickListPerEpochKey(epoch)
+
+	err := s.db.Delete(key, pebble.Sync)
+	if err != nil {
+		return errors.Wrapf(err, "deleting empty tick list key for epoch %d", epoch)
 	}
 	return nil
 }

@@ -173,6 +173,10 @@ func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumb
 
 		if emptyTicks == 0 {
 			fmt.Printf("Initializing empty ticks for epoch: %d\n", epoch)
+			err := v.store.SetEmptyTickListPerEpoch(uint32(epoch), make([]uint32, 0))
+			if err != nil {
+				return errors.Wrapf(err, "initializing empty tick list for epoch %d", epoch)
+			}
 		}
 
 		emptyTicks += 1
@@ -182,6 +186,11 @@ func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumb
 			return errors.Wrap(err, "setting current ticks for current epoch")
 		}
 		fmt.Printf("Empty ticks for epoch %d: %d\n", epoch, emptyTicks)
+
+		err = v.store.AppendEmptyTickToEmptyTickListPerEpoch(uint32(epoch), tickNumber)
+		if err != nil {
+			return errors.Wrap(err, "appending tick to empty tick list")
+		}
 	}
 	return nil
 }

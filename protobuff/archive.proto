@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package qubic.archiver.archive.pb;
+package org.qubic.archiver.proto;
 
 option go_package = "github.com/qubic/go-archiver/protobuff/";
 import "google/api/annotations.proto";
@@ -87,13 +87,9 @@ message GetTickApprovedTransactionsResponse {
   repeated Transaction approved_transactions = 1;
 }
 
-message QuorumDiff {
-  string salted_resource_testing_digest_hex = 1;
-  string salted_spectrum_digest_hex = 2;
-  string salted_universe_digest_hex = 3;
-  string salted_computer_digest_hex = 4;
-  string expected_next_tick_tx_digest_hex = 5;
-  string signature_hex = 6;
+message QuorumTickData {
+  QuorumTickStructure quorum_tick_structure = 1;
+  map<uint32, QuorumDiff> quorum_diff_per_computor = 2;
 }
 
 message QuorumTickStructure {
@@ -107,6 +103,15 @@ message QuorumTickStructure {
   string tx_digest_hex = 9;
 }
 
+message QuorumDiff {
+  string salted_resource_testing_digest_hex = 1;
+  string salted_spectrum_digest_hex = 2;
+  string salted_universe_digest_hex = 3;
+  string salted_computer_digest_hex = 4;
+  string expected_next_tick_tx_digest_hex = 5;
+  string signature_hex = 6;
+}
+
 message SkippedTicksInterval {
   uint32 start_tick = 1;
   uint32 end_tick = 2;
@@ -116,9 +121,14 @@ message SkippedTicksIntervalList {
   repeated SkippedTicksInterval skipped_ticks = 1;
 }
 
-message QuorumTickData {
+message QuorumTickDataStored {
   QuorumTickStructure quorum_tick_structure = 1;
-  map<uint32, QuorumDiff> quorum_diff_per_computor = 2;
+  map<uint32, QuorumDiffStored> quorum_diff_per_computor = 2;
+}
+
+message QuorumDiffStored {
+  string expected_next_tick_tx_digest_hex = 5;
+  string signature_hex = 6;
 }
 
 message GetQuorumTickDataRequest {
@@ -127,6 +137,10 @@ message GetQuorumTickDataRequest {
 
 message GetQuorumTickDataResponse {
   QuorumTickData quorum_tick_data = 1;
+}
+
+message GetQuorumTickDataResponseStored {
+  QuorumTickDataStored quorum_tick_data = 1;
 }
 
 message Computors {
@@ -303,15 +317,44 @@ message GetTransferTransactionsPerTickRequestV2 {
   bool desc = 5;
 }
 
+message Pagination {
+  int32 total_records = 1;
+  int32 current_page = 2;
+  int32 total_pages = 3;
+  int32 page_size = 4;
+  int32 next_page = 5;
+  int32 previous_page = 6;
+}
+
+message GetEmptyTickListRequestV2 {
+  uint32 epoch = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
+message GetEmptyTickListResponseV2 {
+  Pagination pagination = 1;
+  repeated uint32 emptyTicks = 2;
+}
+
+message TickStatus {
+  uint32 tick_number = 1;
+  bool is_empty = 2;
+}
+
+message GetEpochTickListRequestV2 {
+  uint32 epoch = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
+message GetEpochTickListResponseV2 {
+  Pagination pagination = 1;
+  repeated TickStatus ticks = 2;
+}
 
 service ArchiveService {
 
-  // General data - To be released at a later date
-  /*rpc GetTickV2(GetTickRequestV2) returns (GetTickResponseV2) {
-    option (google.api.http) = {
-      get: "/v2/ticks/{tick_number}"
-    };
-  };*/
 
   // Quorum data
   rpc GetTickQuorumDataV2(GetTickRequestV2) returns (GetQuorumTickDataResponse) { // Uses V1 response
@@ -362,6 +405,24 @@ service ArchiveService {
     };
   };
 
+
+  // Returns the the tick numbers for the the specified epoch, alongside with the 'isEmpty' status. Paginated.
+  rpc GetEpochTickListV2(GetEpochTickListRequestV2) returns (GetEpochTickListResponseV2) {
+    option (google.api.http) = {
+      get: "/v2/epochs/{epoch}/ticks"
+    };
+  };
+
+  // Returns the list of empty ticks for the specified epoch. Paginated.
+  rpc GetEmptyTickListV2(GetEmptyTickListRequestV2) returns (GetEmptyTickListResponseV2) {
+    option (google.api.http) = {
+      get: "/v2/epochs/{epoch}/empty-ticks"
+    };
+  };
+
+
+  //V1 Endpoints
+  
   // Returns the information for the given tick.
   rpc GetTickData(GetTickDataRequest) returns (GetTickDataResponse){
     option (google.api.http) = {
