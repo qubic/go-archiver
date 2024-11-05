@@ -87,13 +87,9 @@ message GetTickApprovedTransactionsResponse {
   repeated Transaction approved_transactions = 1;
 }
 
-message QuorumDiff {
-  string salted_resource_testing_digest_hex = 1;
-  string salted_spectrum_digest_hex = 2;
-  string salted_universe_digest_hex = 3;
-  string salted_computer_digest_hex = 4;
-  string expected_next_tick_tx_digest_hex = 5;
-  string signature_hex = 6;
+message QuorumTickData {
+  QuorumTickStructure quorum_tick_structure = 1;
+  map<uint32, QuorumDiff> quorum_diff_per_computor = 2;
 }
 
 message QuorumTickStructure {
@@ -107,6 +103,15 @@ message QuorumTickStructure {
   string tx_digest_hex = 9;
 }
 
+message QuorumDiff {
+  string salted_resource_testing_digest_hex = 1;
+  string salted_spectrum_digest_hex = 2;
+  string salted_universe_digest_hex = 3;
+  string salted_computer_digest_hex = 4;
+  string expected_next_tick_tx_digest_hex = 5;
+  string signature_hex = 6;
+}
+
 message SkippedTicksInterval {
   uint32 start_tick = 1;
   uint32 end_tick = 2;
@@ -116,9 +121,14 @@ message SkippedTicksIntervalList {
   repeated SkippedTicksInterval skipped_ticks = 1;
 }
 
-message QuorumTickData {
+message QuorumTickDataStored {
   QuorumTickStructure quorum_tick_structure = 1;
-  map<uint32, QuorumDiff> quorum_diff_per_computor = 2;
+  map<uint32, QuorumDiffStored> quorum_diff_per_computor = 2;
+}
+
+message QuorumDiffStored {
+  string expected_next_tick_tx_digest_hex = 5;
+  string signature_hex = 6;
 }
 
 message GetQuorumTickDataRequest {
@@ -127,6 +137,10 @@ message GetQuorumTickDataRequest {
 
 message GetQuorumTickDataResponse {
   QuorumTickData quorum_tick_data = 1;
+}
+
+message GetQuorumTickDataResponseStored {
+  QuorumTickDataStored quorum_tick_data = 1;
 }
 
 message Computors {
@@ -303,15 +317,44 @@ message GetTransferTransactionsPerTickRequestV2 {
   bool desc = 5;
 }
 
+message Pagination {
+  int32 total_records = 1;
+  int32 current_page = 2;
+  int32 total_pages = 3;
+  int32 page_size = 4;
+  int32 next_page = 5;
+  int32 previous_page = 6;
+}
+
+message GetEmptyTickListRequestV2 {
+  uint32 epoch = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
+message GetEmptyTickListResponseV2 {
+  Pagination pagination = 1;
+  repeated uint32 emptyTicks = 2;
+}
+
+message TickStatus {
+  uint32 tick_number = 1;
+  bool is_empty = 2;
+}
+
+message GetEpochTickListRequestV2 {
+  uint32 epoch = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
+message GetEpochTickListResponseV2 {
+  Pagination pagination = 1;
+  repeated TickStatus ticks = 2;
+}
 
 service ArchiveService {
 
-  // General data - To be released at a later date
-  /*rpc GetTickV2(GetTickRequestV2) returns (GetTickResponseV2) {
-    option (google.api.http) = {
-      get: "/v2/ticks/{tick_number}"
-    };
-  };*/
 
   // Quorum data
   rpc GetTickQuorumDataV2(GetTickRequestV2) returns (GetQuorumTickDataResponse) { // Uses V1 response
@@ -333,18 +376,15 @@ service ArchiveService {
       get: "/v2/ticks/{tick_number}/store-hash"
     };
   }
-
-
-  // Tick transactions
+  
+  // Returns the list of transactions for the given tick, including timestamp and transfer status.
   rpc GetTickTransactionsV2(GetTickTransactionsRequestV2) returns (GetTickTransactionsResponseV2){
     option (google.api.http) = {
       get: "/v2/ticks/{tick_number}/transactions"
     };
   };
 
-  //Transaction
-
-  //Normal
+  // Returns the information for the given transaction id, including timestamp and transfer status. 
   rpc GetTransactionV2(GetTransactionRequestV2) returns (GetTransactionResponseV2) {
     option (google.api.http) = {
       get: "/v2/transactions/{tx_id}"
@@ -358,14 +398,32 @@ service ArchiveService {
     };
   };
 
-  //Identity
+  // Returns the list of transfers for the given identity, their status and timestamp, grouped by tick.
   rpc GetIdentityTransfersInTickRangeV2(GetTransferTransactionsPerTickRequestV2) returns (GetIdentityTransfersInTickRangeResponseV2) { // Uses V1 request
     option (google.api.http) = {
       get: "/v2/identities/{identity}/transfers"
     };
   };
 
+
+  // Returns the the tick numbers for the the specified epoch, alongside with the 'isEmpty' status. Paginated.
+  rpc GetEpochTickListV2(GetEpochTickListRequestV2) returns (GetEpochTickListResponseV2) {
+    option (google.api.http) = {
+      get: "/v2/epochs/{epoch}/ticks"
+    };
+  };
+
+  // Returns the list of empty ticks for the specified epoch. Paginated.
+  rpc GetEmptyTickListV2(GetEmptyTickListRequestV2) returns (GetEmptyTickListResponseV2) {
+    option (google.api.http) = {
+      get: "/v2/epochs/{epoch}/empty-ticks"
+    };
+  };
+
+
   //V1 Endpoints
+  
+  // Returns the information for the given tick.
   rpc GetTickData(GetTickDataRequest) returns (GetTickDataResponse){
     option (google.api.http) = {
       get: "/v1/ticks/{tick_number}/tick-data"
@@ -376,21 +434,29 @@ service ArchiveService {
       get: "/v1/ticks/{tick_number}/quorum-tick-data"
     };
   };
+
+  // Deprecated: Use /v2/ticks/{tick_number}/transactions instead.
   rpc GetTickTransactions(GetTickTransactionsRequest) returns (GetTickTransactionsResponse) {
     option (google.api.http) = {
       get: "/v1/ticks/{tick_number}/transactions"
     };
   };
+
+  // Deprecated: Use /v2/ticks/{tick_number}/transactions instead.
   rpc GetTickTransferTransactions(GetTickTransactionsRequest) returns (GetTickTransactionsResponse) {
     option (google.api.http) = {
       get: "/v1/ticks/{tick_number}/transfer-transactions"
     };
   };
+
+  // Deprecated: Use /v2/ticks/{tick_number}/transactions instead.
   rpc GetTickApprovedTransactions (GetTickApprovedTransactionsRequest) returns (GetTickApprovedTransactionsResponse) {
     option (google.api.http) = {
       get: "/v1/ticks/{tick_number}/approved-transactions"
     };
   }
+
+  // Returns the hash of the given processed tick. This is mainly used to compare archiver instances and verify they process ticks the same.
   rpc GetChainHash(GetChainHashRequest) returns (GetChainHashResponse) {
     option (google.api.http) = {
       get: "/v1/ticks/{tick_number}/chain-hash"
@@ -403,43 +469,49 @@ service ArchiveService {
     };
   };
 
+  // Deprecated: Use /v2/transactions/{tx_id} instead.
   rpc GetTransaction(GetTransactionRequest) returns (GetTransactionResponse) {
     option (google.api.http) = {
       get: "/v1/transactions/{tx_id}"
     };
   };
 
+  // Deprecated: Use /v2/transactions/{tx_id} instead.
   rpc GetTransactionStatus (GetTransactionStatusRequest) returns (GetTransactionStatusResponse) {
     option (google.api.http) = {
       get: "/v1/tx-status/{tx_id}"
     };
   }
 
+  // Deprecated: Use /v2/identities/{identity}/transfers instead.
   rpc GetTransferTransactionsPerTick(GetTransferTransactionsPerTickRequest) returns (GetTransferTransactionsPerTickResponse) {
     option (google.api.http) = {
       get: "/v1/identities/{identity}/transfer-transactions"
     };
   };
 
+  // Returns the list of computors for the given epoch.
   rpc GetComputors(GetComputorsRequest) returns (GetComputorsResponse) {
     option (google.api.http) = {
       get: "/v1/epochs/{epoch}/computors"
     };
   };
 
+  // Returns information regarding the status of the archiver instance.
   rpc GetStatus(google.protobuf.Empty) returns (GetStatusResponse) {
     option (google.api.http) = {
       get: "/v1/status"
     };
   };
 
+  // Returns the latest tick processed by the archiver instance.
   rpc GetLatestTick(google.protobuf.Empty) returns (GetLatestTickResponse) {
     option (google.api.http) = {
       get: "/v1/latestTick"
     };
   };
 
-
+  // A method that is mainly used by the load-balancer to decide if the instance should be added to the balancing rotation based on if it's up-to-date with the network or not.
   rpc GetHealthCheck(google.protobuf.Empty) returns (GetHealthCheckResponse){
     option (google.api.http) = {
       get: "/v1/healthcheck"
