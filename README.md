@@ -11,7 +11,7 @@ The archive system consists of two services:
 ## IMPORTANT
 
 > [!WARNING]  
-> This version of archiver is **INCOMPATIBLE** with versions **v0.x.x**, as it features database compression and a different format for quorum data.   
+> This version of archiver is **INCOMPATIBLE** with versions < **v0.8.x**, as it features database compression and a different format for quorum data.   
 > Archiver **DOES NOT** migrate the database to the new format by itself, and **MAY BREAK** your existing information, if not migrated correctly.  
 > For a migration tool, please see the [Archiver DB Migrator](https://github.com/qubic/archiver-db-migrator), and make sure to back up your data!  
 > See [this](db-migration.md) for how to migrate the database to the new format.
