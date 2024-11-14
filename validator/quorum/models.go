@@ -1,11 +1,15 @@
 package quorum
 
 import (
+	"context"
 	"encoding/binary"
 	"encoding/hex"
+	"fmt"
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
+	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-archiver/utils"
+	"github.com/qubic/go-archiver/validator/tick"
 	"github.com/qubic/go-node-connector/types"
 	"time"
 )
@@ -154,4 +158,100 @@ func ReconstructQuorumData(currentTickQuorumData, nextTickQuorumData *protobuff.
 	}
 
 	return &reconstructedQuorumData, nil
+}
+
+func GetQuorumTickData(tickNumber uint32, pebbleStore *store.PebbleStore) (*protobuff.QuorumTickData, error) {
+	lastProcessedTick, err := pebbleStore.GetLastProcessedTick(context.Background())
+	if err != nil {
+		return nil, errors.Wrap(err, "getting last processed tick")
+	}
+	if tickNumber > lastProcessedTick.TickNumber {
+
+		return nil, errors.New(fmt.Sprintf("requested tick number %d is greater than last processed tick %d", tickNumber, lastProcessedTick.TickNumber))
+	}
+
+	processedTickIntervalsPerEpoch, err := pebbleStore.GetProcessedTickIntervals(context.Background())
+	if err != nil {
+		return nil, errors.Wrap(err, "getting processed tick intervals per epoch")
+	}
+
+	epoch, err := tick.GetTickEpoch(tickNumber, processedTickIntervalsPerEpoch)
+	if err != nil {
+		return nil, errors.Wrap(err, "getting tick epoch")
+	}
+
+	lastTickFlag, err := tick.IsLastTick(tickNumber, epoch, processedTickIntervalsPerEpoch)
+	if err != nil {
+		return nil, errors.Wrap(err, "checking if tick is last tick in it's epoch")
+	}
+
+	if lastTickFlag {
+		lastTickQuorumData, err := pebbleStore.GetLastTickQuorumDataPerEpoch(epoch)
+		if err != nil {
+			return nil, errors.Wrap(err, "getting quorum data for last processed tick")
+		}
+
+		return lastTickQuorumData, nil
+
+	}
+
+	wasSkipped, nextAvailableTick := tick.WasTickSkippedByArchive(tickNumber, processedTickIntervalsPerEpoch)
+	if wasSkipped == true {
+
+		return nil, errors.New(fmt.Sprintf("provided tick number %d was skipped by the system, next available tick is %d", tickNumber, nextAvailableTick))
+	}
+
+	if tickNumber == lastProcessedTick.TickNumber {
+		tickData, err := pebbleStore.GetQuorumTickData(context.Background(), tickNumber)
+		if err != nil {
+			if errors.Is(err, store.ErrNotFound) {
+				return nil, errors.Wrap(err, "quorum tick data not found")
+			}
+			return nil, errors.Wrap(err, "getting quorum tick data")
+		}
+
+		quorumTickData := &protobuff.QuorumTickData{
+			QuorumTickStructure:   tickData.QuorumTickStructure,
+			QuorumDiffPerComputor: make(map[uint32]*protobuff.QuorumDiff),
+		}
+
+		for id, diff := range tickData.QuorumDiffPerComputor {
+			quorumTickData.QuorumDiffPerComputor[id] = &protobuff.QuorumDiff{
+				ExpectedNextTickTxDigestHex: diff.ExpectedNextTickTxDigestHex,
+				SignatureHex:                diff.SignatureHex,
+			}
+		}
+
+		return quorumTickData, nil
+	}
+
+	nextTick := tickNumber + 1
+
+	nextTickQuorumData, err := pebbleStore.GetQuorumTickData(context.Background(), nextTick)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, errors.Wrap(err, "quorum data for next tick was not found")
+		}
+		return nil, errors.Wrap(err, "getting tick data")
+	}
+
+	currentTickQuorumData, err := pebbleStore.GetQuorumTickData(context.Background(), tickNumber)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, errors.Wrap(err, "quorum data for  tick was not found")
+		}
+		return nil, errors.Wrap(err, "getting tick data")
+	}
+
+	computors, err := pebbleStore.GetComputors(context.Background(), currentTickQuorumData.QuorumTickStructure.Epoch)
+	if err != nil {
+		return nil, errors.Wrap(err, "getting computor list")
+	}
+
+	reconstructedQuorumData, err := ReconstructQuorumData(currentTickQuorumData, nextTickQuorumData, computors)
+	if err != nil {
+		return nil, errors.Wrap(err, "reconstructing quorum data")
+	}
+
+	return reconstructedQuorumData, nil
 }

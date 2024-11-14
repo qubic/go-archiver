@@ -46,11 +46,21 @@ func run() error {
 		}
 		Qubic struct {
 			NodePort           string        `conf:"default:21841"`
-			StorageFolder      string        `conf:"default:store"`
+			StorageFolder      string        `conf:"default:storage"`
 			ProcessTickTimeout time.Duration `conf:"default:5s"`
 		}
 		Store struct {
 			ResetEmptyTickKeys bool `conf:"default:false"`
+		}
+		Sync struct {
+			Enable          bool          `conf:"default:false"`
+			Source          string        `conf:"default:localhost:8001"`
+			ResponseTimeout time.Duration `conf:"default:5s"`
+		}
+		Bootstrap struct {
+			Enable            bool `conf:"default:true"`
+			MaxRequestedItems int  `conf:"default:100"`
+			BatchSize         int  `conf:"default:10"`
 		}
 	}
 
@@ -129,7 +139,13 @@ func run() error {
 		return errors.Wrap(err, "creating qubic pool")
 	}
 
-	rpcServer := rpc.NewServer(cfg.Server.GrpcHost, cfg.Server.HttpHost, cfg.Server.NodeSyncThreshold, cfg.Server.ChainTickFetchUrl, ps, p)
+	bootstrapConfiguration := rpc.BootstrapConfiguration{
+		Enable:                cfg.Bootstrap.Enable,
+		MaximumRequestedItems: cfg.Bootstrap.MaxRequestedItems,
+		BatchSize:             cfg.Bootstrap.BatchSize,
+	}
+
+	rpcServer := rpc.NewServer(cfg.Server.GrpcHost, cfg.Server.HttpHost, cfg.Server.NodeSyncThreshold, cfg.Server.ChainTickFetchUrl, ps, p, bootstrapConfiguration)
 	err = rpcServer.Start()
 	if err != nil {
 		return errors.Wrap(err, "starting rpc server")
@@ -138,7 +154,13 @@ func run() error {
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
 
-	proc := processor.NewProcessor(p, ps, cfg.Qubic.ProcessTickTimeout)
+	syncConfiguration := processor.SyncConfiguration{
+		Enable:          cfg.Sync.Enable,
+		Source:          cfg.Sync.Source,
+		ResponseTimeout: cfg.Sync.ResponseTimeout,
+	}
+
+	proc := processor.NewProcessor(p, ps, cfg.Qubic.ProcessTickTimeout, syncConfiguration)
 	procErrors := make(chan error, 1)
 
 	// Start the service listening for requests.

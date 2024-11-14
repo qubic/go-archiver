@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
@@ -26,6 +25,12 @@ import (
 	"net/http"
 )
 
+type BootstrapConfiguration struct {
+	Enable                bool
+	MaximumRequestedItems int
+	BatchSize             int
+}
+
 var _ protobuff.ArchiveServiceServer = &Server{}
 
 var emptyTd = &protobuff.TickData{}
@@ -37,22 +42,24 @@ type TransactionInfo struct {
 
 type Server struct {
 	protobuff.UnimplementedArchiveServiceServer
-	listenAddrGRPC    string
-	listenAddrHTTP    string
-	syncThreshold     int
-	chainTickFetchUrl string
-	store             *store.PebbleStore
-	pool              *qubic.Pool
+	listenAddrGRPC         string
+	listenAddrHTTP         string
+	syncThreshold          int
+	chainTickFetchUrl      string
+	store                  *store.PebbleStore
+	pool                   *qubic.Pool
+	bootstrapConfiguration BootstrapConfiguration
 }
 
-func NewServer(listenAddrGRPC, listenAddrHTTP string, syncThreshold int, chainTickUrl string, store *store.PebbleStore, pool *qubic.Pool) *Server {
+func NewServer(listenAddrGRPC, listenAddrHTTP string, syncThreshold int, chainTickUrl string, store *store.PebbleStore, pool *qubic.Pool, bootstrapConfiguration BootstrapConfiguration) *Server {
 	return &Server{
-		listenAddrGRPC:    listenAddrGRPC,
-		listenAddrHTTP:    listenAddrHTTP,
-		syncThreshold:     syncThreshold,
-		chainTickFetchUrl: chainTickUrl,
-		store:             store,
-		pool:              pool,
+		listenAddrGRPC:         listenAddrGRPC,
+		listenAddrHTTP:         listenAddrHTTP,
+		syncThreshold:          syncThreshold,
+		chainTickFetchUrl:      chainTickUrl,
+		store:                  store,
+		pool:                   pool,
+		bootstrapConfiguration: bootstrapConfiguration,
 	}
 }
 
@@ -101,7 +108,7 @@ func (s *Server) GetTickData(ctx context.Context, req *protobuff.GetTickDataRequ
 		return nil, status.Errorf(codes.Internal, "getting processed tick intervals per epoch")
 	}
 
-	wasSkipped, nextAvailableTick := wasTickSkippedByArchive(req.TickNumber, processedTickIntervalsPerEpoch)
+	wasSkipped, nextAvailableTick := tick.WasTickSkippedByArchive(req.TickNumber, processedTickIntervalsPerEpoch)
 	if wasSkipped == true {
 		st := status.Newf(codes.OutOfRange, "provided tick number %d was skipped by the system, next available tick is %d", req.TickNumber, nextAvailableTick)
 		st, err = st.WithDetails(&protobuff.NextAvailableTick{NextTickNumber: nextAvailableTick})
@@ -150,7 +157,7 @@ func (s *Server) GetTickTransactions(ctx context.Context, req *protobuff.GetTick
 		return nil, status.Errorf(codes.Internal, "getting processed tick intervals per epoch")
 	}
 
-	wasSkipped, nextAvailableTick := wasTickSkippedByArchive(req.TickNumber, processedTickIntervalsPerEpoch)
+	wasSkipped, nextAvailableTick := tick.WasTickSkippedByArchive(req.TickNumber, processedTickIntervalsPerEpoch)
 	if wasSkipped == true {
 		st := status.Newf(codes.OutOfRange, "provided tick number %d was skipped by the system, next available tick is %d", req.TickNumber, nextAvailableTick)
 		st, err = st.WithDetails(&protobuff.NextAvailableTick{NextTickNumber: nextAvailableTick})
@@ -192,7 +199,7 @@ func (s *Server) GetTickTransferTransactions(ctx context.Context, req *protobuff
 		return nil, status.Errorf(codes.Internal, "getting processed tick intervals per epoch")
 	}
 
-	wasSkipped, nextAvailableTick := wasTickSkippedByArchive(req.TickNumber, processedTickIntervalsPerEpoch)
+	wasSkipped, nextAvailableTick := tick.WasTickSkippedByArchive(req.TickNumber, processedTickIntervalsPerEpoch)
 	if wasSkipped == true {
 		st := status.Newf(codes.OutOfRange, "provided tick number %d was skipped by the system, next available tick is %d", req.TickNumber, nextAvailableTick)
 		st, err = st.WithDetails(&protobuff.NextAvailableTick{NextTickNumber: nextAvailableTick})
@@ -244,12 +251,12 @@ func (s *Server) GetQuorumTickData(ctx context.Context, req *protobuff.GetQuorum
 		return nil, status.Errorf(codes.Internal, "getting processed tick intervals per epoch")
 	}
 
-	epoch, err := getTickEpoch(req.TickNumber, processedTickIntervalsPerEpoch)
+	epoch, err := tick.GetTickEpoch(req.TickNumber, processedTickIntervalsPerEpoch)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "getting tick epoch :%v", err)
 	}
 
-	lastTickFlag, err := isLastTick(req.TickNumber, epoch, processedTickIntervalsPerEpoch)
+	lastTickFlag, err := tick.IsLastTick(req.TickNumber, epoch, processedTickIntervalsPerEpoch)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "checking if tick is last tick in it's epoch: %v", err)
 	}
@@ -265,7 +272,7 @@ func (s *Server) GetQuorumTickData(ctx context.Context, req *protobuff.GetQuorum
 		}, nil
 	}
 
-	wasSkipped, nextAvailableTick := wasTickSkippedByArchive(req.TickNumber, processedTickIntervalsPerEpoch)
+	wasSkipped, nextAvailableTick := tick.WasTickSkippedByArchive(req.TickNumber, processedTickIntervalsPerEpoch)
 	if wasSkipped == true {
 		st := status.Newf(codes.OutOfRange, "provided tick number %d was skipped by the system, next available tick is %d", req.TickNumber, nextAvailableTick)
 		st, err = st.WithDetails(&protobuff.NextAvailableTick{NextTickNumber: nextAvailableTick})
@@ -390,7 +397,7 @@ func (s *Server) GetStatus(ctx context.Context, _ *emptypb.Empty) (*protobuff.Ge
 	}, nil
 }
 
-type response struct {
+type chainTickResponse struct {
 	ChainTick int `json:"max_tick"`
 }
 
@@ -407,7 +414,7 @@ func fetchChainTick(ctx context.Context, url string) (int, error) {
 	}
 	defer res.Body.Close()
 
-	var resp response
+	var resp chainTickResponse
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return 0, errors.Wrap(err, "reading response body")
@@ -490,7 +497,7 @@ func (s *Server) GetTickApprovedTransactions(ctx context.Context, req *protobuff
 		return nil, status.Errorf(codes.Internal, "getting processed tick intervals per epoch")
 	}
 
-	wasSkipped, nextAvailableTick := wasTickSkippedByArchive(req.TickNumber, processedTickIntervalsPerEpoch)
+	wasSkipped, nextAvailableTick := tick.WasTickSkippedByArchive(req.TickNumber, processedTickIntervalsPerEpoch)
 	if wasSkipped == true {
 		st := status.Newf(codes.OutOfRange, "provided tick number %d was skipped by the system, next available tick is %d", req.TickNumber, nextAvailableTick)
 		st, err = st.WithDetails(&protobuff.NextAvailableTick{NextTickNumber: nextAvailableTick})
@@ -545,65 +552,6 @@ func (s *Server) GetTickApprovedTransactions(ctx context.Context, req *protobuff
 	}
 
 	return &protobuff.GetTickApprovedTransactionsResponse{ApprovedTransactions: approvedTxs}, nil
-}
-
-func wasTickSkippedByArchive(tick uint32, processedTicksIntervalPerEpoch []*protobuff.ProcessedTickIntervalsPerEpoch) (bool, uint32) {
-	if len(processedTicksIntervalPerEpoch) == 0 {
-		return false, 0
-	}
-	for _, epochInterval := range processedTicksIntervalPerEpoch {
-		for _, interval := range epochInterval.Intervals {
-			if tick < interval.InitialProcessedTick {
-				return true, interval.InitialProcessedTick
-			}
-			if tick >= interval.InitialProcessedTick && tick <= interval.LastProcessedTick {
-				return false, 0
-			}
-		}
-	}
-	return false, 0
-}
-
-func getTickEpoch(tickNumber uint32, intervals []*protobuff.ProcessedTickIntervalsPerEpoch) (uint32, error) {
-	if len(intervals) == 0 {
-		return 0, errors.New("processed tick interval list is empty")
-	}
-
-	for _, epochInterval := range intervals {
-		for _, interval := range epochInterval.Intervals {
-			if tickNumber >= interval.InitialProcessedTick && tickNumber <= interval.LastProcessedTick {
-				return epochInterval.Epoch, nil
-			}
-		}
-	}
-
-	return 0, errors.New(fmt.Sprintf("unable to find the epoch for tick %d", tickNumber))
-}
-
-func getProcessedTickIntervalsForEpoch(epoch uint32, intervals []*protobuff.ProcessedTickIntervalsPerEpoch) (*protobuff.ProcessedTickIntervalsPerEpoch, error) {
-	for _, interval := range intervals {
-		if interval.Epoch != epoch {
-			continue
-		}
-		return interval, nil
-	}
-
-	return nil, errors.New(fmt.Sprintf("unable to find processed tick intervals for epoch %d", epoch))
-}
-
-func isLastTick(tickNumber uint32, epoch uint32, intervals []*protobuff.ProcessedTickIntervalsPerEpoch) (bool, error) {
-	epochIntervals, err := getProcessedTickIntervalsForEpoch(epoch, intervals)
-	if err != nil {
-		return false, errors.Wrap(err, "getting processed tick intervals per epoch")
-	}
-
-	for _, interval := range epochIntervals.Intervals {
-		if interval.LastProcessedTick == tickNumber {
-			return true, nil
-		}
-	}
-
-	return false, nil
 }
 
 func (s *Server) GetTransactionStatus(ctx context.Context, req *protobuff.GetTransactionStatusRequest) (*protobuff.GetTransactionStatusResponse, error) {
@@ -699,6 +647,10 @@ func (s *Server) Start() error {
 		grpc.MaxSendMsgSize(600*1024*1024),
 	)
 	protobuff.RegisterArchiveServiceServer(srv, s)
+	if s.bootstrapConfiguration.Enable {
+		syncService := NewSyncService(s.bootstrapConfiguration)
+		protobuff.RegisterSyncServiceServer(srv, syncService)
+	}
 	reflection.Register(srv)
 
 	lis, err := net.Listen("tcp", s.listenAddrGRPC)
