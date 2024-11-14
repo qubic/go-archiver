@@ -486,6 +486,9 @@ func (s *Server) GetEpochTickListV2(ctx context.Context, req *protobuff.GetEpoch
 	}
 
 	slices.SortFunc(result, func(a, b *protobuff.TickStatus) int {
+		if req.Desc {
+			return -cmp.Compare(a.TickNumber, b.TickNumber)
+		}
 		return cmp.Compare(a.TickNumber, b.TickNumber)
 	})
 
