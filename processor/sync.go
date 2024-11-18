@@ -280,7 +280,7 @@ func (sp *SyncProcessor) processTicks(startTick, endTick, initialEpochTick uint3
 	ctx, cancel := context.WithTimeout(context.Background(), sp.syncConfiguration.ResponseTimeout)
 	defer cancel()
 
-	var compression grpc.CallOption
+	var compression grpc.CallOption = grpc.EmptyCallOption{}
 
 	if sp.syncConfiguration.EnableCompression {
 		compression = grpc.UseCompressor(gzip.Name)
