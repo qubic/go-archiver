@@ -33,9 +33,9 @@ func TestQubicModelToProtoAndReverse(t *testing.T) {
 		t.Fatalf("qubicToProto() mismatch (-got +want):\n%s", diff)
 	}
 
-	converted, err := protoToQubic(got)
+	converted, err := ProtoToQubic(got)
 	if err != nil {
-		t.Fatalf("protoToQubic() error: %v", err)
+		t.Fatalf("ProtoToQubic() error: %v", err)
 	}
 
 	if diff := cmp.Diff(converted, computors); diff != "" {

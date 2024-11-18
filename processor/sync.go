@@ -7,6 +7,9 @@ import (
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-archiver/sync"
+	"github.com/qubic/go-archiver/validator"
+	"github.com/qubic/go-archiver/validator/computors"
+	"github.com/qubic/go-node-connector/types"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"io"
@@ -77,7 +80,10 @@ func (sp *SyncProcessor) Start() error {
 	sp.syncDelta = syncDelta
 
 	log.Println("Starting tick synchronization")
-	sp.sync()
+	err = sp.sync()
+	if err != nil {
+		return errors.Wrap(err, "performing synchronization")
+	}
 
 	return nil
 }
@@ -218,18 +224,39 @@ func (sp *SyncProcessor) sync() error {
 
 		log.Printf("Synchronizing ticks for epoch %d...\n", epochDelta.Epoch)
 
+		computorList, err := sp.pebbleStore.GetComputors(nil, epochDelta.Epoch)
+		if err != nil {
+			return errors.Wrapf(err, "reading computor list from disk for epoch %d", epochDelta.Epoch)
+		}
+
+		if len(epochDelta.ProcessedIntervals) == 0 {
+			return errors.New(fmt.Sprintf("no processed tick intervals in delta for epoch %d", epochDelta.Epoch))
+		}
+
+		initialEpochTick := epochDelta.ProcessedIntervals[0].InitialProcessedTick
+
+		log.Printf("Validating computor list")
+		err = computors.ValidateProto(nil, validator.GoSchnorrqVerify, computorList)
+		if err != nil {
+			return errors.Wrapf(err, "validating computors for epoch %d", epochDelta.Epoch)
+		}
+
+		qubicComputors, err := computors.ProtoToQubic(computorList)
+		if err != nil {
+			return errors.Wrap(err, "converting computors to qubic format")
+		}
+
 		for _, interval := range epochDelta.ProcessedIntervals {
 
-			for tickNumber := interval.InitialProcessedTick; tickNumber < interval.LastProcessedTick; tickNumber += sp.maxObjectRequest {
+			for tickNumber := interval.InitialProcessedTick; tickNumber <= interval.LastProcessedTick; tickNumber += sp.maxObjectRequest {
 
 				startTick := tickNumber
-				endTick := startTick + sp.maxObjectRequest
+				endTick := startTick + sp.maxObjectRequest - 1
 
-				err := sp.processTick(tickNumber, tickNumber+20)
+				err := sp.processTicks(startTick, endTick, initialEpochTick, qubicComputors)
 				if err != nil {
-					return errors.Wrapf(err, "synchronizing tick %d", tickNumber)
+					return errors.Wrapf(err, "processing tick range %d - %d", startTick, endTick)
 				}
-
 			}
 
 		}
@@ -237,6 +264,41 @@ func (sp *SyncProcessor) sync() error {
 	return nil
 }
 
-func (sp *SyncProcessor) processTicks(startTick, endTick uint32) error {
+func (sp *SyncProcessor) processTicks(startTick, endTick, initialEpochTick uint32, computors types.Computors) error {
 
+	ctx, cancel := context.WithTimeout(context.Background(), sp.syncConfiguration.ResponseTimeout)
+	defer cancel()
+
+	log.Printf("Fetching tick range %d - %d", startTick, endTick)
+	stream, err := sp.syncServiceClient.SyncGetTickInformation(ctx, &protobuff.SyncTickInfoRequest{
+		FistTick: startTick,
+		LastTick: endTick,
+	})
+	if err != nil {
+		return errors.Wrap(err, "fetching tick information")
+	}
+
+	for {
+		data, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return errors.Wrap(err, "reading tick information stream")
+		}
+
+		log.Printf("Fetched %d ticks\n", len(data.Ticks))
+
+		for _, tickInfo := range data.Ticks {
+			log.Printf("Processing tick %d", tickInfo.QuorumData.QuorumTickStructure.TickNumber)
+
+			syncValidator := validator.NewSyncValidator(initialEpochTick, computors, tickInfo, sp.processTickTimeout, sp.pebbleStore)
+
+			err = syncValidator.Validate()
+			if err != nil {
+				return errors.Wrapf(err, "validating tick %d", tickInfo.QuorumData.QuorumTickStructure.TickNumber)
+			}
+		}
+	}
+	return nil
 }

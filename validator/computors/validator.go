@@ -2,6 +2,7 @@ package computors
 
 import (
 	"context"
+	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-archiver/store"
 
 	"github.com/pkg/errors"
@@ -65,10 +66,20 @@ func Get(ctx context.Context, store *store.PebbleStore, epoch uint32) (types.Com
 		return types.Computors{}, errors.Wrap(err, "get computors")
 	}
 
-	model, err := protoToQubic(protoModel)
+	model, err := ProtoToQubic(protoModel)
 	if err != nil {
 		return types.Computors{}, errors.Wrap(err, "proto to qubic")
 	}
 
 	return model, nil
+}
+
+func ValidateProto(ctx context.Context, sigVerifierFunc utils.SigVerifierFunc, computors *protobuff.Computors) error {
+
+	qubicComputors, err := ProtoToQubic(computors)
+	if err != nil {
+		return errors.Wrap(err, "converting computors to qubic format")
+	}
+
+	return Validate(ctx, sigVerifierFunc, qubicComputors)
 }

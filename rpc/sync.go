@@ -20,9 +20,10 @@ type SyncService struct {
 	bootstrapConfiguration BootstrapConfiguration
 }
 
-func NewSyncService(bootstrapConfiguration BootstrapConfiguration) *SyncService {
+func NewSyncService(pebbleStore *store.PebbleStore, bootstrapConfiguration BootstrapConfiguration) *SyncService {
 	return &SyncService{
 		bootstrapConfiguration: bootstrapConfiguration,
+		store:                  pebbleStore,
 	}
 }
 

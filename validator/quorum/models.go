@@ -255,3 +255,124 @@ func GetQuorumTickData(tickNumber uint32, pebbleStore *store.PebbleStore) (*prot
 
 	return reconstructedQuorumData, nil
 }
+
+func convertHexToUint64(value string) (uint64, error) {
+	decoded, err := hex.DecodeString(value)
+	if err != nil {
+		return 0, errors.Wrap(err, "decoding uint64 hex string")
+	}
+
+	return binary.LittleEndian.Uint64(decoded), nil
+}
+
+func decode32ByteDigestFromString(value string) ([32]byte, error) {
+	decoded, err := hex.DecodeString(value)
+	if err != nil {
+		return [32]byte{}, errors.Wrap(err, "decoding 32 byte digest string")
+	}
+
+	var returnedValue [32]byte
+	copy(returnedValue[:], decoded[:])
+
+	return returnedValue, nil
+}
+
+func decode64ByteDigestFromString(value string) ([64]byte, error) {
+	decoded, err := hex.DecodeString(value)
+	if err != nil {
+		return [64]byte{}, errors.Wrap(err, "decoding 64 byte digest string")
+	}
+
+	var returnedValue [64]byte
+	copy(returnedValue[:], decoded[:])
+
+	return returnedValue, nil
+}
+
+func ProtoToQubic(quorumData *protobuff.QuorumTickData) (types.QuorumVotes, error) {
+
+	votes := types.QuorumVotes{}
+
+	tickStructure := quorumData.QuorumTickStructure
+
+	tickTime := time.UnixMilli(int64(tickStructure.Timestamp)).UTC()
+	tickTimeNoMilli := time.Date(tickTime.Year(), tickTime.Month(), tickTime.Day(), tickTime.Hour(), tickTime.Minute(), tickTime.Second(), 0, time.UTC)
+	milli := tickTime.UnixMilli() - tickTimeNoMilli.UnixMilli()
+
+	prevResourceTestingDigest, err := convertHexToUint64(tickStructure.PrevResourceTestingDigestHex)
+	if err != nil {
+		return nil, errors.Wrap(err, "decoding previous resource testing digest")
+	}
+	prevSpectrumDigest, err := decode32ByteDigestFromString(tickStructure.PrevSpectrumDigestHex)
+	if err != nil {
+		return nil, errors.Wrap(err, "decoding previous spectrum digest")
+	}
+	prevUniverseDigest, err := decode32ByteDigestFromString(tickStructure.PrevUniverseDigestHex)
+	if err != nil {
+		return nil, errors.Wrap(err, "decoding previous universe digest")
+	}
+	prevComputerDigest, err := decode32ByteDigestFromString(tickStructure.PrevComputerDigestHex)
+	if err != nil {
+		return nil, errors.Wrap(err, "decoding previous computer digest")
+	}
+	txDigest, err := decode32ByteDigestFromString(tickStructure.TxDigestHex)
+	if err != nil {
+		return nil, errors.Wrap(err, "decoding tx digest")
+	}
+
+	for index, diff := range quorumData.QuorumDiffPerComputor {
+
+		saltedResourceTestingDigest, err := convertHexToUint64(diff.SaltedResourceTestingDigestHex)
+		if err != nil {
+			return nil, errors.Wrap(err, "decoding salted resource testing digest")
+		}
+		saltedSpectrumDigest, err := decode32ByteDigestFromString(diff.SaltedSpectrumDigestHex)
+		if err != nil {
+			return nil, errors.Wrap(err, "decoding salted spectrum digest")
+		}
+		saltedUniverseDigest, err := decode32ByteDigestFromString(diff.SaltedUniverseDigestHex)
+		if err != nil {
+			return nil, errors.Wrap(err, "decoding salted universe digest")
+		}
+		saltedComputerDigest, err := decode32ByteDigestFromString(diff.SaltedComputerDigestHex)
+		if err != nil {
+			return nil, errors.Wrap(err, "decoding salted computer digest")
+		}
+		expectedNextTickTxDigest, err := decode32ByteDigestFromString(diff.ExpectedNextTickTxDigestHex)
+		if err != nil {
+			return nil, errors.Wrap(err, "decoding expected next tick transaction digest")
+		}
+		signature, err := decode64ByteDigestFromString(diff.SignatureHex)
+		if err != nil {
+			return nil, errors.Wrap(err, "decoding signature")
+		}
+
+		computorVote := types.QuorumTickVote{
+			ComputorIndex:                 uint16(index),
+			Epoch:                         uint16(tickStructure.Epoch),
+			Tick:                          tickStructure.TickNumber,
+			Millisecond:                   uint16(milli),
+			Second:                        uint8(tickTime.Second()),
+			Minute:                        uint8(tickTime.Minute()),
+			Hour:                          uint8(tickTime.Hour()),
+			Day:                           uint8(tickTime.Day()),
+			Month:                         uint8(tickTime.Month()),
+			Year:                          uint8(tickTime.Year() - 2000),
+			PreviousResourceTestingDigest: prevResourceTestingDigest,
+			SaltedResourceTestingDigest:   saltedResourceTestingDigest,
+			PreviousSpectrumDigest:        prevSpectrumDigest,
+			PreviousUniverseDigest:        prevUniverseDigest,
+			PreviousComputerDigest:        prevComputerDigest,
+			SaltedSpectrumDigest:          saltedSpectrumDigest,
+			SaltedUniverseDigest:          saltedUniverseDigest,
+			SaltedComputerDigest:          saltedComputerDigest,
+			TxDigest:                      txDigest,
+			ExpectedNextTickTxDigest:      expectedNextTickTxDigest,
+			Signature:                     signature,
+		}
+
+		votes = append(votes, computorVote)
+
+	}
+	return votes, nil
+}

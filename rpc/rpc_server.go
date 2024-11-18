@@ -648,7 +648,7 @@ func (s *Server) Start() error {
 	)
 	protobuff.RegisterArchiveServiceServer(srv, s)
 	if s.bootstrapConfiguration.Enable {
-		syncService := NewSyncService(s.bootstrapConfiguration)
+		syncService := NewSyncService(s.store, s.bootstrapConfiguration)
 		protobuff.RegisterSyncServiceServer(srv, syncService)
 	}
 	reflection.Register(srv)

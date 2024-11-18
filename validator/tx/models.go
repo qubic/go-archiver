@@ -55,3 +55,49 @@ func txToProto(tx types.Transaction) (*protobuff.Transaction, error) {
 		TxId:         txID.String(),
 	}, nil
 }
+
+func ProtoToQubic(protoTransactions []*protobuff.Transaction) (types.Transactions, error) {
+
+	transactions := types.Transactions{}
+
+	for _, protoTransaction := range protoTransactions {
+
+		sourceId := types.Identity(protoTransaction.SourceId)
+		sourcePubKey, err := sourceId.ToPubKey(false)
+		if err != nil {
+			return nil, errors.Wrap(err, "decoding source public key")
+		}
+
+		destinationId := types.Identity(protoTransaction.DestId)
+		destinationPubKey, err := destinationId.ToPubKey(false)
+		if err != nil {
+			return nil, errors.Wrap(err, "decoding destination public key")
+		}
+
+		input, err := hex.DecodeString(protoTransaction.InputHex)
+		if err != nil {
+			return nil, errors.Wrap(err, "decoding input hex")
+		}
+
+		decodedSignature, err := hex.DecodeString(protoTransaction.SignatureHex)
+		if err != nil {
+			return nil, errors.Wrap(err, "decoding signature hex")
+		}
+
+		var signature [types.SignatureSize]byte
+		copy(signature[:], decodedSignature[:])
+
+		transaction := types.Transaction{
+			SourcePublicKey:      sourcePubKey,
+			DestinationPublicKey: destinationPubKey,
+			Amount:               protoTransaction.Amount,
+			Tick:                 protoTransaction.TickNumber,
+			InputType:            uint16(protoTransaction.InputType),
+			InputSize:            uint16(protoTransaction.InputSize),
+			Input:                input,
+			Signature:            signature,
+		}
+		transactions = append(transactions, transaction)
+	}
+	return transactions, nil
+}

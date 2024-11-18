@@ -118,3 +118,85 @@ func IsLastTick(tickNumber uint32, epoch uint32, intervals []*protobuff.Processe
 
 	return false, nil
 }
+
+func identitiesToDigests(identities []string) ([types.NumberOfTransactionsPerTick][32]byte, error) {
+
+	var digests [types.NumberOfTransactionsPerTick][32]byte
+
+	for index, identity := range identities {
+
+		id := types.Identity(identity)
+		digest, err := id.ToPubKey(true)
+		if err != nil {
+			return [1024][32]byte{}, errors.Wrapf(err, "obtaining digest from transaction id %s", identity)
+		}
+		digests[index] = digest
+	}
+
+	return digests, nil
+}
+
+func contractFeesFromProto(feesProto []int64) ([1024]int64, error) {
+
+	if len(feesProto) > 1024 {
+		return [1024]int64{}, errors.New(fmt.Sprintf("fees array length larger than maximum allowed: %d > 1024 ", len(feesProto)))
+	}
+
+	var contractFees [1024]int64
+	for index, fee := range feesProto {
+		contractFees[index] = fee
+	}
+	return contractFees, nil
+
+}
+
+func ProtoToQubic(tickData *protobuff.TickData) (types.TickData, error) {
+
+	if CheckIfTickIsEmptyProto(tickData) {
+		return types.TickData{}, nil
+	}
+
+	tickTime := time.UnixMilli(int64(tickData.Timestamp)).UTC()
+	tickTimeNoMilli := time.Date(tickTime.Year(), tickTime.Month(), tickTime.Day(), tickTime.Hour(), tickTime.Minute(), tickTime.Second(), 0, time.UTC)
+	milli := tickTime.UnixMilli() - tickTimeNoMilli.UnixMilli()
+
+	var timeLock [32]byte
+	copy(timeLock[:], tickData.TimeLock[:])
+
+	transactionDigests, err := identitiesToDigests(tickData.TransactionIds)
+	if err != nil {
+		return types.TickData{}, errors.Wrap(err, "decoding transaction ids to digests")
+	}
+
+	contractFees, err := contractFeesFromProto(tickData.ContractFees)
+	if err != nil {
+		return types.TickData{}, errors.Wrap(err, "converting contract fees")
+	}
+
+	decodedSignature, err := hex.DecodeString(tickData.SignatureHex)
+	if err != nil {
+		return types.TickData{}, errors.Wrap(err, "decoding signature")
+	}
+
+	var signature [types.SignatureSize]byte
+	copy(signature[:], decodedSignature[:])
+
+	data := types.TickData{
+		ComputorIndex:      uint16(tickData.ComputorIndex),
+		Epoch:              uint16(tickData.Epoch),
+		Tick:               tickData.TickNumber,
+		Millisecond:        uint16(milli),
+		Second:             uint8(tickTime.Second()),
+		Minute:             uint8(tickTime.Minute()),
+		Hour:               uint8(tickTime.Hour()),
+		Day:                uint8(tickTime.Day()),
+		Month:              uint8(tickTime.Month()),
+		Year:               uint8(tickTime.Year() - 2000),
+		Timelock:           timeLock,
+		TransactionDigests: transactionDigests,
+		ContractFees:       contractFees,
+		Signature:          signature,
+	}
+
+	return data, nil
+}
