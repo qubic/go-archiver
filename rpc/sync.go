@@ -34,9 +34,15 @@ func (ss *SyncService) SyncGetBootstrapMetadata(ctx context.Context, _ *emptypb.
 		return nil, status.Errorf(codes.Internal, "cannot get processed tick intervals: %v", err)
 	}
 
+	skippedIntervals, err := ss.store.GetSkippedTicksInterval(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "cannot get skipped tick intervals: %v", err)
+	}
+
 	return &protobuff.SyncMetadataResponse{
 		ArchiverVersion:        sync.ArchiverVersion,
 		MaxObjectRequest:       int32(ss.bootstrapConfiguration.MaximumRequestedItems),
+		SkippedTickIntervals:   skippedIntervals.SkippedTicks,
 		ProcessedTickIntervals: processedIntervals,
 	}, nil
 }

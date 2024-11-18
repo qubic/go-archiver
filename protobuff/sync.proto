@@ -23,6 +23,7 @@ message SyncMetadataResponse {
   string archiver_version = 1;
   int32 maxObjectRequest = 2;
   repeated ProcessedTickIntervalsPerEpoch processed_tick_intervals = 3;
+  repeated SkippedTicksInterval skipped_tick_intervals = 4;
 }
 
 message SyncEpochInfoRequest {

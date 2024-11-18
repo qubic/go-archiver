@@ -364,6 +364,21 @@ func (s *PebbleStore) SetSkippedTicksInterval(ctx context.Context, skippedTick *
 	return nil
 }
 
+func (s *PebbleStore) SetSkippedTickIntervalList(skippedIntervals *protobuff.SkippedTicksIntervalList) error {
+	key := skippedTicksIntervalKey()
+	serialized, err := proto.Marshal(skippedIntervals)
+	if err != nil {
+		return errors.Wrap(err, "serializing skipped intervals")
+	}
+
+	err = s.db.Set(key, serialized, pebble.Sync)
+	if err != nil {
+		return errors.Wrap(err, "setting all skipped intervals")
+	}
+
+	return nil
+}
+
 func (s *PebbleStore) GetSkippedTicksInterval(ctx context.Context) (*protobuff.SkippedTicksIntervalList, error) {
 	key := skippedTicksIntervalKey()
 	value, closer, err := s.db.Get(key)

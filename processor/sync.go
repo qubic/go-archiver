@@ -72,7 +72,7 @@ func (sp *SyncProcessor) Start() error {
 	}
 
 	log.Println("Synchronizing missing epoch information...")
-	err = sp.syncEpochInfo(syncDelta)
+	err = sp.syncEpochInfo(syncDelta, bootstrapMetadata)
 	if err != nil {
 		return errors.Wrap(err, "syncing epoch info")
 	}
@@ -184,7 +184,14 @@ func (sp *SyncProcessor) storeEpochInfo(response *protobuff.SyncEpochInfoRespons
 	return nil
 }
 
-func (sp *SyncProcessor) syncEpochInfo(delta SyncDelta) error {
+func (sp *SyncProcessor) syncEpochInfo(delta SyncDelta, metadata *protobuff.SyncMetadataResponse) error {
+
+	err := sp.pebbleStore.SetSkippedTickIntervalList(&protobuff.SkippedTicksIntervalList{
+		SkippedTicks: metadata.SkippedTickIntervals,
+	})
+	if err != nil {
+		return errors.Wrap(err, "saving skipped tick intervals from bootstrap")
+	}
 
 	var epochs []uint32
 
@@ -252,6 +259,9 @@ func (sp *SyncProcessor) sync() error {
 
 				startTick := tickNumber
 				endTick := startTick + sp.maxObjectRequest - 1
+				if endTick > interval.LastProcessedTick {
+					endTick = interval.LastProcessedTick
+				}
 
 				err := sp.processTicks(startTick, endTick, initialEpochTick, qubicComputors)
 				if err != nil {
@@ -297,6 +307,14 @@ func (sp *SyncProcessor) processTicks(startTick, endTick, initialEpochTick uint3
 			err = syncValidator.Validate()
 			if err != nil {
 				return errors.Wrapf(err, "validating tick %d", tickInfo.QuorumData.QuorumTickStructure.TickNumber)
+			}
+
+			err = sp.pebbleStore.SetLastProcessedTick(nil, &protobuff.ProcessedTick{
+				TickNumber: tickInfo.QuorumData.QuorumTickStructure.TickNumber,
+				Epoch:      tickInfo.QuorumData.QuorumTickStructure.Epoch,
+			})
+			if err != nil {
+				return errors.Wrapf(err, "setting last processed tick %d", tickInfo.QuorumData.QuorumTickStructure.TickNumber)
 			}
 		}
 	}
