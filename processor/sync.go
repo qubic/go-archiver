@@ -12,6 +12,7 @@ import (
 	"github.com/qubic/go-node-connector/types"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/encoding/gzip"
 	"io"
 	"log"
 	"time"
@@ -283,7 +284,7 @@ func (sp *SyncProcessor) processTicks(startTick, endTick, initialEpochTick uint3
 	stream, err := sp.syncServiceClient.SyncGetTickInformation(ctx, &protobuff.SyncTickInfoRequest{
 		FistTick: startTick,
 		LastTick: endTick,
-	})
+	}, grpc.UseCompressor(gzip.Name))
 	if err != nil {
 		return errors.Wrap(err, "fetching tick information")
 	}

@@ -8,6 +8,7 @@ import (
 	"github.com/qubic/go-archiver/sync"
 	"github.com/qubic/go-archiver/validator/quorum"
 	"google.golang.org/grpc/codes"
+	_ "google.golang.org/grpc/encoding/gzip"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
