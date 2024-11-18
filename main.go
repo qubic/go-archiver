@@ -53,9 +53,10 @@ func run() error {
 			ResetEmptyTickKeys bool `conf:"default:false"`
 		}
 		Sync struct {
-			Enable          bool          `conf:"default:false"`
-			Source          string        `conf:"default:localhost:8001"`
-			ResponseTimeout time.Duration `conf:"default:5s"`
+			Enable            bool          `conf:"default:false"`
+			Source            string        `conf:"default:localhost:8001"`
+			ResponseTimeout   time.Duration `conf:"default:5s"`
+			EnableCompression bool          `conf:"default:true"`
 		}
 		Bootstrap struct {
 			Enable            bool `conf:"default:true"`
@@ -155,9 +156,10 @@ func run() error {
 	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
 
 	syncConfiguration := processor.SyncConfiguration{
-		Enable:          cfg.Sync.Enable,
-		Source:          cfg.Sync.Source,
-		ResponseTimeout: cfg.Sync.ResponseTimeout,
+		Enable:            cfg.Sync.Enable,
+		Source:            cfg.Sync.Source,
+		ResponseTimeout:   cfg.Sync.ResponseTimeout,
+		EnableCompression: cfg.Sync.EnableCompression,
 	}
 
 	proc := processor.NewProcessor(p, ps, cfg.Qubic.ProcessTickTimeout, syncConfiguration)

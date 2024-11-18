@@ -280,11 +280,17 @@ func (sp *SyncProcessor) processTicks(startTick, endTick, initialEpochTick uint3
 	ctx, cancel := context.WithTimeout(context.Background(), sp.syncConfiguration.ResponseTimeout)
 	defer cancel()
 
+	var compression grpc.CallOption = nil
+
+	if sp.syncConfiguration.EnableCompression {
+		compression = grpc.UseCompressor(gzip.Name)
+	}
+
 	log.Printf("Fetching tick range %d - %d", startTick, endTick)
 	stream, err := sp.syncServiceClient.SyncGetTickInformation(ctx, &protobuff.SyncTickInfoRequest{
 		FistTick: startTick,
 		LastTick: endTick,
-	}, grpc.UseCompressor(gzip.Name))
+	}, compression)
 	if err != nil {
 		return errors.Wrap(err, "fetching tick information")
 	}

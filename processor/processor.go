@@ -26,9 +26,10 @@ func (e *TickInTheFutureError) Error() string {
 }
 
 type SyncConfiguration struct {
-	Enable          bool
-	Source          string
-	ResponseTimeout time.Duration
+	Enable            bool
+	Source            string
+	ResponseTimeout   time.Duration
+	EnableCompression bool
 }
 
 type Processor struct {
