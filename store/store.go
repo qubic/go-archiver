@@ -821,3 +821,7 @@ func (s *PebbleStore) DeleteEmptyTickListKeyForEpoch(epoch uint32) error {
 	}
 	return nil
 }
+
+func (s *PebbleStore) GetDB() *pebble.DB {
+	return s.db
+}

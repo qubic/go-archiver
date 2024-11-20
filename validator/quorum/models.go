@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-func qubicToProto(votes types.QuorumVotes) *protobuff.QuorumTickData {
+func QubicToProto(votes types.QuorumVotes) *protobuff.QuorumTickData {
 	firstQuorumTickData := votes[0]
 	protoQuorumTickData := protobuff.QuorumTickData{
 		QuorumTickStructure:   qubicTickStructureToProto(firstQuorumTickData),

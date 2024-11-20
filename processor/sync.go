@@ -256,8 +256,6 @@ func (sp *SyncProcessor) sync() error {
 
 		for _, interval := range epochDelta.ProcessedIntervals {
 
-			var intervalTicks []validator.ValidatedTicks
-
 			for tickNumber := interval.InitialProcessedTick; tickNumber <= interval.LastProcessedTick; tickNumber += sp.maxObjectRequest {
 
 				startTick := tickNumber
@@ -266,12 +264,15 @@ func (sp *SyncProcessor) sync() error {
 					endTick = interval.LastProcessedTick
 				}
 
-				validatedTicks, err := sp.processTicks(startTick, endTick, initialEpochTick, qubicComputors)
+				/*validatedTicks*/
+				_, err := sp.processTicks(startTick, endTick, initialEpochTick, qubicComputors)
 				if err != nil {
 					return errors.Wrapf(err, "processing tick range %d - %d", startTick, endTick)
 				}
-				intervalTicks = append(intervalTicks, validatedTicks)
-				fmt.Println(len(intervalTicks) * int(sp.maxObjectRequest))
+				/*err = sp.storeTicks(validatedTicks)
+				if err != nil {
+					return errors.Wrapf(err, "storing processed tick range %d - %d", startTick, endTick)
+				}*/
 			}
 
 		}
@@ -318,21 +319,65 @@ func (sp *SyncProcessor) processTicks(startTick, endTick, initialEpochTick uint3
 
 			syncValidator := validator.NewSyncValidator(initialEpochTick, computors, tickInfo, sp.processTickTimeout, sp.pebbleStore)
 
-			validatedData, err := syncValidator.Validate()
-			if err != nil {
-				return nil, errors.Wrapf(err, "validating tick %d", tickInfo.QuorumData.QuorumTickStructure.TickNumber)
+			for {
+				_, err := syncValidator.Validate()
+				if err == nil {
+					break
+				}
+				log.Printf("Encountered error while validating tick %d: %v\n", tickInfo.QuorumData.QuorumTickStructure.TickNumber, err)
+				time.Sleep(time.Second)
 			}
 
-			validatedTicks = append(validatedTicks, validatedData)
+			for _, err := syncValidator.Validate(); err != nil; {
 
-			/*err = sp.pebbleStore.SetLastProcessedTick(nil, &protobuff.ProcessedTick{
+			}
+
+			/*validatedData, err := syncValidator.Validate()
+			if err != nil {
+				return nil, errors.Wrapf(err, "validating tick %d", tickInfo.QuorumData.QuorumTickStructure.TickNumber)
+			}*/
+
+			//validatedTicks = append(validatedTicks, validatedData)
+
+			err = sp.pebbleStore.SetLastProcessedTick(nil, &protobuff.ProcessedTick{
 				TickNumber: tickInfo.QuorumData.QuorumTickStructure.TickNumber,
 				Epoch:      tickInfo.QuorumData.QuorumTickStructure.Epoch,
 			})
 			if err != nil {
-				return errors.Wrapf(err, "setting last processed tick %d", tickInfo.QuorumData.QuorumTickStructure.TickNumber)
-			}*/
+				return nil, errors.Wrapf(err, "setting last processed tick %d", tickInfo.QuorumData.QuorumTickStructure.TickNumber)
+			}
 		}
 	}
+
 	return validatedTicks, nil
 }
+
+/*func (sp *SyncProcessor) storeTicks(validatedTicks validator.ValidatedTicks) error {
+
+	db := sp.pebbleStore.GetDB()
+
+	batch := db.NewBatch()
+	defer batch.Close()
+
+	for _, tick := range validatedTicks {
+
+		tickNumber := tick.AlignedVotes.QuorumTickStructure.TickNumber
+
+		quorumDataKey := store.AssembleKey(store.QuorumData, tickNumber)
+		serializedData, err := proto.Marshal(tick.AlignedVotes)
+		if err != nil {
+			return errors.Wrapf(err, "serializing aligned votes for tick %d", tickNumber)
+		}
+		err = batch.Set(quorumDataKey, serializedData, nil)
+		if err != nil {
+			return errors.Wrapf(err, "adding aligned votes to batch for tick %d", tickNumber)
+		}
+	}
+
+	err := batch.Commit(pebble.Sync)
+	if err != nil {
+		return errors.Wrap(err, "commiting batch")
+	}
+
+	return nil
+}*/

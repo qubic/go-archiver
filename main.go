@@ -136,6 +136,7 @@ func run() error {
 	pebbleOptions := pebble.Options{
 		Levels:                   []pebble.LevelOptions{l1Options, l2Options, l3Options, l4Options},
 		MaxConcurrentCompactions: func() int { return 12 },
+		MemTableSize:             268435456, // 256 MB
 		EventListener:            store.NewPebbleEventListener(),
 	}
 
