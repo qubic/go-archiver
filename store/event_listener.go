@@ -35,9 +35,9 @@ func compactionBegin(info pebble.CompactionInfo) {
 	log.Printf("JobID: %d\n", info.JobID)
 	log.Printf("Reason: %s\n", info.Reason)
 	for _, level := range info.Input {
-		log.Printf("Level %d\n", level.Level)
+		log.Printf("From Level %d - %s\n", level.Level, level.String())
 	}
-	log.Printf("To level %d\n", info.Output.Level)
+	log.Printf("To level %d %ss\n", info.Output.Level, info.Output.String())
 
 }
 
@@ -46,17 +46,20 @@ func compactionEnd(info pebble.CompactionInfo) {
 }
 
 func flushBegin(info pebble.FlushInfo) {
+	log.Printf("[PEBBLE]: Flush triggered:\n")
+	log.Printf("JobID: %d\n", info.JobID)
+	log.Printf("Reason: %s\n", info.Reason)
 
 }
 
 func flushEnd(info pebble.FlushInfo) {
-
+	log.Printf("[PEBBLE]: Flush with JobID %d ended. Took %v\n", info.JobID, info.TotalDuration)
 }
 
 func writeStallBegin(info pebble.WriteStallBeginInfo) {
-
+	log.Printf("[PEBBLE]: Writes stalled. Reason: %s\n", info.Reason)
 }
 
 func writeStallEnd() {
-
+	log.Printf("[PEBBLE]: Writes resumed.")
 }
