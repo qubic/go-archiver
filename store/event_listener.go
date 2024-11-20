@@ -32,12 +32,12 @@ func backgroundError(err error) {
 func compactionBegin(info pebble.CompactionInfo) {
 
 	log.Printf("[PEBBLE]: Compaction triggered:\n")
-	log.Printf("JobID: %d\n", info.JobID)
-	log.Printf("Reason: %s\n", info.Reason)
+	log.Printf("  JobID: %d\n", info.JobID)
+	log.Printf("  Reason: %s\n", info.Reason)
 	for _, level := range info.Input {
-		log.Printf("From Level %d - %s\n", level.Level, level.String())
+		log.Printf("  From Level %d - %s\n", level.Level, level.String())
 	}
-	log.Printf("To level %d %ss\n", info.Output.Level, info.Output.String())
+	log.Printf("  To level %d %ss\n", info.Output.Level, info.Output.String())
 
 }
 
@@ -47,8 +47,8 @@ func compactionEnd(info pebble.CompactionInfo) {
 
 func flushBegin(info pebble.FlushInfo) {
 	log.Printf("[PEBBLE]: Flush triggered:\n")
-	log.Printf("JobID: %d\n", info.JobID)
-	log.Printf("Reason: %s\n", info.Reason)
+	log.Printf("  JobID: %d\n", info.JobID)
+	log.Printf("  Reason: %s\n", info.Reason)
 
 }
 
