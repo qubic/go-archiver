@@ -63,7 +63,7 @@ func convertUint64ToHex(value uint64) string {
 	return hex.EncodeToString(b)
 }
 
-func qubicToProtoStored(votes types.QuorumVotes) *protobuff.QuorumTickDataStored {
+func QubicToProtoStored(votes types.QuorumVotes) *protobuff.QuorumTickDataStored {
 	firstQuorumTickData := votes[0]
 	protoQuorumTickData := protobuff.QuorumTickDataStored{
 		QuorumTickStructure:   qubicTickStructureToProto(firstQuorumTickData),

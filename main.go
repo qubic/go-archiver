@@ -46,7 +46,7 @@ func run() error {
 		}
 		Qubic struct {
 			NodePort           string        `conf:"default:21841"`
-			StorageFolder      string        `conf:"default:storage"`
+			StorageFolder      string        `conf:"default:storage/archiver"`
 			ProcessTickTimeout time.Duration `conf:"default:5s"`
 		}
 		Store struct {
@@ -91,7 +91,17 @@ func run() error {
 	}
 	log.Printf("main: Config :\n%v\n", out)
 
-	levelOptions := pebble.LevelOptions{
+	l1Options := pebble.LevelOptions{
+		BlockRestartInterval: 16,
+		BlockSize:            4096,
+		BlockSizeThreshold:   90,
+		Compression:          pebble.NoCompression,
+		FilterPolicy:         nil,
+		FilterType:           pebble.TableFilter,
+		IndexBlockSize:       4096,
+		TargetFileSize:       268435456, // 256 MB
+	}
+	l2Options := pebble.LevelOptions{
 		BlockRestartInterval: 16,
 		BlockSize:            4096,
 		BlockSizeThreshold:   90,
@@ -99,11 +109,34 @@ func run() error {
 		FilterPolicy:         nil,
 		FilterType:           pebble.TableFilter,
 		IndexBlockSize:       4096,
-		TargetFileSize:       2097152,
+		TargetFileSize:       l1Options.TargetFileSize * 10, // 2.5 GB
+	}
+	l3Options := pebble.LevelOptions{
+		BlockRestartInterval: 16,
+		BlockSize:            4096,
+		BlockSizeThreshold:   90,
+		Compression:          pebble.ZstdCompression,
+		FilterPolicy:         nil,
+		FilterType:           pebble.TableFilter,
+		IndexBlockSize:       4096,
+		TargetFileSize:       l2Options.TargetFileSize * 10, // 25 GB
+	}
+
+	l4Options := pebble.LevelOptions{
+		BlockRestartInterval: 16,
+		BlockSize:            4096,
+		BlockSizeThreshold:   90,
+		Compression:          pebble.ZstdCompression,
+		FilterPolicy:         nil,
+		FilterType:           pebble.TableFilter,
+		IndexBlockSize:       4096,
+		TargetFileSize:       l3Options.TargetFileSize * 10, // 250 GB
 	}
 
 	pebbleOptions := pebble.Options{
-		Levels: []pebble.LevelOptions{levelOptions},
+		Levels:                   []pebble.LevelOptions{l1Options, l2Options, l3Options, l4Options},
+		MaxConcurrentCompactions: func() int { return 12 },
+		EventListener:            store.NewPebbleEventListener(),
 	}
 
 	db, err := pebble.Open(cfg.Qubic.StorageFolder, &pebbleOptions)
@@ -111,6 +144,11 @@ func run() error {
 		return errors.Wrap(err, "opening db with zstd compression")
 	}
 	defer db.Close()
+
+	/*err = db.Compact([]byte{0x00}, []byte{0xFF}, true)
+	if err != nil {
+		return errors.Wrap(err, "compaction failed")
+	}*/
 
 	ps := store.NewPebbleStore(db, nil)
 

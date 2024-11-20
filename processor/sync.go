@@ -256,6 +256,8 @@ func (sp *SyncProcessor) sync() error {
 
 		for _, interval := range epochDelta.ProcessedIntervals {
 
+			var intervalTicks []validator.ValidatedTicks
+
 			for tickNumber := interval.InitialProcessedTick; tickNumber <= interval.LastProcessedTick; tickNumber += sp.maxObjectRequest {
 
 				startTick := tickNumber
@@ -264,10 +266,12 @@ func (sp *SyncProcessor) sync() error {
 					endTick = interval.LastProcessedTick
 				}
 
-				err := sp.processTicks(startTick, endTick, initialEpochTick, qubicComputors)
+				validatedTicks, err := sp.processTicks(startTick, endTick, initialEpochTick, qubicComputors)
 				if err != nil {
 					return errors.Wrapf(err, "processing tick range %d - %d", startTick, endTick)
 				}
+				intervalTicks = append(intervalTicks, validatedTicks)
+				fmt.Println(len(intervalTicks) * int(sp.maxObjectRequest))
 			}
 
 		}
@@ -275,10 +279,11 @@ func (sp *SyncProcessor) sync() error {
 	return nil
 }
 
-func (sp *SyncProcessor) processTicks(startTick, endTick, initialEpochTick uint32, computors types.Computors) error {
+func (sp *SyncProcessor) processTicks(startTick, endTick, initialEpochTick uint32, computors types.Computors) (validator.ValidatedTicks, error) {
 
-	ctx, cancel := context.WithTimeout(context.Background(), sp.syncConfiguration.ResponseTimeout)
-	defer cancel()
+	//ctx, cancel := context.WithTimeout(context.Background(), sp.syncConfiguration.ResponseTimeout)
+	//defer cancel()
+	ctx := context.Background()
 
 	var compression grpc.CallOption = grpc.EmptyCallOption{}
 
@@ -292,8 +297,10 @@ func (sp *SyncProcessor) processTicks(startTick, endTick, initialEpochTick uint3
 		LastTick: endTick,
 	}, compression)
 	if err != nil {
-		return errors.Wrap(err, "fetching tick information")
+		return nil, errors.Wrap(err, "fetching tick information")
 	}
+
+	var validatedTicks validator.ValidatedTicks
 
 	for {
 		data, err := stream.Recv()
@@ -301,7 +308,7 @@ func (sp *SyncProcessor) processTicks(startTick, endTick, initialEpochTick uint3
 			break
 		}
 		if err != nil {
-			return errors.Wrap(err, "reading tick information stream")
+			return nil, errors.Wrap(err, "reading tick information stream")
 		}
 
 		log.Printf("Fetched %d ticks\n", len(data.Ticks))
@@ -311,19 +318,21 @@ func (sp *SyncProcessor) processTicks(startTick, endTick, initialEpochTick uint3
 
 			syncValidator := validator.NewSyncValidator(initialEpochTick, computors, tickInfo, sp.processTickTimeout, sp.pebbleStore)
 
-			err = syncValidator.Validate()
+			validatedData, err := syncValidator.Validate()
 			if err != nil {
-				return errors.Wrapf(err, "validating tick %d", tickInfo.QuorumData.QuorumTickStructure.TickNumber)
+				return nil, errors.Wrapf(err, "validating tick %d", tickInfo.QuorumData.QuorumTickStructure.TickNumber)
 			}
 
-			err = sp.pebbleStore.SetLastProcessedTick(nil, &protobuff.ProcessedTick{
+			validatedTicks = append(validatedTicks, validatedData)
+
+			/*err = sp.pebbleStore.SetLastProcessedTick(nil, &protobuff.ProcessedTick{
 				TickNumber: tickInfo.QuorumData.QuorumTickStructure.TickNumber,
 				Epoch:      tickInfo.QuorumData.QuorumTickStructure.Epoch,
 			})
 			if err != nil {
 				return errors.Wrapf(err, "setting last processed tick %d", tickInfo.QuorumData.QuorumTickStructure.TickNumber)
-			}
+			}*/
 		}
 	}
-	return nil
+	return validatedTicks, nil
 }
