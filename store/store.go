@@ -270,7 +270,7 @@ func (s *PebbleStore) SetLastProcessedTick(ctx context.Context, lastProcessedTic
 		return errors.Wrap(err, "committing batch")
 	}
 
-	ptie, err := s.getProcessedTickIntervalsPerEpoch(ctx, lastProcessedTick.Epoch)
+	ptie, err := s.GetProcessedTickIntervalsPerEpoch(ctx, lastProcessedTick.Epoch)
 	if err != nil {
 		return errors.Wrap(err, "getting ptie")
 	}
@@ -576,7 +576,7 @@ func (s *PebbleStore) SetTickTransactionsStatus(ctx context.Context, tickNumber 
 	return nil
 }
 
-func (s *PebbleStore) getProcessedTickIntervalsPerEpoch(ctx context.Context, epoch uint32) (*protobuff.ProcessedTickIntervalsPerEpoch, error) {
+func (s *PebbleStore) GetProcessedTickIntervalsPerEpoch(ctx context.Context, epoch uint32) (*protobuff.ProcessedTickIntervalsPerEpoch, error) {
 	key := processedTickIntervalsPerEpochKey(epoch)
 	value, closer, err := s.db.Get(key)
 	if err != nil {
@@ -612,7 +612,7 @@ func (s *PebbleStore) SetProcessedTickIntervalPerEpoch(ctx context.Context, epoc
 }
 
 func (s *PebbleStore) AppendProcessedTickInterval(ctx context.Context, epoch uint32, pti *protobuff.ProcessedTickInterval) error {
-	existing, err := s.getProcessedTickIntervalsPerEpoch(ctx, epoch)
+	existing, err := s.GetProcessedTickIntervalsPerEpoch(ctx, epoch)
 	if err != nil {
 		return errors.Wrap(err, "getting existing processed tick intervals")
 	}

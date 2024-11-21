@@ -1,8 +1,11 @@
 package processor
 
 import (
+	"cmp"
 	"context"
+	"encoding/binary"
 	"fmt"
+	"github.com/cockroachdb/pebble"
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-archiver/store"
@@ -13,8 +16,10 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/encoding/gzip"
+	"google.golang.org/protobuf/proto"
 	"io"
 	"log"
+	"slices"
 	"time"
 )
 
@@ -25,6 +30,7 @@ type SyncProcessor struct {
 	syncDelta          SyncDelta
 	processTickTimeout time.Duration
 	maxObjectRequest   uint32
+	lastProcessedTick  uint32
 }
 
 func NewSyncProcessor(syncConfiguration SyncConfiguration, pebbleStore *store.PebbleStore, processTickTimeout time.Duration) *SyncProcessor {
@@ -165,6 +171,10 @@ func (sp *SyncProcessor) calculateSyncDelta(bootstrapMetadata, clientMetadata *p
 		}
 	}
 
+	slices.SortFunc(syncDelta, func(a, b EpochDelta) int {
+		return cmp.Compare(a.Epoch, b.Epoch)
+	})
+
 	return syncDelta, nil
 }
 
@@ -187,12 +197,13 @@ func (sp *SyncProcessor) storeEpochInfo(response *protobuff.SyncEpochInfoRespons
 
 func (sp *SyncProcessor) syncEpochInfo(delta SyncDelta, metadata *protobuff.SyncMetadataResponse) error {
 
-	err := sp.pebbleStore.SetSkippedTickIntervalList(&protobuff.SkippedTicksIntervalList{
+	// TODO: remove skipped tick intervals from proto file
+	/*err := sp.pebbleStore.SetSkippedTickIntervalList(&protobuff.SkippedTicksIntervalList{
 		SkippedTicks: metadata.SkippedTickIntervals,
 	})
 	if err != nil {
 		return errors.Wrap(err, "saving skipped tick intervals from bootstrap")
-	}
+	}*/
 
 	var epochs []uint32
 
@@ -217,7 +228,6 @@ func (sp *SyncProcessor) syncEpochInfo(delta SyncDelta, metadata *protobuff.Sync
 		if err != nil {
 			return errors.Wrap(err, "reading stream")
 		}
-
 		err = sp.storeEpochInfo(data)
 		if err != nil {
 			return errors.Wrap(err, "storing epoch data")
@@ -228,9 +238,19 @@ func (sp *SyncProcessor) syncEpochInfo(delta SyncDelta, metadata *protobuff.Sync
 }
 
 func (sp *SyncProcessor) sync() error {
+
 	for _, epochDelta := range sp.syncDelta {
 
+		if epochDelta.Epoch != 133 {
+			continue
+		}
+
 		log.Printf("Synchronizing ticks for epoch %d...\n", epochDelta.Epoch)
+
+		processedTickIntervalsForEpoch, err := sp.pebbleStore.GetProcessedTickIntervalsPerEpoch(nil, epochDelta.Epoch)
+		if err != nil {
+			return errors.Wrapf(err, "getting processed tick intervals for epoch %d", epochDelta.Epoch)
+		}
 
 		computorList, err := sp.pebbleStore.GetComputors(nil, epochDelta.Epoch)
 		if err != nil {
@@ -240,8 +260,6 @@ func (sp *SyncProcessor) sync() error {
 		if len(epochDelta.ProcessedIntervals) == 0 {
 			return errors.New(fmt.Sprintf("no processed tick intervals in delta for epoch %d", epochDelta.Epoch))
 		}
-
-		initialEpochTick := epochDelta.ProcessedIntervals[0].InitialProcessedTick
 
 		log.Printf("Validating computor list")
 		err = computors.ValidateProto(nil, validator.GoSchnorrqVerify, computorList)
@@ -256,6 +274,18 @@ func (sp *SyncProcessor) sync() error {
 
 		for _, interval := range epochDelta.ProcessedIntervals {
 
+			initialIntervalTick := interval.InitialProcessedTick
+
+			if initialIntervalTick > sp.lastProcessedTick {
+				err = sp.pebbleStore.SetSkippedTicksInterval(nil, &protobuff.SkippedTicksInterval{
+					StartTick: sp.lastProcessedTick + 1,
+					EndTick:   initialIntervalTick - 1,
+				})
+				if err != nil {
+					return errors.Wrap(err, "appending skipped tick interval")
+				}
+			}
+
 			for tickNumber := interval.InitialProcessedTick; tickNumber <= interval.LastProcessedTick; tickNumber += sp.maxObjectRequest {
 
 				startTick := tickNumber
@@ -264,15 +294,29 @@ func (sp *SyncProcessor) sync() error {
 					endTick = interval.LastProcessedTick
 				}
 
-				/*validatedTicks*/
-				_, err := sp.processTicks(startTick, endTick, initialEpochTick, qubicComputors)
+				duration := time.Now()
+
+				fetchedTicks, err := sp.fetchTicks(startTick, endTick)
+				if err != nil {
+					return errors.Wrapf(err, "fetching tick range %d - %d", startTick, endTick)
+				}
+
+				processedTicks, err := sp.processTicks(fetchedTicks, initialIntervalTick, qubicComputors)
 				if err != nil {
 					return errors.Wrapf(err, "processing tick range %d - %d", startTick, endTick)
 				}
-				/*err = sp.storeTicks(validatedTicks)
+				lastProcessedTick, err := sp.storeTicks(processedTicks, epochDelta.Epoch, processedTickIntervalsForEpoch, initialIntervalTick)
+				sp.lastProcessedTick = lastProcessedTick
 				if err != nil {
 					return errors.Wrapf(err, "storing processed tick range %d - %d", startTick, endTick)
-				}*/
+				}
+
+				elapsed := time.Since(duration)
+
+				log.Printf("Done processing %d ticks. Took: %v | Average time / tick: %v", sp.maxObjectRequest, elapsed, elapsed.Seconds()/float64(sp.maxObjectRequest))
+
+				time.Sleep(time.Second * 5)
+
 			}
 
 		}
@@ -280,8 +324,9 @@ func (sp *SyncProcessor) sync() error {
 	return nil
 }
 
-func (sp *SyncProcessor) processTicks(startTick, endTick, initialEpochTick uint32, computors types.Computors) (validator.ValidatedTicks, error) {
+func (sp *SyncProcessor) fetchTicks(startTick, endTick uint32) ([]*protobuff.SyncTickInfoResponse, error) {
 
+	//TODO: We are currently fetching a large process of ticks, and using the default will cause the method to error before we are finished
 	//ctx, cancel := context.WithTimeout(context.Background(), sp.syncConfiguration.ResponseTimeout)
 	//defer cancel()
 	ctx := context.Background()
@@ -301,8 +346,12 @@ func (sp *SyncProcessor) processTicks(startTick, endTick, initialEpochTick uint3
 		return nil, errors.Wrap(err, "fetching tick information")
 	}
 
-	var validatedTicks validator.ValidatedTicks
+	var responses []*protobuff.SyncTickInfoResponse
 
+	lastTime := time.Now()
+	counter := 0
+
+	println()
 	for {
 		data, err := stream.Recv()
 		if err == io.EOF {
@@ -312,72 +361,241 @@ func (sp *SyncProcessor) processTicks(startTick, endTick, initialEpochTick uint3
 			return nil, errors.Wrap(err, "reading tick information stream")
 		}
 
-		log.Printf("Fetched %d ticks\n", len(data.Ticks))
+		elapsed := time.Since(lastTime)
+		lastTime = time.Now()
+		rate := float64(len(data.Ticks)) / elapsed.Seconds()
+		counter += len(data.Ticks)
+
+		var firstFetchedTick uint32
+		var lastFetchedTick uint32
+
+		if len(data.Ticks) > 0 {
+			firstFetchedTick = data.Ticks[0].QuorumData.QuorumTickStructure.TickNumber
+			lastFetchedTick = data.Ticks[len(data.Ticks)-1].QuorumData.QuorumTickStructure.TickNumber
+		}
+
+		fmt.Printf("\rFetched %d ticks - [%d - %d] Took: %v | Rate: %f t/s - ~ %d t/m | Total: %d    ", len(data.Ticks), firstFetchedTick, lastFetchedTick, time.Since(lastTime), rate, int(rate*60), counter)
+		responses = append(responses, data)
+	}
+
+	return responses, nil
+
+}
+
+func (sp *SyncProcessor) processTicks(tickInfoResponses []*protobuff.SyncTickInfoResponse, initialIntervalTick uint32, computors types.Computors) (validator.ValidatedTicks, error) {
+
+	var validatedTicks validator.ValidatedTicks
+
+	for _, data := range tickInfoResponses {
+
+		var previousChainHash [32]byte
+		var previousStoreHash [32]byte
 
 		for _, tickInfo := range data.Ticks {
+
+			if initialIntervalTick == tickInfo.QuorumData.QuorumTickStructure.TickNumber {
+				previousChainHash = [32]byte{}
+				previousStoreHash = [32]byte{}
+			}
+
 			log.Printf("Processing tick %d", tickInfo.QuorumData.QuorumTickStructure.TickNumber)
 
-			syncValidator := validator.NewSyncValidator(initialEpochTick, computors, tickInfo, sp.processTickTimeout, sp.pebbleStore)
+			syncValidator := validator.NewSyncValidator(initialIntervalTick, computors, tickInfo, sp.processTickTimeout, sp.pebbleStore, previousChainHash, previousStoreHash)
 
-			for {
-				_, err := syncValidator.Validate()
-				if err == nil {
-					break
-				}
-				log.Printf("Encountered error while validating tick %d: %v\n", tickInfo.QuorumData.QuorumTickStructure.TickNumber, err)
-				time.Sleep(time.Second)
-			}
-
-			for _, err := syncValidator.Validate(); err != nil; {
-
-			}
-
-			/*validatedData, err := syncValidator.Validate()
+			validatedData, err := syncValidator.Validate()
 			if err != nil {
 				return nil, errors.Wrapf(err, "validating tick %d", tickInfo.QuorumData.QuorumTickStructure.TickNumber)
-			}*/
-
-			//validatedTicks = append(validatedTicks, validatedData)
-
-			err = sp.pebbleStore.SetLastProcessedTick(nil, &protobuff.ProcessedTick{
-				TickNumber: tickInfo.QuorumData.QuorumTickStructure.TickNumber,
-				Epoch:      tickInfo.QuorumData.QuorumTickStructure.Epoch,
-			})
-			if err != nil {
-				return nil, errors.Wrapf(err, "setting last processed tick %d", tickInfo.QuorumData.QuorumTickStructure.TickNumber)
 			}
+
+			previousChainHash = validatedData.ChainHash
+			previousStoreHash = validatedData.StoreHash
+
+			validatedTicks = append(validatedTicks, validatedData)
 		}
 	}
 
 	return validatedTicks, nil
 }
 
-/*func (sp *SyncProcessor) storeTicks(validatedTicks validator.ValidatedTicks) error {
+func (sp *SyncProcessor) storeTicks(validatedTicks validator.ValidatedTicks, epoch uint32, processedTickIntervalsPerEpoch *protobuff.ProcessedTickIntervalsPerEpoch, initialTickInterval uint32) (uint32, error) {
 
 	db := sp.pebbleStore.GetDB()
 
 	batch := db.NewBatch()
 	defer batch.Close()
 
-	for _, tick := range validatedTicks {
+	log.Println("Storing validated ticks...")
 
-		tickNumber := tick.AlignedVotes.QuorumTickStructure.TickNumber
+	var lastProcessedTick uint32
+
+	for _, validatedTick := range validatedTicks {
+
+		tickNumber := validatedTick.AlignedVotes.QuorumTickStructure.TickNumber
+
+		log.Printf("Storing data for tick %d\n", tickNumber)
 
 		quorumDataKey := store.AssembleKey(store.QuorumData, tickNumber)
-		serializedData, err := proto.Marshal(tick.AlignedVotes)
+		serializedData, err := proto.Marshal(validatedTick.AlignedVotes)
 		if err != nil {
-			return errors.Wrapf(err, "serializing aligned votes for tick %d", tickNumber)
+			return 0, errors.Wrapf(err, "serializing aligned votes for tick %d", tickNumber)
 		}
 		err = batch.Set(quorumDataKey, serializedData, nil)
 		if err != nil {
-			return errors.Wrapf(err, "adding aligned votes to batch for tick %d", tickNumber)
+			return 0, errors.Wrapf(err, "adding aligned votes to batch for tick %d", tickNumber)
+		}
+
+		tickDataKey := store.AssembleKey(store.TickData, tickNumber)
+		serializedData, err = proto.Marshal(validatedTick.TickData)
+		if err != nil {
+			return 0, errors.Wrapf(err, "serializing tick data for tick %d", tickNumber)
+		}
+		err = batch.Set(tickDataKey, serializedData, nil)
+		if err != nil {
+			return 0, errors.Wrapf(err, "adding tick data to batch for tick %d", tickNumber)
+		}
+
+		for _, transaction := range validatedTick.ValidTransactions {
+			transactionKey := store.AssembleKey(store.Transaction, transaction.TxId)
+			serializedData, err = proto.Marshal(transaction)
+			if err != nil {
+				return 0, errors.Wrapf(err, "deserializing transaction %s for tick %d", transaction.TxId, tickNumber)
+			}
+			err = batch.Set(transactionKey, serializedData, nil)
+			if err != nil {
+				return 0, errors.Wrapf(err, "addin transaction %s to batch for tick %d", transaction.TxId, tickNumber)
+			}
+		}
+
+		transactionsPerIdentity := removeNonTransferTransactionsAndSortPerIdentity(validatedTick.ValidTransactions)
+		for identity, transactions := range transactionsPerIdentity {
+			identityTransfersPerTickKey := store.AssembleKey(store.IdentityTransferTransactions, identity)
+			identityTransfersPerTickKey = binary.BigEndian.AppendUint64(identityTransfersPerTickKey, uint64(tickNumber))
+
+			serializedData, err = proto.Marshal(&protobuff.TransferTransactionsPerTick{
+				TickNumber:   tickNumber,
+				Identity:     identity,
+				Transactions: transactions,
+			})
+			if err != nil {
+				return 0, errors.Wrapf(err, "serializing transfer transactions for tickl %d", tickNumber)
+			}
+			err = batch.Set(identityTransfersPerTickKey, serializedData, nil)
+			if err != nil {
+				return 0, errors.Wrapf(err, "adding transafer transactions to batch for tick %d", tickNumber)
+			}
+		}
+
+		tickTxStatusKey := store.AssembleKey(store.TickTransactionsStatus, uint64(tickNumber))
+		serializedData, err = proto.Marshal(validatedTick.ApprovedTransactions)
+		if err != nil {
+			return 0, errors.Wrapf(err, "serializing transaction statuses for tick %d", tickNumber)
+		}
+		err = batch.Set(tickTxStatusKey, serializedData, nil)
+		if err != nil {
+			return 0, errors.Wrapf(err, "adding transactions statuses to batch for tick %d", tickNumber)
+		}
+		for _, transaction := range validatedTick.ApprovedTransactions.Transactions {
+			approvedTransactionKey := store.AssembleKey(store.TransactionStatus, transaction.TxId)
+			serializedData, err = proto.Marshal(transaction)
+			if err != nil {
+				return 0, errors.Wrapf(err, "serialzing approved transaction %s for tick %d", transaction.TxId, tickNumber)
+			}
+			err = batch.Set(approvedTransactionKey, serializedData, nil)
+			if err != nil {
+				return 0, errors.Wrapf(err, "adding approved transaction %s to batch for tick %d", transaction.TxId, tickNumber)
+			}
+		}
+
+		chainDigestKey := store.AssembleKey(store.ChainDigest, tickNumber)
+		err = batch.Set(chainDigestKey, validatedTick.ChainHash[:], nil)
+		if err != nil {
+			return 0, errors.Wrapf(err, "adding chain hash to batch for tick %d", tickNumber)
+		}
+
+		storeDigestKey := store.AssembleKey(store.StoreDigest, tickNumber)
+		err = batch.Set(storeDigestKey, validatedTick.StoreHash[:], nil)
+		if err != nil {
+			return 0, errors.Wrapf(err, "adding store hash to batch for tick %d", tickNumber)
+		}
+
+		lastProcessedTick = tickNumber
+	}
+
+	lastProcessedTickPerEpochKey := store.AssembleKey(store.LastProcessedTickPerEpoch, epoch)
+	value := make([]byte, 4)
+	binary.LittleEndian.PutUint32(value, lastProcessedTick)
+	err := batch.Set(lastProcessedTickPerEpochKey, value, nil)
+	if err != nil {
+		return 0, errors.Wrapf(err, "adding last processed tick %d for epoch %d to batch", lastProcessedTick, epoch)
+	}
+
+	lastProcessedTickProto := &protobuff.ProcessedTick{
+		TickNumber: lastProcessedTick,
+		Epoch:      epoch,
+	}
+	lastProcessedTickKey := []byte{store.LastProcessedTick}
+	serializedData, err := proto.Marshal(lastProcessedTickProto)
+	if err != nil {
+		return 0, errors.Wrapf(err, "serializing last processed tick %d", lastProcessedTick)
+	}
+	err = batch.Set(lastProcessedTickKey, serializedData, nil)
+	if err != nil {
+		return 0, errors.Wrapf(err, "adding last processed tick %d to batch", lastProcessedTick)
+	}
+
+	if len(processedTickIntervalsPerEpoch.Intervals) == 0 {
+		processedTickIntervalsPerEpoch = &protobuff.ProcessedTickIntervalsPerEpoch{
+			Epoch: epoch,
+			Intervals: []*protobuff.ProcessedTickInterval{
+				{
+					InitialProcessedTick: initialTickInterval,
+					LastProcessedTick:    lastProcessedTick,
+				},
+			},
+		}
+	} else {
+		processedTickIntervalsPerEpoch.Intervals[len(processedTickIntervalsPerEpoch.Intervals)-1].LastProcessedTick = lastProcessedTick
+	}
+
+	processedTickIntervalsPerEpochKey := store.AssembleKey(store.ProcessedTickIntervals, epoch)
+	serializedData, err = proto.Marshal(processedTickIntervalsPerEpoch)
+	if err != nil {
+		return 0, errors.Wrapf(err, "serializing processed tick intervals for epoch %d", epoch)
+	}
+	err = batch.Set(processedTickIntervalsPerEpochKey, serializedData, nil)
+	if err != nil {
+		return 0, errors.Wrapf(err, "adding processed tick intervals for epochg %d to batch", epoch)
+	}
+
+	err = batch.Commit(pebble.Sync)
+	if err != nil {
+		return 0, errors.Wrap(err, "commiting batch")
+	}
+
+	return lastProcessedTick, nil
+}
+
+func removeNonTransferTransactionsAndSortPerIdentity(transactions []*protobuff.Transaction) map[string][]*protobuff.Transaction {
+
+	transferTransactions := make([]*protobuff.Transaction, 0)
+	for _, transaction := range transactions {
+		if transaction.Amount == 0 {
+			continue
+		}
+		transferTransactions = append(transferTransactions, transaction)
+	}
+	transactionsPerIdentity := make(map[string][]*protobuff.Transaction)
+	for _, transaction := range transferTransactions {
+		_, exists := transactionsPerIdentity[transaction.DestId]
+		if !exists {
+			transactionsPerIdentity[transaction.DestId] = make([]*protobuff.Transaction, 0)
+		}
+		_, exists = transactionsPerIdentity[transaction.SourceId]
+		if !exists {
+			transactionsPerIdentity[transaction.SourceId] = make([]*protobuff.Transaction, 0)
 		}
 	}
 
-	err := batch.Commit(pebble.Sync)
-	if err != nil {
-		return errors.Wrap(err, "commiting batch")
-	}
+	return transactionsPerIdentity
 
-	return nil
-}*/
+}

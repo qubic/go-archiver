@@ -7,7 +7,7 @@ import (
 	"github.com/qubic/go-node-connector/types"
 )
 
-func qubicToProto(txs types.Transactions) ([]*protobuff.Transaction, error) {
+func QubicToProto(txs types.Transactions) ([]*protobuff.Transaction, error) {
 	protoTxs := make([]*protobuff.Transaction, len(txs))
 	for i, tx := range txs {
 		txProto, err := txToProto(tx)

@@ -9,49 +9,56 @@ import (
 	"github.com/qubic/go-archiver/validator/quorum"
 	"github.com/qubic/go-archiver/validator/tick"
 	"github.com/qubic/go-archiver/validator/tx"
-	"github.com/qubic/go-archiver/validator/txstatus"
 	"github.com/qubic/go-node-connector/types"
 	"log"
 	"time"
 )
 
 type ValidatedTick struct {
-	FirstVote            types.QuorumTickVote
 	AlignedVotes         *protobuff.QuorumTickDataStored
-	TickData             types.TickData
-	ValidTransactions    []types.Transaction
+	TickData             *protobuff.TickData
+	ValidTransactions    []*protobuff.Transaction
 	ApprovedTransactions *protobuff.TickTransactionsStatus
+	ChainHash            [32]byte
+	StoreHash            [32]byte
 }
 
 type ValidatedTicks []ValidatedTick
 
 type SyncValidator struct {
-	tickNumber        uint32
-	epoch             uint32
+	tickNumber          uint32
+	epoch               uint32
+	initialIntervalTick uint32
+
 	computors         types.Computors
 	quorumData        *protobuff.QuorumTickData
 	tickData          *protobuff.TickData
 	transactions      []*protobuff.Transaction
 	transactionStatus []*protobuff.TransactionStatus
+	previousChainHash [32]byte
+	previousStoreHash [32]byte
 
 	pebbleStore        *store.PebbleStore
 	processTickTimeout time.Duration
-	initialEpochTick   uint32
 }
 
-func NewSyncValidator(initialEpochTick uint32, computors types.Computors, syncTickData *protobuff.SyncTickData, processTickTimeout time.Duration, pebbleStore *store.PebbleStore) *SyncValidator {
+func NewSyncValidator(initialIntervalTick uint32, computors types.Computors, syncTickData *protobuff.SyncTickData,
+	processTickTimeout time.Duration, pebbleStore *store.PebbleStore, previousChainHash, previousStoreHash [32]byte) *SyncValidator {
 	return &SyncValidator{
-		tickNumber:        syncTickData.QuorumData.QuorumTickStructure.TickNumber,
-		epoch:             syncTickData.QuorumData.QuorumTickStructure.Epoch,
+		tickNumber:          syncTickData.QuorumData.QuorumTickStructure.TickNumber,
+		epoch:               syncTickData.QuorumData.QuorumTickStructure.Epoch,
+		initialIntervalTick: initialIntervalTick,
+
 		computors:         computors,
 		quorumData:        syncTickData.QuorumData,
 		tickData:          syncTickData.TickData,
 		transactions:      syncTickData.Transactions,
 		transactionStatus: syncTickData.TransactionsStatus,
+		previousChainHash: previousChainHash,
+		previousStoreHash: previousStoreHash,
 
 		pebbleStore:        pebbleStore,
 		processTickTimeout: processTickTimeout,
-		initialEpochTick:   initialEpochTick,
 	}
 }
 
@@ -74,13 +81,32 @@ func (sv *SyncValidator) Validate() (ValidatedTick, error) {
 
 	tickData, err := tick.ProtoToQubic(sv.tickData)
 	if err != nil {
-		return ValidatedTick{}, errors.Wrap(err, "converting tick data to qubic format")
+		return ValidatedTick{}, errors.Wrapf(err, "converting tick data to qubic format")
 	}
 
 	err = tick.Validate(ctx, GoSchnorrqVerify, tickData, alignedVotes[0], sv.computors)
 	if err != nil {
 		return ValidatedTick{}, errors.Wrap(err, "validating tick data")
 	}
+
+	/*if len(sv.tickData.VarStruct) != 0 {
+
+		fullTickData, err := tick.ProtoToQubicFull(sv.tickData)
+		if err != nil {
+			return ValidatedTick{}, errors.Wrap(err, "converting tick data to qubic format")
+		}
+
+		err = fullTickData.Validate(ctx, GoSchnorrqVerify, alignedVotes[0], sv.computors)
+		if err != nil {
+			return ValidatedTick{}, errors.Wrap(err, "validating tick data")
+		}
+	} else {
+		err := tick.Validate(ctx, GoSchnorrqVerify, tickData, alignedVotes[0], sv.computors)
+		if err != nil {
+			return ValidatedTick{}, errors.Wrap(err, "validating tick data")
+		}
+	}*/
+
 	log.Println("Tick data validated")
 
 	transactions, err := tx.ProtoToQubic(sv.transactions)
@@ -97,56 +123,38 @@ func (sv *SyncValidator) Validate() (ValidatedTick, error) {
 	}
 	log.Printf("Validated %d transactions\n", len(validTransactions))
 
-	err = quorum.Store(ctx, sv.pebbleStore, sv.tickNumber, alignedVotes)
-	if err != nil {
-		return ValidatedTick{}, errors.Wrap(err, "storing quorum votes")
-	}
-	log.Printf("Stored %d quorum votes\n", len(alignedVotes))
-
-	err = tick.Store(ctx, sv.pebbleStore, sv.tickNumber, tickData)
-	if err != nil {
-		return ValidatedTick{}, errors.Wrap(err, "storing tick data")
-	}
-	log.Printf("Stored tick data\n")
-
-	err = tx.Store(ctx, sv.pebbleStore, sv.tickNumber, validTransactions)
-	if err != nil {
-		return ValidatedTick{}, errors.Wrap(err, "storing transactions")
-	}
-	log.Printf("Stored %d transactions\n", len(transactions))
-
-	approvedTransactions := &protobuff.TickTransactionsStatus{
-		Transactions: sv.transactionStatus,
-	}
-
-	err = txstatus.Store(ctx, sv.pebbleStore, sv.tickNumber, approvedTransactions)
-	if err != nil {
-		return ValidatedTick{}, errors.Wrap(err, "storing tx status")
-	}
-
-	err = chain.ComputeAndSave(ctx, sv.pebbleStore, sv.initialEpochTick, sv.tickNumber, alignedVotes[0])
-	if err != nil {
-		return ValidatedTick{}, errors.Wrap(err, "computing and saving chain digest")
-	}
-
-	err = chain.ComputeStoreAndSave(ctx, sv.pebbleStore, sv.initialEpochTick, sv.tickNumber, validTransactions, approvedTransactions)
-	if err != nil {
-		return ValidatedTick{}, errors.Wrap(err, "computing and saving store digest")
-	}
-
-	isEmpty, err := tick.CheckIfTickIsEmpty(tickData)
+	/*isEmpty, err := tick.CheckIfTickIsEmpty(tickData)
 	if isEmpty {
 		err = handleEmptyTick(sv.pebbleStore, sv.tickNumber, sv.epoch)
 		if err != nil {
 			return ValidatedTick{}, errors.Wrap(err, "handling empty tick")
 		}
+	}*/
+
+	transactionsProto, err := tx.QubicToProto(validTransactions)
+	if err != nil {
+		return ValidatedTick{}, errors.Wrap(err, "converting transactions to proto format")
+	}
+
+	approvedTransactions := &protobuff.TickTransactionsStatus{
+		Transactions: sv.transactionStatus,
+	}
+
+	chainHash, err := chain.ComputeCurrentTickDigest(nil, alignedVotes[0], sv.previousChainHash)
+	if err != nil {
+		return ValidatedTick{}, errors.Wrap(err, "calculating chain digest")
+	}
+	storeHash, err := chain.ComputeCurrentTickStoreDigest(nil, validTransactions, approvedTransactions, sv.previousStoreHash)
+	if err != nil {
+		return ValidatedTick{}, errors.Wrap(err, "calculating store digest")
 	}
 
 	return ValidatedTick{
-		FirstVote:            alignedVotes[0],
 		AlignedVotes:         quorum.QubicToProtoStored(alignedVotes),
-		TickData:             tickData,
-		ValidTransactions:    validTransactions,
+		TickData:             sv.tickData,
+		ValidTransactions:    transactionsProto,
 		ApprovedTransactions: approvedTransactions,
+		ChainHash:            chainHash,
+		StoreHash:            storeHash,
 	}, nil
 }

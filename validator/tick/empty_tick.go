@@ -60,7 +60,7 @@ func CheckIfTickIsEmptyProto(tickData *protobuff.TickData) bool {
 }
 
 func CheckIfTickIsEmpty(tickData types.TickData) (bool, error) {
-	data, err := qubicToProto(tickData)
+	data, err := QubicToProto(tickData)
 	if err != nil {
 		return false, errors.Wrap(err, "converting tick data to protobuf format")
 	}

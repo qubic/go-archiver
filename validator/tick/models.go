@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func qubicToProto(tickData types.TickData) (*protobuff.TickData, error) {
+func QubicToProto(tickData types.TickData) (*protobuff.TickData, error) {
 	if tickData.IsEmpty() {
 		return nil, nil
 	}
@@ -199,4 +199,64 @@ func ProtoToQubic(tickData *protobuff.TickData) (types.TickData, error) {
 	}
 
 	return data, nil
+}
+
+func ProtoToQubicFull(tickData *protobuff.TickData) (FullTickData, error) {
+
+	qubicTickData, err := ProtoToQubic(tickData)
+	if err != nil {
+		return FullTickData{}, errors.Wrap(err, "converting tick data to qubic format")
+	}
+
+	varStruct := tickData.VarStruct
+	var unionData [256]byte
+	copy(unionData[:], varStruct[:])
+
+	return FullTickData{
+		ComputorIndex:      qubicTickData.ComputorIndex,
+		Epoch:              qubicTickData.Epoch,
+		Tick:               qubicTickData.Tick,
+		Millisecond:        qubicTickData.Millisecond,
+		Second:             qubicTickData.Second,
+		Minute:             qubicTickData.Minute,
+		Hour:               qubicTickData.Hour,
+		Day:                qubicTickData.Day,
+		Month:              qubicTickData.Month,
+		Year:               qubicTickData.Year,
+		Timelock:           qubicTickData.Timelock,
+		UnionData:          unionData,
+		TransactionDigests: qubicTickData.TransactionDigests,
+		ContractFees:       qubicTickData.ContractFees,
+		Signature:          qubicTickData.Signature,
+	}, nil
+}
+
+func QubicFullToProto(tickData FullTickData) (*protobuff.TickData, error) {
+
+	oldTickData := types.TickData{
+		ComputorIndex:      tickData.ComputorIndex,
+		Epoch:              tickData.Epoch,
+		Tick:               tickData.Tick,
+		Millisecond:        tickData.Millisecond,
+		Second:             tickData.Second,
+		Minute:             tickData.Minute,
+		Hour:               tickData.Hour,
+		Day:                tickData.Day,
+		Month:              tickData.Month,
+		Year:               tickData.Year,
+		Timelock:           tickData.Timelock,
+		TransactionDigests: tickData.TransactionDigests,
+		ContractFees:       tickData.ContractFees,
+		Signature:          tickData.Signature,
+	}
+
+	proto, err := QubicToProto(oldTickData)
+	if err != nil {
+		return nil, errors.Wrapf(err, "qubic to proto")
+	}
+
+	proto.VarStruct = tickData.UnionData[:]
+
+	return proto, nil
+
 }
