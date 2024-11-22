@@ -243,11 +243,9 @@ func (sp *SyncProcessor) synchronize() error {
 
 	for _, epochDelta := range sp.syncDelta {
 
-		switch epochDelta.Epoch {
-		case 123:
+		//TODO: can't verify ticks in epochs older than 124
+		if epochDelta.Epoch == 123 {
 			continue
-		case 124:
-		default:
 		}
 
 		log.Printf("Synchronizing ticks for epoch %d...\n", epochDelta.Epoch)
