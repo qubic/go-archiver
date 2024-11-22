@@ -5,7 +5,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-archiver/store"
-	"github.com/qubic/go-archiver/sync"
+	"github.com/qubic/go-archiver/utils"
 	"github.com/qubic/go-archiver/validator/quorum"
 	"google.golang.org/grpc/codes"
 	_ "google.golang.org/grpc/encoding/gzip"
@@ -41,7 +41,7 @@ func (ss *SyncService) SyncGetBootstrapMetadata(ctx context.Context, _ *emptypb.
 	}
 
 	return &protobuff.SyncMetadataResponse{
-		ArchiverVersion:        sync.ArchiverVersion,
+		ArchiverVersion:        utils.ArchiverVersion,
 		MaxObjectRequest:       int32(ss.bootstrapConfiguration.MaximumRequestedItems),
 		SkippedTickIntervals:   skippedIntervals.SkippedTicks,
 		ProcessedTickIntervals: processedIntervals,

@@ -9,7 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-archiver/store"
-	"github.com/qubic/go-archiver/sync"
+	"github.com/qubic/go-archiver/utils"
 	"github.com/qubic/go-archiver/validator"
 	"github.com/qubic/go-archiver/validator/computors"
 	"github.com/qubic/go-node-connector/types"
@@ -21,7 +21,7 @@ import (
 	"log"
 	"runtime"
 	"slices"
-	sync2 "sync"
+	"sync"
 	"time"
 )
 
@@ -89,7 +89,7 @@ func (sp *SyncProcessor) Start() error {
 	sp.syncDelta = syncDelta
 
 	log.Println("Starting tick synchronization")
-	err = sp.sync()
+	err = sp.synchronize()
 	if err != nil {
 		return errors.Wrap(err, "performing synchronization")
 	}
@@ -117,7 +117,7 @@ func (sp *SyncProcessor) getClientMetadata() (*protobuff.SyncMetadataResponse, e
 	}
 
 	return &protobuff.SyncMetadataResponse{
-		ArchiverVersion:        sync.ArchiverVersion,
+		ArchiverVersion:        utils.ArchiverVersion,
 		ProcessedTickIntervals: processedTickIntervals,
 	}, nil
 }
@@ -239,7 +239,7 @@ func (sp *SyncProcessor) syncEpochInfo(delta SyncDelta, metadata *protobuff.Sync
 	return nil
 }
 
-func (sp *SyncProcessor) sync() error {
+func (sp *SyncProcessor) synchronize() error {
 
 	for _, epochDelta := range sp.syncDelta {
 
@@ -291,6 +291,9 @@ func (sp *SyncProcessor) sync() error {
 				}
 			}
 
+			chainHash := &[32]byte{}
+			storeHash := &[32]byte{}
+
 			for tickNumber := interval.InitialProcessedTick; tickNumber <= interval.LastProcessedTick; tickNumber += sp.maxObjectRequest {
 
 				startTick := tickNumber
@@ -306,7 +309,7 @@ func (sp *SyncProcessor) sync() error {
 					return errors.Wrapf(err, "fetching tick range %d - %d", startTick, endTick)
 				}
 
-				processedTicks, err := sp.processTicks(fetchedTicks, initialIntervalTick, qubicComputors)
+				processedTicks, err := sp.processTicks(fetchedTicks, initialIntervalTick, qubicComputors, chainHash, storeHash)
 				if err != nil {
 					return errors.Wrapf(err, "processing tick range %d - %d", startTick, endTick)
 				}
@@ -327,7 +330,7 @@ func (sp *SyncProcessor) sync() error {
 	return nil
 }
 
-func (sp *SyncProcessor) fetchTicks(startTick, endTick uint32) ([]*protobuff.SyncTickInfoResponse, error) {
+func (sp *SyncProcessor) fetchTicks(startTick, endTick uint32) ([]*protobuff.SyncTickData, error) {
 
 	//TODO: We are currently fetching a large process of ticks, and using the default will cause the method to error before we are finished
 	//ctx, cancel := context.WithTimeout(context.Background(), sp.syncConfiguration.ResponseTimeout)
@@ -340,19 +343,14 @@ func (sp *SyncProcessor) fetchTicks(startTick, endTick uint32) ([]*protobuff.Syn
 		compression = grpc.UseCompressor(gzip.Name)
 	}
 
-	var responses []*protobuff.SyncTickInfoResponse
+	var responses []*protobuff.SyncTickData
 
-	mutex := sync2.RWMutex{}
+	mutex := sync.RWMutex{}
 	routineCount := runtime.NumCPU()
-	routineCount = 12
 	batchSize := sp.maxObjectRequest / uint32(routineCount)
 	errChannel := make(chan error, routineCount)
-	var waitGroup sync2.WaitGroup
+	var waitGroup sync.WaitGroup
 	startTime := time.Now()
-
-	println(sp.maxObjectRequest % uint32(routineCount))
-	println(int(batchSize) - 1)
-
 	counter := 0
 
 	for index := range routineCount {
@@ -368,7 +366,7 @@ func (sp *SyncProcessor) fetchTicks(startTick, endTick uint32) ([]*protobuff.Syn
 		go func(errChannel chan<- error) {
 			defer waitGroup.Done()
 
-			log.Printf("[Routine %d]Fetching tick range %d - %d", index, start, end)
+			log.Printf("[Routine %d] Fetching tick range %d - %d", index, start, end)
 
 			stream, err := sp.syncServiceClient.SyncGetTickInformation(ctx, &protobuff.SyncTickInfoRequest{
 				FistTick: start,
@@ -392,7 +390,7 @@ func (sp *SyncProcessor) fetchTicks(startTick, endTick uint32) ([]*protobuff.Syn
 				}
 
 				mutex.Lock()
-				responses = append(responses, data)
+				responses = append(responses, data.Ticks...)
 				counter += len(data.Ticks)
 				mutex.Unlock()
 
@@ -434,42 +432,22 @@ func (sp *SyncProcessor) fetchTicks(startTick, endTick uint32) ([]*protobuff.Syn
 
 }
 
-func (sp *SyncProcessor) processTicks(tickInfoResponses []*protobuff.SyncTickInfoResponse, initialIntervalTick uint32, computors types.Computors) (validator.ValidatedTicks, error) {
+func (sp *SyncProcessor) processTicks(tickInfoResponses []*protobuff.SyncTickData, initialIntervalTick uint32, computors types.Computors, chainHash *[32]byte, storeHash *[32]byte) (validator.ValidatedTicks, error) {
 
-	var validatedTicks validator.ValidatedTicks
-
-	for _, data := range tickInfoResponses {
-
-		var previousChainHash [32]byte
-		var previousStoreHash [32]byte
-
-		for _, tickInfo := range data.Ticks {
-
-			if initialIntervalTick == tickInfo.QuorumData.QuorumTickStructure.TickNumber {
-				previousChainHash = [32]byte{}
-				previousStoreHash = [32]byte{}
-			}
-
-			log.Printf("Processing tick %d", tickInfo.QuorumData.QuorumTickStructure.TickNumber)
-
-			syncValidator := validator.NewSyncValidator(initialIntervalTick, computors, tickInfo, sp.processTickTimeout, sp.pebbleStore, previousChainHash, previousStoreHash)
-
-			validatedData, err := syncValidator.Validate()
-			if err != nil {
-				return nil, errors.Wrapf(err, "validating tick %d", tickInfo.QuorumData.QuorumTickStructure.TickNumber)
-			}
-
-			previousChainHash = validatedData.ChainHash
-			previousStoreHash = validatedData.StoreHash
-
-			validatedTicks = append(validatedTicks, validatedData)
-		}
+	syncValidator := validator.NewSyncValidator(initialIntervalTick, computors, tickInfoResponses, sp.processTickTimeout, sp.pebbleStore, chainHash, storeHash)
+	validatedTicks, err := syncValidator.Validate()
+	if err != nil {
+		return nil, errors.Wrap(err, "validating ticks")
 	}
 
 	return validatedTicks, nil
 }
 
 func (sp *SyncProcessor) storeTicks(validatedTicks validator.ValidatedTicks, epoch uint32, processedTickIntervalsPerEpoch *protobuff.ProcessedTickIntervalsPerEpoch, initialTickInterval uint32) (uint32, error) {
+
+	if epoch == 0 {
+		panic("Epoch is not supposed to be 0!!!")
+	}
 
 	db := sp.pebbleStore.GetDB()
 
@@ -484,7 +462,7 @@ func (sp *SyncProcessor) storeTicks(validatedTicks validator.ValidatedTicks, epo
 
 		tickNumber := validatedTick.AlignedVotes.QuorumTickStructure.TickNumber
 
-		fmt.Printf("\rStoring data for tick %d  ", tickNumber)
+		fmt.Printf("Storing data for tick %d\n", tickNumber)
 
 		quorumDataKey := store.AssembleKey(store.QuorumData, tickNumber)
 		serializedData, err := proto.Marshal(validatedTick.AlignedVotes)
