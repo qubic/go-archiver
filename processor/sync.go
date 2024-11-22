@@ -241,8 +241,11 @@ func (sp *SyncProcessor) sync() error {
 
 	for _, epochDelta := range sp.syncDelta {
 
-		if epochDelta.Epoch != 133 {
+		switch epochDelta.Epoch {
+		case 123:
 			continue
+		case 124:
+		default:
 		}
 
 		log.Printf("Synchronizing ticks for epoch %d...\n", epochDelta.Epoch)
@@ -362,7 +365,6 @@ func (sp *SyncProcessor) fetchTicks(startTick, endTick uint32) ([]*protobuff.Syn
 		}
 
 		elapsed := time.Since(lastTime)
-		lastTime = time.Now()
 		rate := float64(len(data.Ticks)) / elapsed.Seconds()
 		counter += len(data.Ticks)
 
@@ -376,6 +378,7 @@ func (sp *SyncProcessor) fetchTicks(startTick, endTick uint32) ([]*protobuff.Syn
 
 		fmt.Printf("\rFetched %d ticks - [%d - %d] Took: %v | Rate: %f t/s - ~ %d t/m | Total: %d    ", len(data.Ticks), firstFetchedTick, lastFetchedTick, time.Since(lastTime), rate, int(rate*60), counter)
 		responses = append(responses, data)
+		lastTime = time.Now()
 	}
 
 	return responses, nil
