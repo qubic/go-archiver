@@ -344,8 +344,9 @@ func (sp *SyncProcessor) fetchTicks(startTick, endTick uint32) ([]*protobuff.Syn
 	var responses []*protobuff.SyncTickData
 
 	mutex := sync.RWMutex{}
-	routineCount := runtime.NumCPU()
-	batchSize := sp.maxObjectRequest / uint32(routineCount)
+	routineCount := runtime.NumCPU() / 2
+	tickDifference := endTick - startTick
+	batchSize := tickDifference / uint32(routineCount)
 	errChannel := make(chan error, routineCount)
 	var waitGroup sync.WaitGroup
 	startTime := time.Now()
