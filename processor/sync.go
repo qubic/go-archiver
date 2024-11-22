@@ -19,7 +19,9 @@ import (
 	"google.golang.org/protobuf/proto"
 	"io"
 	"log"
+	"runtime"
 	"slices"
+	sync2 "sync"
 	"time"
 )
 
@@ -316,9 +318,7 @@ func (sp *SyncProcessor) sync() error {
 
 				elapsed := time.Since(duration)
 
-				log.Printf("Done processing %d ticks. Took: %v | Average time / tick: %v", sp.maxObjectRequest, elapsed, elapsed.Seconds()/float64(sp.maxObjectRequest))
-
-				time.Sleep(time.Second * 5)
+				log.Printf("Done processing %d ticks. Took: %v | Average time / tick: %v\n", sp.maxObjectRequest, elapsed, elapsed.Seconds()/float64(sp.maxObjectRequest))
 
 			}
 
@@ -340,45 +340,94 @@ func (sp *SyncProcessor) fetchTicks(startTick, endTick uint32) ([]*protobuff.Syn
 		compression = grpc.UseCompressor(gzip.Name)
 	}
 
-	log.Printf("Fetching tick range %d - %d", startTick, endTick)
-	stream, err := sp.syncServiceClient.SyncGetTickInformation(ctx, &protobuff.SyncTickInfoRequest{
-		FistTick: startTick,
-		LastTick: endTick,
-	}, compression)
-	if err != nil {
-		return nil, errors.Wrap(err, "fetching tick information")
-	}
-
 	var responses []*protobuff.SyncTickInfoResponse
 
-	lastTime := time.Now()
+	mutex := sync2.RWMutex{}
+	routineCount := runtime.NumCPU()
+	routineCount = 12
+	batchSize := sp.maxObjectRequest / uint32(routineCount)
+	errChannel := make(chan error, routineCount)
+	var waitGroup sync2.WaitGroup
+	startTime := time.Now()
+
+	println(sp.maxObjectRequest % uint32(routineCount))
+	println(int(batchSize) - 1)
+
 	counter := 0
 
-	println()
-	for {
-		data, err := stream.Recv()
-		if err == io.EOF {
-			break
+	for index := range routineCount {
+		waitGroup.Add(1)
+
+		start := startTick + (batchSize * uint32(index))
+		end := start + batchSize - 1
+
+		if end > endTick || index == (int(routineCount)-1) {
+			end = endTick
 		}
+
+		go func(errChannel chan<- error) {
+			defer waitGroup.Done()
+
+			log.Printf("[Routine %d]Fetching tick range %d - %d", index, start, end)
+
+			stream, err := sp.syncServiceClient.SyncGetTickInformation(ctx, &protobuff.SyncTickInfoRequest{
+				FistTick: start,
+				LastTick: end,
+			}, compression)
+			if err != nil {
+				errChannel <- errors.Wrap(err, "fetching tick information")
+				return
+			}
+
+			lastTime := time.Now()
+
+			for {
+				data, err := stream.Recv()
+				if err == io.EOF {
+					break
+				}
+				if err != nil {
+					errChannel <- errors.Wrap(err, "reading tick information stream")
+					return
+				}
+
+				mutex.Lock()
+				responses = append(responses, data)
+				counter += len(data.Ticks)
+				mutex.Unlock()
+
+				elapsed := time.Since(lastTime)
+				rate := float64(len(data.Ticks)) / elapsed.Seconds()
+
+				var firstFetchedTick uint32
+				var lastFetchedTick uint32
+
+				if len(data.Ticks) > 0 {
+					firstFetchedTick = data.Ticks[0].QuorumData.QuorumTickStructure.TickNumber
+					lastFetchedTick = data.Ticks[len(data.Ticks)-1].QuorumData.QuorumTickStructure.TickNumber
+				}
+
+				fmt.Printf("[Routine %d]: Fetched %d ticks - [%d - %d] Took: %v | Rate: %f t/s - ~ %d t/m | Total: %d\n", index, len(data.Ticks), firstFetchedTick, lastFetchedTick, time.Since(lastTime), rate, int(rate*60), counter)
+
+				lastTime = time.Now()
+			}
+
+			fmt.Printf("Routine %d finished\n", index)
+
+			errChannel <- nil
+
+		}(errChannel)
+	}
+
+	waitGroup.Wait()
+
+	fmt.Printf("Done fetching %d ticks. Took: %v\n", counter, time.Since(startTime))
+
+	for _ = range routineCount {
+		err := <-errChannel
 		if err != nil {
-			return nil, errors.Wrap(err, "reading tick information stream")
+			return nil, errors.Wrap(err, "fetching ticks concurrently")
 		}
-
-		elapsed := time.Since(lastTime)
-		rate := float64(len(data.Ticks)) / elapsed.Seconds()
-		counter += len(data.Ticks)
-
-		var firstFetchedTick uint32
-		var lastFetchedTick uint32
-
-		if len(data.Ticks) > 0 {
-			firstFetchedTick = data.Ticks[0].QuorumData.QuorumTickStructure.TickNumber
-			lastFetchedTick = data.Ticks[len(data.Ticks)-1].QuorumData.QuorumTickStructure.TickNumber
-		}
-
-		fmt.Printf("\rFetched %d ticks - [%d - %d] Took: %v | Rate: %f t/s - ~ %d t/m | Total: %d    ", len(data.Ticks), firstFetchedTick, lastFetchedTick, time.Since(lastTime), rate, int(rate*60), counter)
-		responses = append(responses, data)
-		lastTime = time.Now()
 	}
 
 	return responses, nil
@@ -435,7 +484,7 @@ func (sp *SyncProcessor) storeTicks(validatedTicks validator.ValidatedTicks, epo
 
 		tickNumber := validatedTick.AlignedVotes.QuorumTickStructure.TickNumber
 
-		log.Printf("Storing data for tick %d\n", tickNumber)
+		fmt.Printf("\rStoring data for tick %d  ", tickNumber)
 
 		quorumDataKey := store.AssembleKey(store.QuorumData, tickNumber)
 		serializedData, err := proto.Marshal(validatedTick.AlignedVotes)
