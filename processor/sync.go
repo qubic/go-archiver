@@ -352,6 +352,7 @@ func (sp *SyncProcessor) fetchTicks(startTick, endTick uint32) ([]*protobuff.Syn
 	counter := 0
 
 	for index := range routineCount {
+		waitGroup.Add(1)
 
 		start := startTick + (batchSize * uint32(index))
 		end := start + batchSize - 1
@@ -359,13 +360,6 @@ func (sp *SyncProcessor) fetchTicks(startTick, endTick uint32) ([]*protobuff.Syn
 		if end > endTick || index == (int(routineCount)-1) {
 			end = endTick
 		}
-
-		if end != 15694132 {
-			errChannel <- nil
-			continue
-		}
-
-		waitGroup.Add(1)
 
 		go func(errChannel chan<- error) {
 			defer waitGroup.Done()
@@ -389,8 +383,6 @@ func (sp *SyncProcessor) fetchTicks(startTick, endTick uint32) ([]*protobuff.Syn
 					break
 				}
 				if err != nil {
-					fmt.Printf("Start: %d end:%d - %d : %v\n", start, end, start-end, err)
-					panic("FOUND HIM")
 					errChannel <- errors.Wrap(err, "reading tick information stream")
 					return
 				}

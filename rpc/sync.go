@@ -116,12 +116,6 @@ func (ss *SyncService) SyncGetTickInformation(req *protobuff.SyncTickInfoRequest
 	tickDifference := int(req.LastTick - req.FistTick)
 
 	if tickDifference > ss.bootstrapConfiguration.MaximumRequestedItems || tickDifference < 0 {
-		println()
-		println(tickDifference)
-		println(req.LastTick)
-		println(req.FistTick)
-		println()
-		println()
 		return status.Errorf(codes.OutOfRange, "the number of requested ticks (%d) is not within the allowed range (0 - %d)", tickDifference, ss.bootstrapConfiguration.MaximumRequestedItems)
 	}
 
