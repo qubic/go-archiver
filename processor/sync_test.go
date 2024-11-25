@@ -14,7 +14,7 @@ func TestSyncProcessor_CalculateSyncDelta(t *testing.T) {
 		name                 string
 		bootstrapMetadata    *protobuff.SyncMetadataResponse
 		clientMetadata       *protobuff.SyncMetadataResponse
-		lastSynchronizedTick *protobuff.ProcessedTick
+		lastSynchronizedTick *protobuff.SyncLastSynchronizedTick
 		expected             SyncDelta
 	}{
 		{
@@ -220,9 +220,11 @@ func TestSyncProcessor_CalculateSyncDelta(t *testing.T) {
 					},
 				},
 			},
-			lastSynchronizedTick: &protobuff.ProcessedTick{
+			lastSynchronizedTick: &protobuff.SyncLastSynchronizedTick{
 				TickNumber: 15849999,
 				Epoch:      126,
+				ChainHash:  nil,
+				StoreHash:  nil,
 			},
 			expected: SyncDelta{
 				{
