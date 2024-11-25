@@ -43,6 +43,14 @@ message SyncTickInfoResponse {
   repeated SyncTickData ticks = 1;
 }
 
+message SyncLastSynchronizedTick {
+  uint32 tick_number = 1;
+  uint32 epoch = 2;
+  bytes chain_hash = 3;
+  bytes store_hash = 4;
+
+}
+
 service SyncService {
   rpc SyncGetBootstrapMetadata(google.protobuf.Empty) returns (SyncMetadataResponse) {};
 

@@ -26,13 +26,13 @@ import (
 )
 
 type SyncProcessor struct {
-	syncConfiguration  SyncConfiguration
-	syncServiceClient  protobuff.SyncServiceClient
-	pebbleStore        *store.PebbleStore
-	syncDelta          SyncDelta
-	processTickTimeout time.Duration
-	maxObjectRequest   uint32
-	lastProcessedTick  uint32
+	syncConfiguration    SyncConfiguration
+	syncServiceClient    protobuff.SyncServiceClient
+	pebbleStore          *store.PebbleStore
+	syncDelta            SyncDelta
+	processTickTimeout   time.Duration
+	maxObjectRequest     uint32
+	lastSynchronizedTick *protobuff.SyncLastSynchronizedTick
 }
 
 func NewSyncProcessor(syncConfiguration SyncConfiguration, pebbleStore *store.PebbleStore, processTickTimeout time.Duration) *SyncProcessor {
@@ -73,6 +73,8 @@ func (sp *SyncProcessor) Start() error {
 	if err != nil {
 		log.Printf("Error fetching last synchronized tick from disk: %v\n", err)
 	}
+
+	sp.lastSynchronizedTick = lastSynchronizedTick
 
 	log.Println("Calculating synchronization delta...")
 	syncDelta, err := sp.CalculateSyncDelta(bootstrapMetadata, clientMetadata, lastSynchronizedTick)
@@ -148,7 +150,7 @@ func areIntervalsEqual(a, b []*protobuff.ProcessedTickInterval) bool {
 	return true
 }
 
-func (sp *SyncProcessor) CalculateSyncDelta(bootstrapMetadata, clientMetadata *protobuff.SyncMetadataResponse, lastSynchronizedTick *protobuff.ProcessedTick) (SyncDelta, error) {
+func (sp *SyncProcessor) CalculateSyncDelta(bootstrapMetadata, clientMetadata *protobuff.SyncMetadataResponse, lastSynchronizedTick *protobuff.SyncLastSynchronizedTick) (SyncDelta, error) {
 
 	if bootstrapMetadata.ArchiverVersion != clientMetadata.ArchiverVersion {
 		return nil, errors.New(fmt.Sprintf("client version (%s) does not match bootstrap version (%s)", clientMetadata.ArchiverVersion, bootstrapMetadata.ArchiverVersion))
@@ -311,18 +313,15 @@ func (sp *SyncProcessor) synchronize() error {
 
 			initialIntervalTick := interval.InitialProcessedTick
 
-			if initialIntervalTick > sp.lastProcessedTick {
+			if initialIntervalTick > sp.lastSynchronizedTick.TickNumber {
 				err = sp.pebbleStore.SetSkippedTicksInterval(nil, &protobuff.SkippedTicksInterval{
-					StartTick: sp.lastProcessedTick + 1,
+					StartTick: sp.lastSynchronizedTick.TickNumber + 1,
 					EndTick:   initialIntervalTick - 1,
 				})
 				if err != nil {
 					return errors.Wrap(err, "appending skipped tick interval")
 				}
 			}
-
-			chainHash := &[32]byte{}
-			storeHash := &[32]byte{}
 
 			for tickNumber := interval.InitialProcessedTick; tickNumber <= interval.LastProcessedTick; tickNumber += sp.maxObjectRequest {
 
@@ -339,12 +338,12 @@ func (sp *SyncProcessor) synchronize() error {
 					return errors.Wrapf(err, "fetching tick range %d - %d", startTick, endTick)
 				}
 
-				processedTicks, err := sp.processTicks(fetchedTicks, initialIntervalTick, qubicComputors, chainHash, storeHash)
+				processedTicks, err := sp.processTicks(fetchedTicks, initialIntervalTick, qubicComputors)
 				if err != nil {
 					return errors.Wrapf(err, "processing tick range %d - %d", startTick, endTick)
 				}
-				lastProcessedTick, err := sp.storeTicks(processedTicks, epochDelta.Epoch, processedTickIntervalsForEpoch, initialIntervalTick)
-				sp.lastProcessedTick = lastProcessedTick
+				lastSynchronizedTick, err := sp.storeTicks(processedTicks, epochDelta.Epoch, processedTickIntervalsForEpoch, initialIntervalTick)
+				sp.lastSynchronizedTick = lastSynchronizedTick
 				if err != nil {
 					return errors.Wrapf(err, "storing processed tick range %d - %d", startTick, endTick)
 				}
@@ -352,9 +351,7 @@ func (sp *SyncProcessor) synchronize() error {
 				elapsed := time.Since(duration)
 
 				log.Printf("Done processing %d ticks. Took: %v | Average time / tick: %v\n", sp.maxObjectRequest, elapsed, elapsed.Seconds()/float64(sp.maxObjectRequest))
-
 			}
-
 		}
 
 		log.Println("Finished synchronizing ticks.")
@@ -374,7 +371,6 @@ func (sp *SyncProcessor) fetchTicks(startTick, endTick uint32) ([]*protobuff.Syn
 	ctx := context.Background()
 
 	var compression grpc.CallOption = grpc.EmptyCallOption{}
-
 	if sp.syncConfiguration.EnableCompression {
 		compression = grpc.UseCompressor(gzip.Name)
 	}
@@ -471,9 +467,9 @@ func (sp *SyncProcessor) fetchTicks(startTick, endTick uint32) ([]*protobuff.Syn
 
 }
 
-func (sp *SyncProcessor) processTicks(tickInfoResponses []*protobuff.SyncTickData, initialIntervalTick uint32, computors types.Computors, chainHash *[32]byte, storeHash *[32]byte) (validator.ValidatedTicks, error) {
+func (sp *SyncProcessor) processTicks(tickInfoResponses []*protobuff.SyncTickData, initialIntervalTick uint32, computors types.Computors) (validator.ValidatedTicks, error) {
 
-	syncValidator := validator.NewSyncValidator(initialIntervalTick, computors, tickInfoResponses, sp.processTickTimeout, sp.pebbleStore, chainHash, storeHash)
+	syncValidator := validator.NewSyncValidator(initialIntervalTick, computors, tickInfoResponses, sp.processTickTimeout, sp.pebbleStore, sp.lastSynchronizedTick)
 	validatedTicks, err := syncValidator.Validate()
 	if err != nil {
 		return nil, errors.Wrap(err, "validating ticks")
@@ -482,7 +478,7 @@ func (sp *SyncProcessor) processTicks(tickInfoResponses []*protobuff.SyncTickDat
 	return validatedTicks, nil
 }
 
-func (sp *SyncProcessor) storeTicks(validatedTicks validator.ValidatedTicks, epoch uint32, processedTickIntervalsPerEpoch *protobuff.ProcessedTickIntervalsPerEpoch, initialTickInterval uint32) (uint32, error) {
+func (sp *SyncProcessor) storeTicks(validatedTicks validator.ValidatedTicks, epoch uint32, processedTickIntervalsPerEpoch *protobuff.ProcessedTickIntervalsPerEpoch, initialTickInterval uint32) (*protobuff.SyncLastSynchronizedTick, error) {
 
 	if epoch == 0 {
 		panic("Epoch is not supposed to be 0!!!")
@@ -495,7 +491,8 @@ func (sp *SyncProcessor) storeTicks(validatedTicks validator.ValidatedTicks, epo
 
 	log.Println("Storing validated ticks...")
 
-	var lastProcessedTick uint32
+	var lastSynchronizedTick protobuff.SyncLastSynchronizedTick
+	lastSynchronizedTick.Epoch = epoch
 
 	for _, validatedTick := range validatedTicks {
 
@@ -506,32 +503,32 @@ func (sp *SyncProcessor) storeTicks(validatedTicks validator.ValidatedTicks, epo
 		quorumDataKey := store.AssembleKey(store.QuorumData, tickNumber)
 		serializedData, err := proto.Marshal(validatedTick.AlignedVotes)
 		if err != nil {
-			return 0, errors.Wrapf(err, "serializing aligned votes for tick %d", tickNumber)
+			return nil, errors.Wrapf(err, "serializing aligned votes for tick %d", tickNumber)
 		}
 		err = batch.Set(quorumDataKey, serializedData, nil)
 		if err != nil {
-			return 0, errors.Wrapf(err, "adding aligned votes to batch for tick %d", tickNumber)
+			return nil, errors.Wrapf(err, "adding aligned votes to batch for tick %d", tickNumber)
 		}
 
 		tickDataKey := store.AssembleKey(store.TickData, tickNumber)
 		serializedData, err = proto.Marshal(validatedTick.TickData)
 		if err != nil {
-			return 0, errors.Wrapf(err, "serializing tick data for tick %d", tickNumber)
+			return nil, errors.Wrapf(err, "serializing tick data for tick %d", tickNumber)
 		}
 		err = batch.Set(tickDataKey, serializedData, nil)
 		if err != nil {
-			return 0, errors.Wrapf(err, "adding tick data to batch for tick %d", tickNumber)
+			return nil, errors.Wrapf(err, "adding tick data to batch for tick %d", tickNumber)
 		}
 
 		for _, transaction := range validatedTick.ValidTransactions {
 			transactionKey := store.AssembleKey(store.Transaction, transaction.TxId)
 			serializedData, err = proto.Marshal(transaction)
 			if err != nil {
-				return 0, errors.Wrapf(err, "deserializing transaction %s for tick %d", transaction.TxId, tickNumber)
+				return nil, errors.Wrapf(err, "deserializing transaction %s for tick %d", transaction.TxId, tickNumber)
 			}
 			err = batch.Set(transactionKey, serializedData, nil)
 			if err != nil {
-				return 0, errors.Wrapf(err, "addin transaction %s to batch for tick %d", transaction.TxId, tickNumber)
+				return nil, errors.Wrapf(err, "addin transaction %s to batch for tick %d", transaction.TxId, tickNumber)
 			}
 		}
 
@@ -546,70 +543,72 @@ func (sp *SyncProcessor) storeTicks(validatedTicks validator.ValidatedTicks, epo
 				Transactions: transactions,
 			})
 			if err != nil {
-				return 0, errors.Wrapf(err, "serializing transfer transactions for tickl %d", tickNumber)
+				return nil, errors.Wrapf(err, "serializing transfer transactions for tickl %d", tickNumber)
 			}
 			err = batch.Set(identityTransfersPerTickKey, serializedData, nil)
 			if err != nil {
-				return 0, errors.Wrapf(err, "adding transafer transactions to batch for tick %d", tickNumber)
+				return nil, errors.Wrapf(err, "adding transafer transactions to batch for tick %d", tickNumber)
 			}
 		}
 
 		tickTxStatusKey := store.AssembleKey(store.TickTransactionsStatus, uint64(tickNumber))
 		serializedData, err = proto.Marshal(validatedTick.ApprovedTransactions)
 		if err != nil {
-			return 0, errors.Wrapf(err, "serializing transaction statuses for tick %d", tickNumber)
+			return nil, errors.Wrapf(err, "serializing transaction statuses for tick %d", tickNumber)
 		}
 		err = batch.Set(tickTxStatusKey, serializedData, nil)
 		if err != nil {
-			return 0, errors.Wrapf(err, "adding transactions statuses to batch for tick %d", tickNumber)
+			return nil, errors.Wrapf(err, "adding transactions statuses to batch for tick %d", tickNumber)
 		}
 		for _, transaction := range validatedTick.ApprovedTransactions.Transactions {
 			approvedTransactionKey := store.AssembleKey(store.TransactionStatus, transaction.TxId)
 			serializedData, err = proto.Marshal(transaction)
 			if err != nil {
-				return 0, errors.Wrapf(err, "serialzing approved transaction %s for tick %d", transaction.TxId, tickNumber)
+				return nil, errors.Wrapf(err, "serialzing approved transaction %s for tick %d", transaction.TxId, tickNumber)
 			}
 			err = batch.Set(approvedTransactionKey, serializedData, nil)
 			if err != nil {
-				return 0, errors.Wrapf(err, "adding approved transaction %s to batch for tick %d", transaction.TxId, tickNumber)
+				return nil, errors.Wrapf(err, "adding approved transaction %s to batch for tick %d", transaction.TxId, tickNumber)
 			}
 		}
 
 		chainDigestKey := store.AssembleKey(store.ChainDigest, tickNumber)
 		err = batch.Set(chainDigestKey, validatedTick.ChainHash[:], nil)
 		if err != nil {
-			return 0, errors.Wrapf(err, "adding chain hash to batch for tick %d", tickNumber)
+			return nil, errors.Wrapf(err, "adding chain hash to batch for tick %d", tickNumber)
 		}
 
 		storeDigestKey := store.AssembleKey(store.StoreDigest, tickNumber)
 		err = batch.Set(storeDigestKey, validatedTick.StoreHash[:], nil)
 		if err != nil {
-			return 0, errors.Wrapf(err, "adding store hash to batch for tick %d", tickNumber)
+			return nil, errors.Wrapf(err, "adding store hash to batch for tick %d", tickNumber)
 		}
 
-		lastProcessedTick = tickNumber
+		lastSynchronizedTick.TickNumber = tickNumber
+		lastSynchronizedTick.ChainHash = validatedTick.ChainHash[:]
+		lastSynchronizedTick.StoreHash = validatedTick.StoreHash[:]
 	}
 
 	lastProcessedTickPerEpochKey := store.AssembleKey(store.LastProcessedTickPerEpoch, epoch)
 	value := make([]byte, 4)
-	binary.LittleEndian.PutUint32(value, lastProcessedTick)
+	binary.LittleEndian.PutUint32(value, lastSynchronizedTick.TickNumber)
 	err := batch.Set(lastProcessedTickPerEpochKey, value, nil)
 	if err != nil {
-		return 0, errors.Wrapf(err, "adding last processed tick %d for epoch %d to batch", lastProcessedTick, epoch)
+		return nil, errors.Wrapf(err, "adding last processed tick %d for epoch %d to batch", lastSynchronizedTick.TickNumber, epoch)
 	}
 
 	lastProcessedTickProto := &protobuff.ProcessedTick{
-		TickNumber: lastProcessedTick,
+		TickNumber: lastSynchronizedTick.TickNumber,
 		Epoch:      epoch,
 	}
 	lastProcessedTickKey := []byte{store.LastProcessedTick}
 	serializedData, err := proto.Marshal(lastProcessedTickProto)
 	if err != nil {
-		return 0, errors.Wrapf(err, "serializing last processed tick %d", lastProcessedTick)
+		return nil, errors.Wrapf(err, "serializing last processed tick %d", lastSynchronizedTick.TickNumber)
 	}
 	err = batch.Set(lastProcessedTickKey, serializedData, nil)
 	if err != nil {
-		return 0, errors.Wrapf(err, "adding last processed tick %d to batch", lastProcessedTick)
+		return nil, errors.Wrapf(err, "adding last processed tick %d to batch", lastSynchronizedTick.TickNumber)
 	}
 
 	if len(processedTickIntervalsPerEpoch.Intervals) == 0 {
@@ -618,35 +617,35 @@ func (sp *SyncProcessor) storeTicks(validatedTicks validator.ValidatedTicks, epo
 			Intervals: []*protobuff.ProcessedTickInterval{
 				{
 					InitialProcessedTick: initialTickInterval,
-					LastProcessedTick:    lastProcessedTick,
+					LastProcessedTick:    lastSynchronizedTick.TickNumber,
 				},
 			},
 		}
 	} else {
-		processedTickIntervalsPerEpoch.Intervals[len(processedTickIntervalsPerEpoch.Intervals)-1].LastProcessedTick = lastProcessedTick
+		processedTickIntervalsPerEpoch.Intervals[len(processedTickIntervalsPerEpoch.Intervals)-1].LastProcessedTick = lastSynchronizedTick.TickNumber
 	}
 
 	processedTickIntervalsPerEpochKey := store.AssembleKey(store.ProcessedTickIntervals, epoch)
 	serializedData, err = proto.Marshal(processedTickIntervalsPerEpoch)
 	if err != nil {
-		return 0, errors.Wrapf(err, "serializing processed tick intervals for epoch %d", epoch)
+		return nil, errors.Wrapf(err, "serializing processed tick intervals for epoch %d", epoch)
 	}
 	err = batch.Set(processedTickIntervalsPerEpochKey, serializedData, nil)
 	if err != nil {
-		return 0, errors.Wrapf(err, "adding processed tick intervals for epochg %d to batch", epoch)
+		return nil, errors.Wrapf(err, "adding processed tick intervals for epochg %d to batch", epoch)
 	}
 
 	err = batch.Commit(pebble.Sync)
 	if err != nil {
-		return 0, errors.Wrap(err, "commiting batch")
+		return nil, errors.Wrap(err, "commiting batch")
 	}
 
-	err = sp.pebbleStore.SetSyncLastSynchronizedTick(&protobuff.ProcessedTick{TickNumber: lastProcessedTick, Epoch: epoch})
+	err = sp.pebbleStore.SetSyncLastSynchronizedTick(&lastSynchronizedTick)
 	if err != nil {
-		return 0, errors.Wrap(err, "saving synchronization index")
+		return nil, errors.Wrap(err, "saving synchronization index")
 	}
 
-	return lastProcessedTick, nil
+	return &lastSynchronizedTick, nil
 }
 
 func removeNonTransferTransactionsAndSortPerIdentity(transactions []*protobuff.Transaction) map[string][]*protobuff.Transaction {

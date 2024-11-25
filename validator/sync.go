@@ -30,31 +30,27 @@ type ValidatedTick struct {
 	validTransactionsQubic []types.Transaction
 }
 
-type ValidatedTicks []ValidatedTick
+type ValidatedTicks []*ValidatedTick
 
 type SyncValidator struct {
 	initialIntervalTick uint32
 
-	computors types.Computors
-
-	ticks []*protobuff.SyncTickData
-
-	chainHash *[32]byte
-	storeHash *[32]byte
+	computors            types.Computors
+	ticks                []*protobuff.SyncTickData
+	lastSynchronizedTick *protobuff.SyncLastSynchronizedTick
 
 	pebbleStore        *store.PebbleStore
 	processTickTimeout time.Duration
 }
 
-func NewSyncValidator(initialIntervalTick uint32, computors types.Computors, ticks []*protobuff.SyncTickData, processTickTimeout time.Duration, pebbleStore *store.PebbleStore, chainHash, storeHash *[32]byte) *SyncValidator {
+func NewSyncValidator(initialIntervalTick uint32, computors types.Computors, ticks []*protobuff.SyncTickData, processTickTimeout time.Duration, pebbleStore *store.PebbleStore, lastSynchronizedTick *protobuff.SyncLastSynchronizedTick) *SyncValidator {
 
 	return &SyncValidator{
 		initialIntervalTick: initialIntervalTick,
 		computors:           computors,
 		ticks:               ticks,
 
-		chainHash: chainHash,
-		storeHash: storeHash,
+		lastSynchronizedTick: lastSynchronizedTick,
 
 		pebbleStore:        pebbleStore,
 		processTickTimeout: processTickTimeout,
@@ -186,7 +182,7 @@ func (sv *SyncValidator) Validate() (ValidatedTicks, error) {
 					validTransactionsQubic: validTransactions,
 				}
 
-				validatedTicks = append(validatedTicks, validatedTick)
+				validatedTicks = append(validatedTicks, &validatedTick)
 				counter += 1
 
 				mutex.Unlock()
@@ -207,32 +203,43 @@ func (sv *SyncValidator) Validate() (ValidatedTicks, error) {
 		}
 	}
 
-	slices.SortFunc(validatedTicks, func(a, b ValidatedTick) int {
+	slices.SortFunc(validatedTicks, func(a, b *ValidatedTick) int {
 		return cmp.Compare(a.AlignedVotes.QuorumTickStructure.TickNumber, b.AlignedVotes.QuorumTickStructure.TickNumber)
 	})
 
 	log.Printf("Computing chain and store digests...\n")
 
+	var lastChainHash [32]byte
+	var lastStoreHash [32]byte
+
+	if sv.initialIntervalTick <= sv.lastSynchronizedTick.TickNumber {
+		copy(lastChainHash[:], sv.lastSynchronizedTick.ChainHash)
+		copy(lastStoreHash[:], sv.lastSynchronizedTick.StoreHash)
+	}
+
 	for _, validatedTick := range validatedTicks {
 
-		fmt.Printf("Computing for tick %d\r", validatedTick.AlignedVotes.QuorumTickStructure.TickNumber)
+		if sv.lastSynchronizedTick.TickNumber == validatedTick.AlignedVotes.QuorumTickStructure.TickNumber {
+			continue
+		}
 
-		chainHash, err := chain.ComputeCurrentTickDigest(nil, validatedTick.firstVote, *sv.chainHash)
+		fmt.Printf("Computing hashes for tick %d\r", validatedTick.AlignedVotes.QuorumTickStructure.TickNumber)
+
+		chainHash, err := chain.ComputeCurrentTickDigest(nil, validatedTick.firstVote, lastChainHash)
 		if err != nil {
 			return nil, errors.Wrapf(err, "calculating chain digest for tick %d", validatedTick.AlignedVotes.QuorumTickStructure.TickNumber)
 
 		}
-		storeHash, err := chain.ComputeCurrentTickStoreDigest(nil, validatedTick.validTransactionsQubic, validatedTick.ApprovedTransactions, *sv.storeHash)
+		storeHash, err := chain.ComputeCurrentTickStoreDigest(nil, validatedTick.validTransactionsQubic, validatedTick.ApprovedTransactions, lastStoreHash)
 		if err != nil {
 			return nil, errors.Wrapf(err, "calculating store digest for tich %d", validatedTick.AlignedVotes.QuorumTickStructure.TickNumber)
 		}
 
-		*sv.chainHash = chainHash
-		*sv.storeHash = storeHash
-
 		validatedTick.ChainHash = chainHash
 		validatedTick.StoreHash = storeHash
 
+		lastChainHash = chainHash
+		lastStoreHash = storeHash
 	}
 
 	return validatedTicks, nil
