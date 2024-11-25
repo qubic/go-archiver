@@ -68,7 +68,7 @@ func CheckIfTickIsEmpty(tickData types.TickData) (bool, error) {
 	return CheckIfTickIsEmptyProto(data), nil
 }
 
-func CalculateEmptyTicksForAllEpochs(ps *store.PebbleStore) error {
+func CalculateEmptyTicksForAllEpochs(ps *store.PebbleStore, force bool) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
@@ -81,11 +81,11 @@ func CalculateEmptyTicksForAllEpochs(ps *store.PebbleStore) error {
 	for epoch, _ := range epochs {
 
 		_, err := ps.GetEmptyTicksForEpoch(epoch)
-		if err == nil {
+		if err == nil && !force {
 			return nil // We have the empty ticks
 		}
 		if !errors.Is(err, pebble.ErrNotFound) {
-			return errors.Wrap(err, "checking if epoch has empty ticks") // Some other error occured
+			return errors.Wrap(err, "checking if epoch has empty ticks") // Some other error occurred
 		}
 
 		fmt.Printf("Calculating empty ticks for epoch %d\n", epoch)

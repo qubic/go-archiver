@@ -12,6 +12,7 @@ import (
 	"github.com/qubic/go-archiver/utils"
 	"github.com/qubic/go-archiver/validator"
 	"github.com/qubic/go-archiver/validator/computors"
+	"github.com/qubic/go-archiver/validator/tick"
 	"github.com/qubic/go-node-connector/types"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -352,6 +353,11 @@ func (sp *SyncProcessor) synchronize() error {
 
 				log.Printf("Done processing %d ticks. Took: %v | Average time / tick: %v\n", sp.maxObjectRequest, elapsed, elapsed.Seconds()/float64(sp.maxObjectRequest))
 			}
+		}
+
+		err = tick.CalculateEmptyTicksForAllEpochs(sp.pebbleStore, true)
+		if err != nil {
+			return errors.Wrap(err, "calculating empty ticks after synchronization")
 		}
 
 		log.Println("Finished synchronizing ticks.")

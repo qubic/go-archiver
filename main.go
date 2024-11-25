@@ -146,11 +146,6 @@ func run() error {
 	}
 	defer db.Close()
 
-	/*err = db.Compact([]byte{0x00}, []byte{0xFF}, true)
-	if err != nil {
-		return errors.Wrap(err, "compaction failed")
-	}*/
-
 	ps := store.NewPebbleStore(db, nil)
 
 	if cfg.Store.ResetEmptyTickKeys {
@@ -161,7 +156,7 @@ func run() error {
 		}
 	}
 
-	err = tick.CalculateEmptyTicksForAllEpochs(ps)
+	err = tick.CalculateEmptyTicksForAllEpochs(ps, false)
 	if err != nil {
 		return errors.Wrap(err, "calculating empty ticks for all epochs")
 	}
