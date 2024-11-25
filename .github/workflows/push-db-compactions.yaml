@@ -3,7 +3,7 @@ name: Deploy dev images to GHCR
 on:
   push:
     branches:
-      - 'empty-ticks-endpoint'
+      - 'db-compactions'
 
 jobs:
   push-store-image:
