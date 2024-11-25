@@ -19,8 +19,8 @@ type FullTickData struct {
 	Day                uint8
 	Month              uint8
 	Year               uint8
-	Timelock           [32]byte
 	UnionData          [256]byte
+	Timelock           [32]byte
 	TransactionDigests [types.NumberOfTransactionsPerTick][32]byte `json:",omitempty"`
 	ContractFees       [1024]int64                                 `json:",omitempty"`
 	Signature          [types.SignatureSize]byte

@@ -278,8 +278,7 @@ func (sp *SyncProcessor) synchronize() error {
 
 	for _, epochDelta := range sp.syncDelta {
 
-		//TODO: can't verify ticks in epochs older than 124
-		if epochDelta.Epoch == 123 {
+		if sp.lastSynchronizedTick.Epoch > epochDelta.Epoch {
 			continue
 		}
 
@@ -355,16 +354,17 @@ func (sp *SyncProcessor) synchronize() error {
 			}
 		}
 
-		err = tick.CalculateEmptyTicksForAllEpochs(sp.pebbleStore, true)
-		if err != nil {
-			return errors.Wrap(err, "calculating empty ticks after synchronization")
-		}
+	}
 
-		log.Println("Finished synchronizing ticks.")
-		err = sp.pebbleStore.DeleteSyncLastSynchronizedTick()
-		if err != nil {
-			return errors.Wrap(err, "resetting synchronization index")
-		}
+	err := tick.CalculateEmptyTicksForAllEpochs(sp.pebbleStore, true)
+	if err != nil {
+		return errors.Wrap(err, "calculating empty ticks after synchronization")
+	}
+
+	log.Println("Finished synchronizing ticks.")
+	err = sp.pebbleStore.DeleteSyncLastSynchronizedTick()
+	if err != nil {
+		return errors.Wrap(err, "resetting synchronization index")
 	}
 	return nil
 }

@@ -111,29 +111,26 @@ func (sv *SyncValidator) Validate() (ValidatedTicks, error) {
 					return
 				}
 
-				err = tick.Validate(nil, GoSchnorrqVerify, tickData, alignedVotes[0], sv.computors)
-				if err != nil {
-					errChannel <- errors.Wrap(err, "validating tick data")
-					return
-				}
+				if len(tickInfo.TickData.VarStruct) != 0 {
 
-				/*if len(sv.tickData.VarStruct) != 0 {
-
-					fullTickData, err := tick.ProtoToQubicFull(sv.tickData)
+					fullTickData, err := tick.ProtoToQubicFull(tickInfo.TickData)
 					if err != nil {
-						return ValidatedTick{}, errors.Wrap(err, "converting tick data to qubic format")
+						errChanel <- errors.Wrap(err, "converting tick data to qubic format")
+						return
 					}
 
-					err = fullTickData.Validate(ctx, GoSchnorrqVerify, alignedVotes[0], sv.computors)
+					err = fullTickData.Validate(nil, GoSchnorrqVerify, alignedVotes[0], sv.computors)
 					if err != nil {
-						return ValidatedTick{}, errors.Wrap(err, "validating tick data")
+						errChanel <- errors.Wrap(err, "validating full tick data")
+						return
 					}
 				} else {
-					err := tick.Validate(ctx, GoSchnorrqVerify, tickData, alignedVotes[0], sv.computors)
+					err := tick.Validate(nil, GoSchnorrqVerify, tickData, alignedVotes[0], sv.computors)
 					if err != nil {
-						return ValidatedTick{}, errors.Wrap(err, "validating tick data")
+						errChanel <- errors.Wrap(err, "validating tick data")
+						return
 					}
-				}*/
+				}
 
 				log.Println("Tick data validated")
 
@@ -151,14 +148,6 @@ func (sv *SyncValidator) Validate() (ValidatedTicks, error) {
 					return
 				}
 				log.Printf("Validated %d transactions\n", len(validTransactions))
-
-				/*isEmpty, err := tick.CheckIfTickIsEmpty(tickData)
-				if isEmpty {
-					err = handleEmptyTick(sv.pebbleStore, sv.tickNumber, sv.epoch)
-					if err != nil {
-						return ValidatedTick{}, errors.Wrap(err, "handling empty tick")
-					}
-				}*/
 
 				transactionsProto, err := tx.QubicToProto(validTransactions)
 				if err != nil {
