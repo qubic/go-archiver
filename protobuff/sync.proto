@@ -23,7 +23,7 @@ message SyncMetadataResponse {
   string archiver_version = 1;
   int32 maxObjectRequest = 2;
   repeated ProcessedTickIntervalsPerEpoch processed_tick_intervals = 3;
-  repeated SkippedTicksInterval skipped_tick_intervals = 4;
+  //repeated SkippedTicksInterval skipped_tick_intervals = 4;
 }
 
 message SyncEpochInfoRequest {
@@ -35,15 +35,13 @@ message SyncEpochInfoResponse {
 }
 
 message SyncTickInfoRequest {
-  uint32 fist_tick = 1;
+  uint32 first_tick = 1;
   uint32 last_tick = 2;
 }
 
 message SyncTickInfoResponse {
   repeated SyncTickData ticks = 1;
 }
-
-
 
 service SyncService {
   rpc SyncGetBootstrapMetadata(google.protobuf.Empty) returns (SyncMetadataResponse) {};

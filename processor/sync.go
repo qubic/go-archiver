@@ -69,8 +69,13 @@ func (sp *SyncProcessor) Start() error {
 		return errors.Wrap(err, "getting client metadata")
 	}
 
+	lastSynchronizedTick, err := sp.pebbleStore.GetSyncLastSynchronizedTick()
+	if err != nil {
+		log.Printf("Error fetching last synchronized tick from disk: %v\n", err)
+	}
+
 	log.Println("Calculating synchronization delta...")
-	syncDelta, err := sp.calculateSyncDelta(bootstrapMetadata, clientMetadata)
+	syncDelta, err := sp.CalculateSyncDelta(bootstrapMetadata, clientMetadata, lastSynchronizedTick)
 	if err != nil {
 		return errors.Wrap(err, "calculating sync delta")
 	}
@@ -135,14 +140,15 @@ func areIntervalsEqual(a, b []*protobuff.ProcessedTickInterval) bool {
 	}
 
 	for index := 0; index < len(a); index++ {
-		if a[index] != b[index] {
+
+		if !proto.Equal(a[index], b[index]) {
 			return false
 		}
 	}
 	return true
 }
 
-func (sp *SyncProcessor) calculateSyncDelta(bootstrapMetadata, clientMetadata *protobuff.SyncMetadataResponse) (SyncDelta, error) {
+func (sp *SyncProcessor) CalculateSyncDelta(bootstrapMetadata, clientMetadata *protobuff.SyncMetadataResponse, lastSynchronizedTick *protobuff.ProcessedTick) (SyncDelta, error) {
 
 	if bootstrapMetadata.ArchiverVersion != clientMetadata.ArchiverVersion {
 		return nil, errors.New(fmt.Sprintf("client version (%s) does not match bootstrap version (%s)", clientMetadata.ArchiverVersion, bootstrapMetadata.ArchiverVersion))
@@ -163,7 +169,32 @@ func (sp *SyncProcessor) calculateSyncDelta(bootstrapMetadata, clientMetadata *p
 
 	for epoch, processedIntervals := range bootstrapProcessedTicks {
 
+		if lastSynchronizedTick != nil && lastSynchronizedTick.Epoch == epoch {
+
+			var intervals []*protobuff.ProcessedTickInterval
+
+			foundIncompleteInterval := false
+
+			for _, interval := range processedIntervals {
+				if !foundIncompleteInterval && lastSynchronizedTick.TickNumber >= interval.InitialProcessedTick && lastSynchronizedTick.TickNumber <= interval.LastProcessedTick {
+					intervals = append(intervals, &protobuff.ProcessedTickInterval{
+						InitialProcessedTick: lastSynchronizedTick.TickNumber,
+						LastProcessedTick:    interval.LastProcessedTick,
+					})
+					foundIncompleteInterval = true
+					continue
+				}
+				intervals = append(intervals, interval)
+			}
+			syncDelta = append(syncDelta, EpochDelta{
+				Epoch:              epoch,
+				ProcessedIntervals: intervals,
+			})
+			continue
+		}
+
 		clientProcessedIntervals, exists := clientProcessedTicks[epoch]
+
 		if !exists || !areIntervalsEqual(processedIntervals, clientProcessedIntervals) {
 			epochDelta := EpochDelta{
 				Epoch:              epoch,
@@ -171,6 +202,7 @@ func (sp *SyncProcessor) calculateSyncDelta(bootstrapMetadata, clientMetadata *p
 			}
 			syncDelta = append(syncDelta, epochDelta)
 		}
+
 	}
 
 	slices.SortFunc(syncDelta, func(a, b EpochDelta) int {
@@ -324,6 +356,12 @@ func (sp *SyncProcessor) synchronize() error {
 			}
 
 		}
+
+		log.Println("Finished synchronizing ticks.")
+		err = sp.pebbleStore.DeleteSyncLastSynchronizedTick()
+		if err != nil {
+			return errors.Wrap(err, "resetting synchronization index")
+		}
 	}
 	return nil
 }
@@ -352,6 +390,8 @@ func (sp *SyncProcessor) fetchTicks(startTick, endTick uint32) ([]*protobuff.Syn
 	startTime := time.Now()
 	counter := 0
 
+	log.Printf("Fetching tick range [%d - %d] on %d routines\n", startTick, endTick, routineCount)
+
 	for index := range routineCount {
 		waitGroup.Add(1)
 
@@ -368,8 +408,8 @@ func (sp *SyncProcessor) fetchTicks(startTick, endTick uint32) ([]*protobuff.Syn
 			log.Printf("[Routine %d] Fetching tick range %d - %d", index, start, end)
 
 			stream, err := sp.syncServiceClient.SyncGetTickInformation(ctx, &protobuff.SyncTickInfoRequest{
-				FistTick: start,
-				LastTick: end,
+				FirstTick: start,
+				LastTick:  end,
 			}, compression)
 			if err != nil {
 				errChannel <- errors.Wrap(err, "fetching tick information")
@@ -599,6 +639,11 @@ func (sp *SyncProcessor) storeTicks(validatedTicks validator.ValidatedTicks, epo
 	err = batch.Commit(pebble.Sync)
 	if err != nil {
 		return 0, errors.Wrap(err, "commiting batch")
+	}
+
+	err = sp.pebbleStore.SetSyncLastSynchronizedTick(&protobuff.ProcessedTick{TickNumber: lastProcessedTick, Epoch: epoch})
+	if err != nil {
+		return 0, errors.Wrap(err, "saving synchronization index")
 	}
 
 	return lastProcessedTick, nil

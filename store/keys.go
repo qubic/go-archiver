@@ -21,6 +21,7 @@ const (
 	EmptyTicksPerEpoch           = 0x13
 	LastTickQuorumDataPerEpoch   = 0x14
 	EmptyTickListPerEpoch        = 0x15
+	SyncLastSynchronizedTick     = 0x20
 )
 
 func emptyTickListPerEpochKey(epoch uint32) []byte {
@@ -138,6 +139,10 @@ func tickTxStatusKey(tickNumber uint64) []byte {
 	key = binary.BigEndian.AppendUint64(key, tickNumber)
 
 	return key
+}
+
+func syncLastProcessedTickKey() []byte {
+	return []byte{SyncLastSynchronizedTick}
 }
 
 type IDType interface {

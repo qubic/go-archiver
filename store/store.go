@@ -825,3 +825,48 @@ func (s *PebbleStore) DeleteEmptyTickListKeyForEpoch(epoch uint32) error {
 func (s *PebbleStore) GetDB() *pebble.DB {
 	return s.db
 }
+
+func (s *PebbleStore) SetSyncLastSynchronizedTick(tick *protobuff.ProcessedTick) error {
+	key := syncLastProcessedTickKey()
+	serialized, err := proto.Marshal(tick)
+	if err != nil {
+		return errors.Wrap(err, "serializing last synchronized tick")
+	}
+
+	err = s.db.Set(key, serialized, pebble.Sync)
+	if err != nil {
+		return errors.Wrap(err, "saving last synchronized tick to store")
+	}
+	return nil
+}
+
+func (s *PebbleStore) GetSyncLastSynchronizedTick() (*protobuff.ProcessedTick, error) {
+	key := syncLastProcessedTickKey()
+	value, closer, err := s.db.Get(key)
+	if err != nil {
+		if errors.Is(err, pebble.ErrNotFound) {
+			return &protobuff.ProcessedTick{TickNumber: 0, Epoch: 0}, nil
+		}
+
+		return nil, errors.Wrap(err, "getting last synchronized tick from store")
+	}
+	defer closer.Close()
+
+	var tick protobuff.ProcessedTick
+	err = proto.Unmarshal(value, &tick)
+	if err != nil {
+		return nil, errors.Wrap(err, "de-serializing last synchronized tick")
+	}
+
+	return &tick, nil
+}
+
+func (s *PebbleStore) DeleteSyncLastSynchronizedTick() error {
+
+	err := s.db.Delete(syncLastProcessedTickKey(), pebble.Sync)
+	if err != nil {
+		return errors.Wrap(err, "deleting last synchronized tick from store")
+	}
+
+	return nil
+}

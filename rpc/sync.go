@@ -35,15 +35,15 @@ func (ss *SyncService) SyncGetBootstrapMetadata(ctx context.Context, _ *emptypb.
 		return nil, status.Errorf(codes.Internal, "cannot get processed tick intervals: %v", err)
 	}
 
-	skippedIntervals, err := ss.store.GetSkippedTicksInterval(ctx)
+	/*skippedIntervals, err := ss.store.GetSkippedTicksInterval(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "cannot get skipped tick intervals: %v", err)
-	}
+	}*/
 
 	return &protobuff.SyncMetadataResponse{
-		ArchiverVersion:        utils.ArchiverVersion,
-		MaxObjectRequest:       int32(ss.bootstrapConfiguration.MaximumRequestedItems),
-		SkippedTickIntervals:   skippedIntervals.SkippedTicks,
+		ArchiverVersion:  utils.ArchiverVersion,
+		MaxObjectRequest: int32(ss.bootstrapConfiguration.MaximumRequestedItems),
+		//SkippedTickIntervals:   skippedIntervals.SkippedTicks,
 		ProcessedTickIntervals: processedIntervals,
 	}, nil
 }
@@ -113,7 +113,7 @@ func (ss *SyncService) sendTickInformationResponse(ticks []*protobuff.SyncTickDa
 
 func (ss *SyncService) SyncGetTickInformation(req *protobuff.SyncTickInfoRequest, stream protobuff.SyncService_SyncGetTickInformationServer) error {
 
-	tickDifference := int(req.LastTick - req.FistTick)
+	tickDifference := int(req.LastTick - req.FirstTick)
 
 	if tickDifference > ss.bootstrapConfiguration.MaximumRequestedItems || tickDifference < 0 {
 		return status.Errorf(codes.OutOfRange, "the number of requested ticks (%d) is not within the allowed range (0 - %d)", tickDifference, ss.bootstrapConfiguration.MaximumRequestedItems)
@@ -121,7 +121,7 @@ func (ss *SyncService) SyncGetTickInformation(req *protobuff.SyncTickInfoRequest
 
 	var ticks []*protobuff.SyncTickData
 
-	for tickNumber := req.FistTick; tickNumber <= req.LastTick; tickNumber++ {
+	for tickNumber := req.FirstTick; tickNumber <= req.LastTick; tickNumber++ {
 		tickData, err := ss.store.GetTickData(context.Background(), tickNumber)
 		if err != nil {
 			return status.Errorf(codes.Internal, "getting tick data for tick %d: %v", tickNumber, err)
