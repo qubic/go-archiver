@@ -346,6 +346,7 @@ message GetEpochTickListRequestV2 {
   uint32 epoch = 1;
   int32 page = 2;
   int32 page_size = 3;
+  bool desc = 4;
 }
 
 message GetEpochTickListResponseV2 {
