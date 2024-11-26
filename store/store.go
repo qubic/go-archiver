@@ -827,7 +827,7 @@ func (s *PebbleStore) GetDB() *pebble.DB {
 }
 
 func (s *PebbleStore) SetSyncLastSynchronizedTick(tick *protobuff.SyncLastSynchronizedTick) error {
-	key := syncLastProcessedTickKey()
+	key := syncLastSynchronizedTick()
 	serialized, err := proto.Marshal(tick)
 	if err != nil {
 		return errors.Wrap(err, "serializing last synchronized tick")
@@ -841,7 +841,7 @@ func (s *PebbleStore) SetSyncLastSynchronizedTick(tick *protobuff.SyncLastSynchr
 }
 
 func (s *PebbleStore) GetSyncLastSynchronizedTick() (*protobuff.SyncLastSynchronizedTick, error) {
-	key := syncLastProcessedTickKey()
+	key := syncLastSynchronizedTick()
 	value, closer, err := s.db.Get(key)
 	if err != nil {
 		if errors.Is(err, pebble.ErrNotFound) {
@@ -868,7 +868,7 @@ func (s *PebbleStore) GetSyncLastSynchronizedTick() (*protobuff.SyncLastSynchron
 
 func (s *PebbleStore) DeleteSyncLastSynchronizedTick() error {
 
-	err := s.db.Delete(syncLastProcessedTickKey(), pebble.Sync)
+	err := s.db.Delete(syncLastSynchronizedTick(), pebble.Sync)
 	if err != nil {
 		return errors.Wrap(err, "deleting last synchronized tick from store")
 	}

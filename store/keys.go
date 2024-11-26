@@ -141,7 +141,7 @@ func tickTxStatusKey(tickNumber uint64) []byte {
 	return key
 }
 
-func syncLastProcessedTickKey() []byte {
+func syncLastSynchronizedTick() []byte {
 	return []byte{SyncLastSynchronizedTick}
 }
 

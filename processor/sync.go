@@ -638,17 +638,22 @@ func (sp *SyncProcessor) storeTicks(validatedTicks validator.ValidatedTicks, epo
 	}
 	err = batch.Set(processedTickIntervalsPerEpochKey, serializedData, nil)
 	if err != nil {
-		return nil, errors.Wrapf(err, "adding processed tick intervals for epochg %d to batch", epoch)
+		return nil, errors.Wrapf(err, "adding processed tick intervals for epoch %d to batch", epoch)
+	}
+
+	lastSynchronizedTickKey := []byte{store.SyncLastSynchronizedTick}
+	serializedData, err = proto.Marshal(&lastSynchronizedTick)
+	if err != nil {
+		return nil, errors.Wrap(err, "serializing last synchronized tick")
+	}
+	err = batch.Set(lastSynchronizedTickKey, serializedData, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "adding synchronization index to batch")
 	}
 
 	err = batch.Commit(pebble.Sync)
 	if err != nil {
 		return nil, errors.Wrap(err, "commiting batch")
-	}
-
-	err = sp.pebbleStore.SetSyncLastSynchronizedTick(&lastSynchronizedTick)
-	if err != nil {
-		return nil, errors.Wrap(err, "saving synchronization index")
 	}
 
 	return &lastSynchronizedTick, nil
