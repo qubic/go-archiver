@@ -160,7 +160,7 @@ func AssembleKey[T IDType](keyPrefix int, id T) []byte {
 	case uint32:
 		asserted := any(id).(uint32)
 
-		if keyPrefix == LastProcessedTickPerEpoch {
+		if keyPrefix == LastProcessedTickPerEpoch || keyPrefix == ProcessedTickIntervals {
 			key = binary.BigEndian.AppendUint32(key, asserted)
 			break
 		}

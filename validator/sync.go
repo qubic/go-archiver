@@ -111,7 +111,7 @@ func (sv *SyncValidator) Validate() (ValidatedTicks, error) {
 					return
 				}
 
-				if len(tickInfo.TickData.VarStruct) != 0 {
+				if tickInfo.QuorumData.QuorumTickStructure.Epoch < 124 {
 
 					fullTickData, err := tick.ProtoToQubicFull(tickInfo.TickData)
 					if err != nil {
