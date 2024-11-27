@@ -8,6 +8,7 @@ import (
 	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-archiver/utils"
 	"github.com/qubic/go-archiver/validator/quorum"
+	"github.com/qubic/go-archiver/validator/tick"
 	"google.golang.org/grpc/codes"
 	_ "google.golang.org/grpc/encoding/gzip"
 	"google.golang.org/grpc/status"
@@ -145,10 +146,8 @@ func (ss *SyncService) SyncGetTickInformation(req *protobuff.SyncTickInfoRequest
 			return status.Errorf(codes.Internal, "getting transaction statuses for tick %d: %v", tickNumber, err)
 		}
 
-		if tickData.TickNumber == 16765463 {
-			fmt.Println("FOUND TICK")
-			fmt.Printf("%v\n", tickData)
-			fmt.Printf("%v\n", tickNumber)
+		if tickNumber != quorumData.QuorumTickStructure.TickNumber || (!tick.CheckIfTickIsEmptyProto(tickData) && tickData.TickNumber != tickNumber) {
+			return errors.New("read tick from store does not match asked tick")
 		}
 
 		syncTickData := &protobuff.SyncTickData{
