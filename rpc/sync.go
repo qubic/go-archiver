@@ -145,9 +145,10 @@ func (ss *SyncService) SyncGetTickInformation(req *protobuff.SyncTickInfoRequest
 			return status.Errorf(codes.Internal, "getting transaction statuses for tick %d: %v", tickNumber, err)
 		}
 
-		if tickNumber == 16765463 {
+		if tickData.TickNumber == 16765463 {
 			fmt.Println("FOUND TICK")
 			fmt.Printf("%v\n", tickData)
+			fmt.Printf("%v\n", tickNumber)
 		}
 
 		syncTickData := &protobuff.SyncTickData{

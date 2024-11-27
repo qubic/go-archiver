@@ -127,6 +127,7 @@ func (sv *SyncValidator) Validate() (ValidatedTicks, error) {
 				} else {
 					err := tick.Validate(nil, GoSchnorrqVerify, tickData, alignedVotes[0], sv.computors)
 					if err != nil {
+						panic(tickInfo.QuorumData.QuorumTickStructure.TickNumber)
 						errChanel <- errors.Wrap(err, "validating tick data")
 						return
 					}
