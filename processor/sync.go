@@ -278,6 +278,10 @@ func (sp *SyncProcessor) synchronize() error {
 
 	for _, epochDelta := range sp.syncDelta {
 
+		if epochDelta.Epoch < 131 {
+			continue
+		}
+
 		if sp.lastSynchronizedTick.Epoch > epochDelta.Epoch {
 			continue
 		}

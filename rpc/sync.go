@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"fmt"
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-archiver/store"
@@ -140,6 +141,10 @@ func (ss *SyncService) SyncGetTickInformation(req *protobuff.SyncTickInfoRequest
 		transactionStatuses, err := ss.store.GetTickTransactionsStatus(context.Background(), uint64(tickNumber))
 		if err != nil {
 			return status.Errorf(codes.Internal, "getting transaction statuses for tick %d: %v", tickNumber, err)
+		}
+
+		if tickNumber == 16765463 {
+			fmt.Printf("%v\n", tickData)
 		}
 
 		syncTickData := &protobuff.SyncTickData{
