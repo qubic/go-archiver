@@ -122,6 +122,8 @@ func (ss *SyncService) SyncGetTickInformation(req *protobuff.SyncTickInfoRequest
 
 	var ticks []*protobuff.SyncTickData
 
+	fmt.Printf("RANGE: [%d - %d]\n", req.FirstTick, req.LastTick)
+
 	for tickNumber := req.FirstTick; tickNumber <= req.LastTick; tickNumber++ {
 		tickData, err := ss.store.GetTickData(context.Background(), tickNumber)
 		if err != nil {
