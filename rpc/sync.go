@@ -144,6 +144,7 @@ func (ss *SyncService) SyncGetTickInformation(req *protobuff.SyncTickInfoRequest
 		}
 
 		if tickNumber == 16765463 {
+			fmt.Println("FOUND TICK")
 			fmt.Printf("%v\n", tickData)
 		}
 
