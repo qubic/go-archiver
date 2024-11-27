@@ -147,6 +147,7 @@ func (ss *SyncService) SyncGetTickInformation(req *protobuff.SyncTickInfoRequest
 		}
 
 		if tickNumber != quorumData.QuorumTickStructure.TickNumber || (!tick.CheckIfTickIsEmptyProto(tickData) && tickData.TickNumber != tickNumber) {
+			fmt.Printf("Asked: %d, Got Quorum: %d, Got TickNumber: %d\n", tickNumber, quorumData.QuorumTickStructure.TickNumber, tickData.TickNumber)
 			return errors.New("read tick from store does not match asked tick")
 		}
 

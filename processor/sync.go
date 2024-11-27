@@ -434,6 +434,17 @@ func (sp *SyncProcessor) fetchTicks(startTick, endTick uint32) ([]*protobuff.Syn
 					return
 				}
 
+				for _, d := range data.Ticks {
+					quorumTickNumber := d.QuorumData.QuorumTickStructure.TickNumber
+					tickNumber := d.TickData.TickNumber
+					if !tick.CheckIfTickIsEmptyProto(d.TickData) {
+						if quorumTickNumber != tickNumber {
+							fmt.Printf("%d, %d\n", quorumTickNumber, tickNumber)
+							panic("BAD")
+						}
+					}
+				}
+
 				mutex.Lock()
 				responses = append(responses, data.Ticks...)
 				counter += len(data.Ticks)
