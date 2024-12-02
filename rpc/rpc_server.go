@@ -416,13 +416,13 @@ func fetchChainTick(ctx context.Context, url string) (int, error) {
 		return 0, errors.Wrap(err, "unmarshalling response")
 	}
 
-	tick := resp.ChainTick
+	tickNumber := resp.ChainTick
 
-	if tick == 0 {
+	if tickNumber == 0 {
 		return 0, errors.New("response has no chain tick or chain tick is 0")
 	}
 
-	return tick, nil
+	return tickNumber, nil
 
 }
 
