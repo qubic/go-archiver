@@ -2,6 +2,7 @@ package tick
 
 import (
 	"encoding/hex"
+	"fmt"
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-node-connector/types"
@@ -57,4 +58,63 @@ func contractFeesToProto(contractFees [1024]int64) []int64 {
 		protoContractFees = append(protoContractFees, fee)
 	}
 	return protoContractFees
+}
+
+func WasSkippedByArchive(tick uint32, processedTicksIntervalPerEpoch []*protobuff.ProcessedTickIntervalsPerEpoch) (bool, uint32) {
+	if len(processedTicksIntervalPerEpoch) == 0 {
+		return false, 0
+	}
+	for _, epochInterval := range processedTicksIntervalPerEpoch {
+		for _, interval := range epochInterval.Intervals {
+			if tick < interval.InitialProcessedTick {
+				return true, interval.InitialProcessedTick
+			}
+			if tick >= interval.InitialProcessedTick && tick <= interval.LastProcessedTick {
+				return false, 0
+			}
+		}
+	}
+	return false, 0
+}
+
+func GetTickEpoch(tickNumber uint32, intervals []*protobuff.ProcessedTickIntervalsPerEpoch) (uint32, error) {
+	if len(intervals) == 0 {
+		return 0, errors.New("processed tick interval list is empty")
+	}
+
+	for _, epochInterval := range intervals {
+		for _, interval := range epochInterval.Intervals {
+			if tickNumber >= interval.InitialProcessedTick && tickNumber <= interval.LastProcessedTick {
+				return epochInterval.Epoch, nil
+			}
+		}
+	}
+
+	return 0, errors.New(fmt.Sprintf("unable to find the epoch for tick %d", tickNumber))
+}
+
+func GetProcessedTickIntervalsForEpoch(epoch uint32, intervals []*protobuff.ProcessedTickIntervalsPerEpoch) (*protobuff.ProcessedTickIntervalsPerEpoch, error) {
+	for _, interval := range intervals {
+		if interval.Epoch != epoch {
+			continue
+		}
+		return interval, nil
+	}
+
+	return nil, errors.New(fmt.Sprintf("unable to find processed tick intervals for epoch %d", epoch))
+}
+
+func IsLast(tickNumber uint32, epoch uint32, intervals []*protobuff.ProcessedTickIntervalsPerEpoch) (bool, int, error) {
+	epochIntervals, err := GetProcessedTickIntervalsForEpoch(epoch, intervals)
+	if err != nil {
+		return false, -1, errors.Wrap(err, "getting processed tick intervals per epoch")
+	}
+
+	for index, interval := range epochIntervals.Intervals {
+		if interval.LastProcessedTick == tickNumber {
+			return true, index, nil
+		}
+	}
+
+	return false, -1, nil
 }
