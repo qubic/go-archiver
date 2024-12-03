@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"encoding/binary"
-	"fmt"
 	"github.com/cockroachdb/pebble"
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
@@ -702,15 +701,6 @@ func (s *PebbleStore) DeleteEmptyTicksKeyForEpoch(epoch uint32) error {
 
 func (s *PebbleStore) SetLastTickQuorumDataPerEpochIntervals(epoch uint32, lastQuorumDataPerEpochIntervals *protobuff.LastTickQuorumDataPerEpochIntervals) error {
 
-	for key, qd := range lastQuorumDataPerEpochIntervals.QuorumDataPerInterval {
-
-		if qd != nil {
-			fmt.Printf("DEBUG: %d %d\n", key, qd.QuorumTickStructure.TickNumber)
-			continue
-		}
-		fmt.Printf("DEBUG: %d NIL\n", key)
-	}
-
 	key := lastTickQuorumDataPerEpochIntervalKey(epoch)
 
 	value, err := proto.Marshal(lastQuorumDataPerEpochIntervals)
@@ -804,7 +794,7 @@ func (s *PebbleStore) GetEmptyTickListPerEpoch(epoch uint32) ([]uint32, error) {
 	defer closer.Close()
 
 	if len(value)%4 != 0 {
-		return nil, errors.New(fmt.Sprintf("corrupted empty tick list for epoch %d. array length mod 4 != 0. length: %d", epoch, len(value)))
+		return nil, errors.Errorf("corrupted empty tick list for epoch %d. array length mod 4 != 0. length: %d", epoch, len(value))
 	}
 
 	var emptyTicks []uint32

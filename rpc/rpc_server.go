@@ -248,7 +248,7 @@ func (s *Server) GetQuorumTickData(ctx context.Context, req *protobuff.GetQuorum
 		return nil, status.Errorf(codes.Internal, "getting tick epoch :%v", err)
 	}
 
-	lastTickFlag, index, err := tick.IsLast(req.TickNumber, epoch, processedTickIntervalsPerEpoch)
+	lastTickFlag, index, err := tick.IsTickLastInAnyEpochInterval(req.TickNumber, epoch, processedTickIntervalsPerEpoch)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "checking if tick is last tick in it's epoch: %v", err)
 	}

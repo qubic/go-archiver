@@ -2,7 +2,6 @@ package tick
 
 import (
 	"encoding/hex"
-	"fmt"
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-node-connector/types"
@@ -90,7 +89,7 @@ func GetTickEpoch(tickNumber uint32, intervals []*protobuff.ProcessedTickInterva
 		}
 	}
 
-	return 0, errors.New(fmt.Sprintf("unable to find the epoch for tick %d", tickNumber))
+	return 0, errors.Errorf("unable to find the epoch for tick %d", tickNumber)
 }
 
 func GetProcessedTickIntervalsForEpoch(epoch uint32, intervals []*protobuff.ProcessedTickIntervalsPerEpoch) (*protobuff.ProcessedTickIntervalsPerEpoch, error) {
@@ -101,10 +100,10 @@ func GetProcessedTickIntervalsForEpoch(epoch uint32, intervals []*protobuff.Proc
 		return interval, nil
 	}
 
-	return nil, errors.New(fmt.Sprintf("unable to find processed tick intervals for epoch %d", epoch))
+	return nil, errors.Errorf("unable to find processed tick intervals for epoch %d", epoch)
 }
 
-func IsLast(tickNumber uint32, epoch uint32, intervals []*protobuff.ProcessedTickIntervalsPerEpoch) (bool, int, error) {
+func IsTickLastInAnyEpochInterval(tickNumber uint32, epoch uint32, intervals []*protobuff.ProcessedTickIntervalsPerEpoch) (bool, int, error) {
 	epochIntervals, err := GetProcessedTickIntervalsForEpoch(epoch, intervals)
 	if err != nil {
 		return false, -1, errors.Wrap(err, "getting processed tick intervals per epoch")
