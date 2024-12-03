@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"encoding/binary"
-	"fmt"
 	"github.com/cockroachdb/pebble"
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
@@ -700,41 +699,70 @@ func (s *PebbleStore) DeleteEmptyTicksKeyForEpoch(epoch uint32) error {
 	return nil
 }
 
-func (s *PebbleStore) SetLastTickQuorumDataPerEpoch(quorumData *protobuff.QuorumTickData, epoch uint32) error {
-	key := lastTickQuorumDataPerEpochKey(epoch)
+func (s *PebbleStore) SetLastTickQuorumDataPerEpochIntervals(epoch uint32, lastQuorumDataPerEpochIntervals *protobuff.LastTickQuorumDataPerEpochIntervals) error {
 
-	serialized, err := proto.Marshal(quorumData)
+	key := lastTickQuorumDataPerEpochIntervalKey(epoch)
+
+	value, err := proto.Marshal(lastQuorumDataPerEpochIntervals)
 	if err != nil {
-		return errors.Wrapf(err, "serializing quorum tick data for last tick of epoch %d", epoch)
+		return errors.Wrapf(err, "serializing last quorum data per epoch intervals for epoch %d", epoch)
 	}
 
-	err = s.db.Set(key, serialized, pebble.Sync)
+	err = s.db.Set(key, value, pebble.Sync)
 	if err != nil {
-		return errors.Wrapf(err, "setting last tick quorum tick data for epoch %d", epoch)
+		return errors.Wrapf(err, "setting last quorum data per epoch intervals for epoch %d", epoch)
 	}
 	return nil
 }
 
-func (s *PebbleStore) GetLastTickQuorumDataPerEpoch(epoch uint32) (*protobuff.QuorumTickData, error) {
-	key := lastTickQuorumDataPerEpochKey(epoch)
+func (s *PebbleStore) GetLastTickQuorumDataListPerEpochInterval(epoch uint32) (*protobuff.LastTickQuorumDataPerEpochIntervals, error) {
+	key := lastTickQuorumDataPerEpochIntervalKey(epoch)
 
 	value, closer, err := s.db.Get(key)
 	if err != nil {
 		if errors.Is(err, pebble.ErrNotFound) {
-			return nil, err
+			return &protobuff.LastTickQuorumDataPerEpochIntervals{
+				QuorumDataPerInterval: make(map[int32]*protobuff.QuorumTickData),
+			}, nil
 		}
-		return nil, errors.Wrapf(err, "getting last tick quorum data for epoch %d", epoch)
+		return nil, errors.Wrapf(err, "getting quorum data list for the intervals of epoch %d", epoch)
 	}
 	defer closer.Close()
 
-	var quorumData protobuff.QuorumTickData
-
-	err = proto.Unmarshal(value, &quorumData)
+	var lastQuorumDataPerEpochIntervals protobuff.LastTickQuorumDataPerEpochIntervals
+	err = proto.Unmarshal(value, &lastQuorumDataPerEpochIntervals)
 	if err != nil {
-		return nil, errors.Wrapf(err, "deserializing quorum tick data for last tick of epoch %d", epoch)
+		return nil, errors.Wrapf(err, "de-serializing last quorum data per epoch intervals for epoch %d", epoch)
 	}
 
-	return &quorumData, nil
+	return &lastQuorumDataPerEpochIntervals, err
+}
+
+func (s *PebbleStore) SetQuorumDataForCurrentEpochInterval(epoch uint32, quorumData *protobuff.QuorumTickData) error {
+
+	processedIntervals, err := s.getProcessedTickIntervalsPerEpoch(nil, epoch)
+	if err != nil {
+		return errors.Wrapf(err, "getting processed tick intervals for epoch %d", epoch)
+	}
+
+	intervalIndex := len(processedIntervals.Intervals) - 1
+	if intervalIndex < 0 {
+		intervalIndex = 0
+	}
+
+	quorumDataPerIntervals, err := s.GetLastTickQuorumDataListPerEpochInterval(epoch)
+	if err != nil {
+		return errors.Wrap(err, "getting last quorum data list for epoch intervals")
+	}
+
+	quorumDataPerIntervals.QuorumDataPerInterval[int32(intervalIndex)] = quorumData
+
+	err = s.SetLastTickQuorumDataPerEpochIntervals(epoch, quorumDataPerIntervals)
+	if err != nil {
+		return errors.Wrap(err, "setting last quorum data list for epoch intervals")
+	}
+
+	return nil
 }
 
 func (s *PebbleStore) SetEmptyTickListPerEpoch(epoch uint32, emptyTicks []uint32) error {
@@ -766,7 +794,7 @@ func (s *PebbleStore) GetEmptyTickListPerEpoch(epoch uint32) ([]uint32, error) {
 	defer closer.Close()
 
 	if len(value)%4 != 0 {
-		return nil, errors.New(fmt.Sprintf("corrupted empty tick list for epoch %d. array length mod 4 != 0. length: %d", epoch, len(value)))
+		return nil, errors.Errorf("corrupted empty tick list for epoch %d. array length mod 4 != 0. length: %d", epoch, len(value))
 	}
 
 	var emptyTicks []uint32

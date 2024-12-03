@@ -165,7 +165,7 @@ func Store(ctx context.Context, store *store.PebbleStore, tickNumber uint32, quo
 
 	fullProtoModel := qubicToProto(quorumVotes)
 
-	err = store.SetLastTickQuorumDataPerEpoch(fullProtoModel, protoModel.QuorumTickStructure.Epoch)
+	err = store.SetQuorumDataForCurrentEpochInterval(fullProtoModel.QuorumTickStructure.Epoch, fullProtoModel)
 	if err != nil {
 		return errors.Wrap(err, "setting last quorum tick data")
 	}

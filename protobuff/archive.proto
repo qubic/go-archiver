@@ -131,6 +131,10 @@ message QuorumDiffStored {
   string signature_hex = 6;
 }
 
+message LastTickQuorumDataPerEpochIntervals {
+  map<int32, QuorumTickData> quorum_data_per_interval = 1;
+}
+
 message GetQuorumTickDataRequest {
   uint32 tick_number = 1;
 }
