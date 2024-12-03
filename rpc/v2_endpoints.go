@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/hex"
 	"github.com/cockroachdb/pebble"
+	"github.com/qubic/go-archiver/validator/tick"
 	"slices"
 
 	"github.com/pkg/errors"
@@ -71,7 +72,7 @@ func (s *Server) GetAllTickTransactionsV2(ctx context.Context, req *protobuff.Ge
 		return nil, status.Errorf(codes.Internal, "getting processed tick intervals per epoch")
 	}
 
-	wasSkipped, nextAvailableTick := wasTickSkippedByArchive(req.TickNumber, processedTickIntervalsPerEpoch)
+	wasSkipped, nextAvailableTick := tick.WasSkippedByArchive(req.TickNumber, processedTickIntervalsPerEpoch)
 	if wasSkipped == true {
 		st := status.Newf(codes.OutOfRange, "provided tick number %d was skipped by the system, next available tick is %d", req.TickNumber, nextAvailableTick)
 		st, err = st.WithDetails(&protobuff.NextAvailableTick{NextTickNumber: nextAvailableTick})
@@ -130,7 +131,7 @@ func (s *Server) GetTransferTickTransactionsV2(ctx context.Context, req *protobu
 		return nil, status.Errorf(codes.Internal, "getting processed tick intervals per epoch")
 	}
 
-	wasSkipped, nextAvailableTick := wasTickSkippedByArchive(req.TickNumber, processedTickIntervalsPerEpoch)
+	wasSkipped, nextAvailableTick := tick.WasSkippedByArchive(req.TickNumber, processedTickIntervalsPerEpoch)
 	if wasSkipped == true {
 		st := status.Newf(codes.OutOfRange, "provided tick number %d was skipped by the system, next available tick is %d", req.TickNumber, nextAvailableTick)
 		st, err = st.WithDetails(&protobuff.NextAvailableTick{NextTickNumber: nextAvailableTick})
@@ -189,7 +190,7 @@ func (s *Server) GetApprovedTickTransactionsV2(ctx context.Context, req *protobu
 		return nil, status.Errorf(codes.Internal, "getting processed tick intervals per epoch")
 	}
 
-	wasSkipped, nextAvailableTick := wasTickSkippedByArchive(req.TickNumber, processedTickIntervalsPerEpoch)
+	wasSkipped, nextAvailableTick := tick.WasSkippedByArchive(req.TickNumber, processedTickIntervalsPerEpoch)
 	if wasSkipped == true {
 		st := status.Newf(codes.OutOfRange, "provided tick number %d was skipped by the system, next available tick is %d", req.TickNumber, nextAvailableTick)
 		st, err = st.WithDetails(&protobuff.NextAvailableTick{NextTickNumber: nextAvailableTick})
@@ -469,18 +470,18 @@ func (s *Server) GetEpochTickListV2(ctx context.Context, req *protobuff.GetEpoch
 		}
 	}
 
-	for _, tick := range emptyTicksForEpoch {
-		_, exists := tickMap[tick]
+	for _, tickNumber := range emptyTicksForEpoch {
+		_, exists := tickMap[tickNumber]
 		if exists {
-			tickMap[tick] = true
+			tickMap[tickNumber] = true
 		}
 	}
 
 	var result []*protobuff.TickStatus
 
-	for tick, isEmpty := range tickMap {
+	for tickNumber, isEmpty := range tickMap {
 		result = append(result, &protobuff.TickStatus{
-			TickNumber: tick,
+			TickNumber: tickNumber,
 			IsEmpty:    isEmpty,
 		})
 	}
