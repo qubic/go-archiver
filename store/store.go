@@ -269,7 +269,7 @@ func (s *PebbleStore) SetLastProcessedTick(ctx context.Context, lastProcessedTic
 		return errors.Wrap(err, "committing batch")
 	}
 
-	ptie, err := s.getProcessedTickIntervalsPerEpoch(ctx, lastProcessedTick.Epoch)
+	ptie, err := s.GetProcessedTickIntervalsPerEpoch(ctx, lastProcessedTick.Epoch)
 	if err != nil {
 		return errors.Wrap(err, "getting ptie")
 	}
@@ -560,7 +560,7 @@ func (s *PebbleStore) SetTickTransactionsStatus(ctx context.Context, tickNumber 
 	return nil
 }
 
-func (s *PebbleStore) getProcessedTickIntervalsPerEpoch(ctx context.Context, epoch uint32) (*protobuff.ProcessedTickIntervalsPerEpoch, error) {
+func (s *PebbleStore) GetProcessedTickIntervalsPerEpoch(ctx context.Context, epoch uint32) (*protobuff.ProcessedTickIntervalsPerEpoch, error) {
 	key := processedTickIntervalsPerEpochKey(epoch)
 	value, closer, err := s.db.Get(key)
 	if err != nil {
@@ -596,7 +596,7 @@ func (s *PebbleStore) SetProcessedTickIntervalPerEpoch(ctx context.Context, epoc
 }
 
 func (s *PebbleStore) AppendProcessedTickInterval(ctx context.Context, epoch uint32, pti *protobuff.ProcessedTickInterval) error {
-	existing, err := s.getProcessedTickIntervalsPerEpoch(ctx, epoch)
+	existing, err := s.GetProcessedTickIntervalsPerEpoch(ctx, epoch)
 	if err != nil {
 		return errors.Wrap(err, "getting existing processed tick intervals")
 	}
@@ -740,7 +740,7 @@ func (s *PebbleStore) GetLastTickQuorumDataListPerEpochInterval(epoch uint32) (*
 
 func (s *PebbleStore) SetQuorumDataForCurrentEpochInterval(epoch uint32, quorumData *protobuff.QuorumTickData) error {
 
-	processedIntervals, err := s.getProcessedTickIntervalsPerEpoch(nil, epoch)
+	processedIntervals, err := s.GetProcessedTickIntervalsPerEpoch(nil, epoch)
 	if err != nil {
 		return errors.Wrapf(err, "getting processed tick intervals for epoch %d", epoch)
 	}
@@ -832,5 +832,59 @@ func (s *PebbleStore) DeleteEmptyTickListKeyForEpoch(epoch uint32) error {
 	if err != nil {
 		return errors.Wrapf(err, "deleting empty tick list key for epoch %d", epoch)
 	}
+	return nil
+}
+
+func (s *PebbleStore) GetDB() *pebble.DB {
+	return s.db
+}
+
+func (s *PebbleStore) SetSyncLastSynchronizedTick(tick *protobuff.SyncLastSynchronizedTick) error {
+	key := syncLastSynchronizedTick()
+	serialized, err := proto.Marshal(tick)
+	if err != nil {
+		return errors.Wrap(err, "serializing last synchronized tick")
+	}
+
+	err = s.db.Set(key, serialized, pebble.Sync)
+	if err != nil {
+		return errors.Wrap(err, "saving last synchronized tick to store")
+	}
+	return nil
+}
+
+func (s *PebbleStore) GetSyncLastSynchronizedTick() (*protobuff.SyncLastSynchronizedTick, error) {
+	key := syncLastSynchronizedTick()
+	value, closer, err := s.db.Get(key)
+	if err != nil {
+		if errors.Is(err, pebble.ErrNotFound) {
+			return &protobuff.SyncLastSynchronizedTick{
+				TickNumber: 0,
+				Epoch:      0,
+				ChainHash:  nil,
+				StoreHash:  nil,
+			}, nil
+		}
+
+		return nil, errors.Wrap(err, "getting last synchronized tick from store")
+	}
+	defer closer.Close()
+
+	var tick protobuff.SyncLastSynchronizedTick
+	err = proto.Unmarshal(value, &tick)
+	if err != nil {
+		return nil, errors.Wrap(err, "de-serializing last synchronized tick")
+	}
+
+	return &tick, nil
+}
+
+func (s *PebbleStore) DeleteSyncLastSynchronizedTick() error {
+
+	err := s.db.Delete(syncLastSynchronizedTick(), pebble.Sync)
+	if err != nil {
+		return errors.Wrap(err, "deleting last synchronized tick from store")
+	}
+
 	return nil
 }

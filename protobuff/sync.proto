@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package qubic.archiver.archive.pb;
+
+option go_package = "github.com/qubic/go-archiver/protobuff/";
+import "google/protobuf/empty.proto";
+import "archive.proto";
+
+
+message SyncEpochData {
+  Computors computor_list = 1;
+  LastTickQuorumDataPerEpochIntervals last_tick_quorum_data_per_intervals = 2;
+}
+
+message SyncTickData {
+  TickData tick_data = 1;
+  QuorumTickData quorum_data = 2;
+  repeated Transaction transactions = 3;
+  repeated TransactionStatus transactions_status = 4;
+}
+
+message SyncMetadataResponse {
+  string archiver_version = 1;
+  int32 maxObjectRequest = 2;
+  repeated ProcessedTickIntervalsPerEpoch processed_tick_intervals = 3;
+  //repeated SkippedTicksInterval skipped_tick_intervals = 4;
+}
+
+message SyncEpochInfoRequest {
+  repeated uint32 epochs = 1;
+}
+
+message SyncEpochInfoResponse {
+  repeated SyncEpochData epochs = 1;
+}
+
+message SyncTickInfoRequest {
+  uint32 first_tick = 1;
+  uint32 last_tick = 2;
+}
+
+message SyncTickInfoResponse {
+  repeated SyncTickData ticks = 1;
+}
+
+message SyncLastSynchronizedTick {
+  uint32 tick_number = 1;
+  uint32 epoch = 2;
+  bytes chain_hash = 3;
+  bytes store_hash = 4;
+
+}
+
+service SyncService {
+  rpc SyncGetBootstrapMetadata(google.protobuf.Empty) returns (SyncMetadataResponse) {};
+
+  rpc SyncGetEpochInformation(SyncEpochInfoRequest) returns (stream SyncEpochInfoResponse) {};
+
+  rpc SyncGetTickInformation(SyncTickInfoRequest) returns (stream SyncTickInfoResponse) {};
+}

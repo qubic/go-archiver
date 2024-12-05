@@ -8,6 +8,7 @@ require (
 	github.com/cockroachdb/pebble v1.1.2
 	github.com/google/go-cmp v0.6.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.22.0
+	github.com/pingcap/errors v0.11.4
 	github.com/pkg/errors v0.9.1
 	github.com/qubic/go-node-connector v0.10.2
 	github.com/qubic/go-schnorrq v1.0.1

@@ -25,21 +25,39 @@ func (e *TickInTheFutureError) Error() string {
 	return errors.Errorf("Requested tick %d is in the future. Latest tick is: %d", e.requestedTick, e.latestTick).Error()
 }
 
+type SyncConfiguration struct {
+	Enable            bool
+	Source            string
+	ResponseTimeout   time.Duration
+	EnableCompression bool
+}
+
 type Processor struct {
 	pool               *qubic.Pool
 	ps                 *store.PebbleStore
 	processTickTimeout time.Duration
+	SyncConfiguration  SyncConfiguration
 }
 
-func NewProcessor(p *qubic.Pool, ps *store.PebbleStore, processTickTimeout time.Duration) *Processor {
+func NewProcessor(p *qubic.Pool, ps *store.PebbleStore, processTickTimeout time.Duration, syncConfiguration SyncConfiguration) *Processor {
 	return &Processor{
 		pool:               p,
 		ps:                 ps,
 		processTickTimeout: processTickTimeout,
+		SyncConfiguration:  syncConfiguration,
 	}
 }
 
 func (p *Processor) Start() error {
+
+	if p.SyncConfiguration.Enable {
+		syncProcessor := NewSyncProcessor(p.SyncConfiguration, p.ps, p.processTickTimeout)
+		err := syncProcessor.Start()
+		if err != nil {
+			return errors.Wrap(err, "performing synchronization")
+		}
+	}
+
 	for {
 		err := p.processOneByOne()
 		if err != nil {

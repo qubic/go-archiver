@@ -25,6 +25,12 @@ import (
 	"net/http"
 )
 
+type BootstrapConfiguration struct {
+	Enable                bool
+	MaximumRequestedItems int
+	BatchSize             int
+}
+
 var _ protobuff.ArchiveServiceServer = &Server{}
 
 var emptyTd = &protobuff.TickData{}
@@ -36,22 +42,24 @@ type TransactionInfo struct {
 
 type Server struct {
 	protobuff.UnimplementedArchiveServiceServer
-	listenAddrGRPC    string
-	listenAddrHTTP    string
-	syncThreshold     int
-	chainTickFetchUrl string
-	store             *store.PebbleStore
-	pool              *qubic.Pool
+	listenAddrGRPC         string
+	listenAddrHTTP         string
+	syncThreshold          int
+	chainTickFetchUrl      string
+	store                  *store.PebbleStore
+	pool                   *qubic.Pool
+	bootstrapConfiguration BootstrapConfiguration
 }
 
-func NewServer(listenAddrGRPC, listenAddrHTTP string, syncThreshold int, chainTickUrl string, store *store.PebbleStore, pool *qubic.Pool) *Server {
+func NewServer(listenAddrGRPC, listenAddrHTTP string, syncThreshold int, chainTickUrl string, store *store.PebbleStore, pool *qubic.Pool, bootstrapConfiguration BootstrapConfiguration) *Server {
 	return &Server{
-		listenAddrGRPC:    listenAddrGRPC,
-		listenAddrHTTP:    listenAddrHTTP,
-		syncThreshold:     syncThreshold,
-		chainTickFetchUrl: chainTickUrl,
-		store:             store,
-		pool:              pool,
+		listenAddrGRPC:         listenAddrGRPC,
+		listenAddrHTTP:         listenAddrHTTP,
+		syncThreshold:          syncThreshold,
+		chainTickFetchUrl:      chainTickUrl,
+		store:                  store,
+		pool:                   pool,
+		bootstrapConfiguration: bootstrapConfiguration,
 	}
 }
 
@@ -389,7 +397,7 @@ func (s *Server) GetStatus(ctx context.Context, _ *emptypb.Empty) (*protobuff.Ge
 	}, nil
 }
 
-type response struct {
+type chainTickResponse struct {
 	ChainTick int `json:"max_tick"`
 }
 
@@ -406,7 +414,7 @@ func fetchChainTick(ctx context.Context, url string) (int, error) {
 	}
 	defer res.Body.Close()
 
-	var resp response
+	var resp chainTickResponse
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return 0, errors.Wrap(err, "reading response body")
@@ -639,6 +647,11 @@ func (s *Server) Start() error {
 		grpc.MaxSendMsgSize(600*1024*1024),
 	)
 	protobuff.RegisterArchiveServiceServer(srv, s)
+	if s.bootstrapConfiguration.Enable {
+		syncService := NewSyncService(s.store, s.bootstrapConfiguration)
+
+		protobuff.RegisterSyncServiceServer(srv, syncService)
+	}
 	reflection.Register(srv)
 
 	lis, err := net.Listen("tcp", s.listenAddrGRPC)
