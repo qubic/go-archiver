@@ -98,6 +98,10 @@ func CalculateEmptyTicksForAllEpochs(ps *store.PebbleStore) error {
 		if err != nil {
 			return errors.Wrap(err, "saving emptyTickCount to database")
 		}
+		err = ps.SetEmptyTickListPerEpoch(epoch, emptyTicksPerEpoch)
+		if err != nil {
+			return errors.Wrap(err, "saving empty tick list to database")
+		}
 
 	}
 	return nil
