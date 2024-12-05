@@ -664,14 +664,14 @@ func TestPebbleStore_LastProcessedTickIntervals(t *testing.T) {
 	err = store.AppendProcessedTickInterval(ctx, firstEpochInitialTick.Epoch, expected.Intervals[0])
 	require.NoError(t, err)
 
-	got, err := store.getProcessedTickIntervalsPerEpoch(ctx, firstEpochInitialTick.Epoch)
+	got, err := store.GetProcessedTickIntervalsPerEpoch(ctx, firstEpochInitialTick.Epoch)
 	require.NoError(t, err)
 	require.True(t, proto.Equal(got, expected))
 
 	err = store.SetLastProcessedTick(ctx, &firstEpochInitialTick)
 	require.NoError(t, err)
 
-	got, err = store.getProcessedTickIntervalsPerEpoch(ctx, firstEpochInitialTick.Epoch)
+	got, err = store.GetProcessedTickIntervalsPerEpoch(ctx, firstEpochInitialTick.Epoch)
 	require.NoError(t, err)
 	require.True(t, proto.Equal(got, expected))
 
@@ -688,7 +688,7 @@ func TestPebbleStore_LastProcessedTickIntervals(t *testing.T) {
 	err = store.SetLastProcessedTick(ctx, &firstEpochSecondTick)
 	require.NoError(t, err, "setting last processed tick")
 
-	got, err = store.getProcessedTickIntervalsPerEpoch(ctx, firstEpochSecondTick.Epoch)
+	got, err = store.GetProcessedTickIntervalsPerEpoch(ctx, firstEpochSecondTick.Epoch)
 	require.NoError(t, err)
 	require.True(t, proto.Equal(got, expected))
 
@@ -711,14 +711,14 @@ func TestPebbleStore_LastProcessedTickIntervals(t *testing.T) {
 	err = store.AppendProcessedTickInterval(ctx, firstEpochInitialTick.Epoch, expected.Intervals[1])
 	require.NoError(t, err)
 
-	got, err = store.getProcessedTickIntervalsPerEpoch(ctx, firstEpochSecondTick.Epoch)
+	got, err = store.GetProcessedTickIntervalsPerEpoch(ctx, firstEpochSecondTick.Epoch)
 	require.NoError(t, err)
 	require.True(t, proto.Equal(got, expected))
 
 	err = store.SetLastProcessedTick(ctx, &firstEpochFourthTick)
 	require.NoError(t, err, "setting last processed tick")
 
-	got, err = store.getProcessedTickIntervalsPerEpoch(ctx, firstEpochSecondTick.Epoch)
+	got, err = store.GetProcessedTickIntervalsPerEpoch(ctx, firstEpochSecondTick.Epoch)
 	require.NoError(t, err)
 	require.True(t, proto.Equal(got, expected))
 
@@ -739,7 +739,7 @@ func TestPebbleStore_LastProcessedTickIntervals(t *testing.T) {
 	err = store.SetLastProcessedTick(ctx, &firstEpochFifthTick)
 	require.NoError(t, err, "setting last processed tick")
 
-	got, err = store.getProcessedTickIntervalsPerEpoch(ctx, firstEpochSecondTick.Epoch)
+	got, err = store.GetProcessedTickIntervalsPerEpoch(ctx, firstEpochSecondTick.Epoch)
 	require.NoError(t, err)
 	require.True(t, proto.Equal(got, expected))
 
@@ -758,14 +758,14 @@ func TestPebbleStore_LastProcessedTickIntervals(t *testing.T) {
 	err = store.AppendProcessedTickInterval(ctx, secondEpochInitialTick.Epoch, expected.Intervals[0])
 	require.NoError(t, err)
 
-	got, err = store.getProcessedTickIntervalsPerEpoch(ctx, secondEpochInitialTick.Epoch)
+	got, err = store.GetProcessedTickIntervalsPerEpoch(ctx, secondEpochInitialTick.Epoch)
 	require.NoError(t, err)
 	require.True(t, proto.Equal(got, expected))
 
 	err = store.SetLastProcessedTick(ctx, &secondEpochInitialTick)
 	require.NoError(t, err)
 
-	got, err = store.getProcessedTickIntervalsPerEpoch(ctx, secondEpochInitialTick.Epoch)
+	got, err = store.GetProcessedTickIntervalsPerEpoch(ctx, secondEpochInitialTick.Epoch)
 	require.NoError(t, err)
 	require.True(t, proto.Equal(got, expected))
 
@@ -782,7 +782,7 @@ func TestPebbleStore_LastProcessedTickIntervals(t *testing.T) {
 	err = store.SetLastProcessedTick(ctx, &secondEpochSecondTick)
 	require.NoError(t, err, "setting last processed tick")
 
-	got, err = store.getProcessedTickIntervalsPerEpoch(ctx, secondEpochSecondTick.Epoch)
+	got, err = store.GetProcessedTickIntervalsPerEpoch(ctx, secondEpochSecondTick.Epoch)
 	require.NoError(t, err)
 	require.True(t, proto.Equal(got, expected))
 
