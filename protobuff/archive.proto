@@ -303,6 +303,43 @@ message GetTransferTransactionsPerTickRequestV2 {
   bool desc = 5;
 }
 
+message Pagination {
+  int32 total_records = 1;
+  int32 current_page = 2;
+  int32 total_pages = 3;
+  int32 page_size = 4;
+  int32 next_page = 5;
+  int32 previous_page = 6;
+}
+
+message GetEmptyTickListRequestV2 {
+  uint32 epoch = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
+message GetEmptyTickListResponseV2 {
+  Pagination pagination = 1;
+  repeated uint32 emptyTicks = 2;
+}
+
+message TickStatus {
+  uint32 tick_number = 1;
+  bool is_empty = 2;
+}
+
+message GetEpochTickListRequestV2 {
+  uint32 epoch = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+  bool desc = 4;
+}
+
+message GetEpochTickListResponseV2 {
+  Pagination pagination = 1;
+  repeated TickStatus ticks = 2;
+}
+
 
 service ArchiveService {
 
@@ -364,6 +401,21 @@ service ArchiveService {
       get: "/v2/identities/{identity}/transfers"
     };
   };
+
+  //Epoch ticks
+  rpc GetEpochTickListV2(GetEpochTickListRequestV2) returns (GetEpochTickListResponseV2) {
+    option (google.api.http) = {
+      get: "/v2/epochs/{epoch}/ticks"
+    };
+  };
+
+  //Empty tick list
+  rpc GetEmptyTickListV2(GetEmptyTickListRequestV2) returns (GetEmptyTickListResponseV2) {
+    option (google.api.http) = {
+      get: "/v2/epochs/{epoch}/empty-ticks"
+    };
+  };
+
 
   //V1 Endpoints
   rpc GetTickData(GetTickDataRequest) returns (GetTickDataResponse){

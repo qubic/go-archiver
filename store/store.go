@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"encoding/binary"
+	"fmt"
 	"github.com/cockroachdb/pebble"
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
@@ -695,6 +696,76 @@ func (s *PebbleStore) DeleteEmptyTicksKeyForEpoch(epoch uint32) error {
 	err := s.db.Delete(key, pebble.Sync)
 	if err != nil {
 		return errors.Wrapf(err, "deleting empty ticks key for epoch %d", epoch)
+	}
+	return nil
+}
+
+func (s *PebbleStore) SetEmptyTickListPerEpoch(epoch uint32, emptyTicks []uint32) error {
+	key := emptyTickListPerEpochKey(epoch)
+
+	value := make([]byte, len(emptyTicks)*4)
+	for index, tickNumber := range emptyTicks {
+		binary.LittleEndian.PutUint32(value[index*4:index*4+4], tickNumber)
+	}
+
+	err := s.db.Set(key, value, pebble.Sync)
+	if err != nil {
+		return errors.Wrapf(err, "saving empty tick list for epoch %d", epoch)
+	}
+	return nil
+}
+
+func (s *PebbleStore) GetEmptyTickListPerEpoch(epoch uint32) ([]uint32, error) {
+	key := emptyTickListPerEpochKey(epoch)
+
+	value, closer, err := s.db.Get(key)
+	if err != nil {
+		if errors.Is(err, pebble.ErrNotFound) {
+			return nil, err
+		}
+
+		return nil, errors.Wrapf(err, "getting empty tick list for epoch %d", epoch)
+	}
+	defer closer.Close()
+
+	if len(value)%4 != 0 {
+		return nil, errors.New(fmt.Sprintf("corrupted empty tick list for epoch %d. array length mod 4 != 0. length: %d", epoch, len(value)))
+	}
+
+	var emptyTicks []uint32
+
+	for index := 0; index < (len(value) / 4); index++ {
+		tickNumber := binary.LittleEndian.Uint32(value[index*4 : index*4+4])
+		emptyTicks = append(emptyTicks, tickNumber)
+	}
+
+	return emptyTicks, nil
+
+}
+
+func (s *PebbleStore) AppendEmptyTickToEmptyTickListPerEpoch(epoch uint32, tickNumber uint32) error {
+
+	emptyTicks, err := s.GetEmptyTickListPerEpoch(epoch)
+	if err != nil {
+		return errors.Wrapf(err, "getting empty tick list for epoch %d", epoch)
+	}
+
+	emptyTicks = append(emptyTicks, tickNumber)
+
+	err = s.SetEmptyTickListPerEpoch(epoch, emptyTicks)
+	if err != nil {
+		return errors.Wrapf(err, "saving appended empty tick list")
+	}
+
+	return nil
+}
+
+func (s *PebbleStore) DeleteEmptyTickListKeyForEpoch(epoch uint32) error {
+	key := emptyTickListPerEpochKey(epoch)
+
+	err := s.db.Delete(key, pebble.Sync)
+	if err != nil {
+		return errors.Wrapf(err, "deleting empty tick list key for epoch %d", epoch)
 	}
 	return nil
 }

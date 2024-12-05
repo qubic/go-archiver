@@ -14,11 +14,11 @@ import (
 
 var emptyTickData = &protobuff.TickData{}
 
-func CalculateEmptyTicksForEpoch(ctx context.Context, ps *store.PebbleStore, epoch uint32) (uint32, error) {
+func CalculateEmptyTicksForEpoch(ctx context.Context, ps *store.PebbleStore, epoch uint32) ([]uint32, error) {
 
 	epochs, err := ps.GetProcessedTickIntervals(ctx)
 	if err != nil {
-		return 0, errors.Wrap(err, "getting stored epochs")
+		return nil, errors.Wrap(err, "getting stored epochs")
 	}
 
 	for _, e := range epochs {
@@ -26,7 +26,7 @@ func CalculateEmptyTicksForEpoch(ctx context.Context, ps *store.PebbleStore, epo
 			continue
 		}
 
-		var emptyTicks uint32
+		var emptyTicks []uint32
 
 		for _, interval := range e.Intervals {
 			fmt.Printf("Interval: %d -> %d\n", interval.InitialProcessedTick, interval.LastProcessedTick)
@@ -35,19 +35,19 @@ func CalculateEmptyTicksForEpoch(ctx context.Context, ps *store.PebbleStore, epo
 
 				tickData, err := ps.GetTickData(ctx, tickNumber)
 				if err != nil {
-					return 0, errors.Wrapf(err, "getting tick data for tick %d", tickNumber)
+					return nil, errors.Wrapf(err, "getting tick data for tick %d", tickNumber)
 				}
 
 				if CheckIfTickIsEmptyProto(tickData) {
 					fmt.Printf("Found empty tick: %d\n", tickNumber)
-					emptyTicks += 1
+					emptyTicks = append(emptyTicks, tickNumber)
 					continue
 				}
 			}
 		}
 		return emptyTicks, err
 	}
-	return 0, nil
+	return make([]uint32, 0), nil
 }
 
 func CheckIfTickIsEmptyProto(tickData *protobuff.TickData) bool {
@@ -94,7 +94,7 @@ func CalculateEmptyTicksForAllEpochs(ps *store.PebbleStore) error {
 			return errors.Wrapf(err, "calculating empty ticks for epoch %d", epoch)
 		}
 
-		err = ps.SetEmptyTicksForEpoch(epoch, emptyTicksPerEpoch)
+		err = ps.SetEmptyTicksForEpoch(epoch, uint32(len(emptyTicksPerEpoch)))
 		if err != nil {
 			return errors.Wrap(err, "saving emptyTickCount to database")
 		}
@@ -117,6 +117,10 @@ func ResetEmptyTicksForAllEpochs(ps *store.PebbleStore) error {
 		err := ps.DeleteEmptyTicksKeyForEpoch(epoch)
 		if err != nil {
 			return errors.Wrap(err, "deleting empty tick key")
+		}
+		err = ps.DeleteEmptyTickListKeyForEpoch(epoch)
+		if err != nil {
+			return errors.Wrap(err, "deleting empty tick list key")
 		}
 	}
 
