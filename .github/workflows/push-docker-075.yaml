@@ -3,7 +3,7 @@ name: Deploy prod images to GHCR
 on:
   push:
     tags:
-      - 'v0.7.5'
+      - 'v0.7.5r1'
 
 jobs:
   push-store-image:
