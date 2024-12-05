@@ -404,6 +404,10 @@ func (sp *SyncProcessor) fetchTicks(startTick, endTick uint32) ([]*protobuff.Syn
 			end = endTick
 		}
 
+		if end == 15959704 {
+			end = 15959703
+		}
+
 		go func(errChannel chan<- error) {
 			defer waitGroup.Done()
 
