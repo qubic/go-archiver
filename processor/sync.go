@@ -350,7 +350,7 @@ func (sp *SyncProcessor) synchronize() error {
 
 				elapsed := time.Since(duration)
 
-				log.Printf("Done processing %d ticks. Took: %v | Average time / tick: %v\n", sp.maxObjectRequest, elapsed, elapsed.Seconds()/float64(sp.maxObjectRequest))
+				log.Printf("Done processing %d ticks. Took: %v | Average time / tick: %v\n", len(processedTicks), elapsed, elapsed.Seconds()/float64(sp.maxObjectRequest))
 			}
 		}
 
