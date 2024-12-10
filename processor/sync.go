@@ -20,6 +20,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"io"
 	"log"
+	"math/rand"
 	"runtime"
 	"slices"
 	"sync"
@@ -28,7 +29,7 @@ import (
 
 type SyncProcessor struct {
 	syncConfiguration    SyncConfiguration
-	syncServiceClient    protobuff.SyncServiceClient
+	syncServiceClients   []protobuff.SyncServiceClient
 	pebbleStore          *store.PebbleStore
 	syncDelta            SyncDelta
 	processTickTimeout   time.Duration
@@ -41,24 +42,56 @@ func NewSyncProcessor(syncConfiguration SyncConfiguration, pebbleStore *store.Pe
 		syncConfiguration:  syncConfiguration,
 		pebbleStore:        pebbleStore,
 		processTickTimeout: processTickTimeout,
+		syncServiceClients: make([]protobuff.SyncServiceClient, 0),
 	}
+}
+
+func (sp *SyncProcessor) getRandomClient() (protobuff.SyncServiceClient, error) {
+
+	if len(sp.syncServiceClients) == 0 {
+		return nil, errors.New("no bootstrap connections available")
+	}
+
+	r := rand.New(rand.NewSource(time.Now().Unix()))
+	index := r.Intn(len(sp.syncServiceClients))
+
+	return sp.syncServiceClients[index], nil
 }
 
 func (sp *SyncProcessor) Start() error {
 
-	log.Printf("Connecting to bootstrap node %s...", sp.syncConfiguration.Source)
+	grpcConnections := make([]*grpc.ClientConn, 0)
 
-	grpcConnection, err := grpc.NewClient(sp.syncConfiguration.Source, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		return errors.Wrap(err, "creating grpc connection to bootstrap")
+	fmt.Println("Sync sources:")
+	for _, source := range sp.syncConfiguration.Sources {
+		grpcConnection, err := grpc.NewClient(source, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			return errors.Wrap(err, "creating grpc connection to bootstrap")
+		}
+		fmt.Println(source)
+
+		grpcConnections = append(grpcConnections, grpcConnection)
+
+		syncServiceClient := protobuff.NewSyncServiceClient(grpcConnection)
+		sp.syncServiceClients = append(sp.syncServiceClients, syncServiceClient)
+
 	}
-	defer grpcConnection.Close()
 
-	syncServiceClient := protobuff.NewSyncServiceClient(grpcConnection)
-	sp.syncServiceClient = syncServiceClient
+	defer func() {
+		for _, grpcConnection := range grpcConnections {
+			grpcConnection.Close()
+		}
+	}()
+
+	metadataClient, err := sp.getRandomClient()
+	if err != nil {
+		return errors.Wrap(err, "getting random sync client")
+	}
+
+	log.Printf("Connecting to random bootstrap node...\n")
 
 	log.Println("Fetching bootstrap metadata...")
-	bootstrapMetadata, err := sp.getBootstrapMetadata()
+	bootstrapMetadata, err := sp.getBootstrapMetadata(metadataClient)
 	if err != nil {
 		return err
 	}
@@ -89,7 +122,7 @@ func (sp *SyncProcessor) Start() error {
 	}
 
 	log.Println("Synchronizing missing epoch information...")
-	err = sp.syncEpochInfo(syncDelta, bootstrapMetadata)
+	err = sp.syncEpochInfo(syncDelta, metadataClient)
 	if err != nil {
 		return errors.Wrap(err, "syncing epoch info")
 	}
@@ -105,11 +138,11 @@ func (sp *SyncProcessor) Start() error {
 	return nil
 }
 
-func (sp *SyncProcessor) getBootstrapMetadata() (*protobuff.SyncMetadataResponse, error) {
+func (sp *SyncProcessor) getBootstrapMetadata(syncClient protobuff.SyncServiceClient) (*protobuff.SyncMetadataResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), sp.syncConfiguration.ResponseTimeout)
 	defer cancel()
 
-	metadata, err := sp.syncServiceClient.SyncGetBootstrapMetadata(ctx, nil)
+	metadata, err := syncClient.SyncGetBootstrapMetadata(ctx, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting bootstrap metadata")
 	}
@@ -232,15 +265,7 @@ func (sp *SyncProcessor) storeEpochInfo(response *protobuff.SyncEpochInfoRespons
 	return nil
 }
 
-func (sp *SyncProcessor) syncEpochInfo(delta SyncDelta, metadata *protobuff.SyncMetadataResponse) error {
-
-	// TODO: remove skipped tick intervals from proto file
-	/*err := sp.pebbleStore.SetSkippedTickIntervalList(&protobuff.SkippedTicksIntervalList{
-		SkippedTicks: metadata.SkippedTickIntervals,
-	})
-	if err != nil {
-		return errors.Wrap(err, "saving skipped tick intervals from bootstrap")
-	}*/
+func (sp *SyncProcessor) syncEpochInfo(delta SyncDelta, syncClient protobuff.SyncServiceClient) error {
 
 	var epochs []uint32
 
@@ -252,7 +277,7 @@ func (sp *SyncProcessor) syncEpochInfo(delta SyncDelta, metadata *protobuff.Sync
 
 	defer cancel()
 
-	stream, err := sp.syncServiceClient.SyncGetEpochInformation(ctx, &protobuff.SyncEpochInfoRequest{Epochs: epochs})
+	stream, err := syncClient.SyncGetEpochInformation(ctx, &protobuff.SyncEpochInfoRequest{Epochs: epochs})
 	if err != nil {
 		return errors.Wrap(err, "fetching epoch info")
 	}
@@ -277,6 +302,10 @@ func (sp *SyncProcessor) syncEpochInfo(delta SyncDelta, metadata *protobuff.Sync
 func (sp *SyncProcessor) synchronize() error {
 
 	for _, epochDelta := range sp.syncDelta {
+
+		/*if epochDelta.Epoch != 128 {
+			continue
+		}*/
 
 		if sp.lastSynchronizedTick.Epoch > epochDelta.Epoch {
 			continue
@@ -413,7 +442,12 @@ func (sp *SyncProcessor) fetchTicks(startTick, endTick uint32) ([]*protobuff.Syn
 
 			log.Printf("[Routine %d] Fetching tick range %d - %d", index, start, end)
 
-			stream, err := sp.syncServiceClient.SyncGetTickInformation(ctx, &protobuff.SyncTickInfoRequest{
+			randomClient, err := sp.getRandomClient()
+			if err != nil {
+				errChannel <- errors.Wrap(err, "getting random sync client")
+			}
+
+			stream, err := randomClient.SyncGetTickInformation(ctx, &protobuff.SyncTickInfoRequest{
 				FirstTick: start,
 				LastTick:  end,
 			}, compression)
@@ -488,7 +522,7 @@ func (sp *SyncProcessor) processTicks(tickInfoResponses []*protobuff.SyncTickDat
 	return validatedTicks, nil
 }
 
-func (sp *SyncProcessor) storeTicks(validatedTicks validator.ValidatedTicks, epoch uint32, processedTickIntervalsPerEpoch *protobuff.ProcessedTickIntervalsPerEpoch, initialTickInterval uint32) (*protobuff.SyncLastSynchronizedTick, error) {
+func (sp *SyncProcessor) storeTicks(validatedTicks validator.ValidatedTicks, epoch uint32, processedTickIntervalsPerEpoch *protobuff.ProcessedTickIntervalsPerEpoch, initialIntervalTick uint32) (*protobuff.SyncLastSynchronizedTick, error) {
 
 	if epoch == 0 {
 		return nil, errors.Errorf("epoch is 0")
@@ -622,15 +656,22 @@ func (sp *SyncProcessor) storeTicks(validatedTicks validator.ValidatedTicks, epo
 	}
 
 	if len(processedTickIntervalsPerEpoch.Intervals) == 0 {
-		processedTickIntervalsPerEpoch = &protobuff.ProcessedTickIntervalsPerEpoch{
-			Epoch: epoch,
-			Intervals: []*protobuff.ProcessedTickInterval{
-				{
-					InitialProcessedTick: initialTickInterval,
-					LastProcessedTick:    lastSynchronizedTick.TickNumber,
-				},
+		processedTickIntervalsPerEpoch.Intervals = []*protobuff.ProcessedTickInterval{
+			{
+				InitialProcessedTick: initialIntervalTick,
+				LastProcessedTick:    lastSynchronizedTick.TickNumber,
 			},
 		}
+
+	}
+	fmt.Printf("Initial: %d | Last: %d", initialIntervalTick, lastSynchronizedTick.TickNumber)
+	time.Sleep(5 * time.Second)
+
+	if initialIntervalTick > lastSynchronizedTick.TickNumber {
+		processedTickIntervalsPerEpoch.Intervals = append(processedTickIntervalsPerEpoch.Intervals, &protobuff.ProcessedTickInterval{
+			InitialProcessedTick: initialIntervalTick,
+			LastProcessedTick:    lastSynchronizedTick.TickNumber,
+		})
 	} else {
 		processedTickIntervalsPerEpoch.Intervals[len(processedTickIntervalsPerEpoch.Intervals)-1].LastProcessedTick = lastSynchronizedTick.TickNumber
 	}

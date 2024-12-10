@@ -55,7 +55,7 @@ func run() error {
 		}
 		Sync struct {
 			Enable            bool          `conf:"default:false"`
-			Source            string        `conf:"default:localhost:8001"`
+			Sources           []string      `conf:"default:localhost:8001"`
 			ResponseTimeout   time.Duration `conf:"default:5s"`
 			EnableCompression bool          `conf:"default:true"`
 		}
@@ -191,7 +191,7 @@ func run() error {
 
 	syncConfiguration := processor.SyncConfiguration{
 		Enable:            cfg.Sync.Enable,
-		Source:            cfg.Sync.Source,
+		Sources:           cfg.Sync.Sources,
 		ResponseTimeout:   cfg.Sync.ResponseTimeout,
 		EnableCompression: cfg.Sync.EnableCompression,
 	}
