@@ -303,10 +303,6 @@ func (sp *SyncProcessor) synchronize() error {
 
 	for _, epochDelta := range sp.syncDelta {
 
-		/*if epochDelta.Epoch != 128 {
-			continue
-		}*/
-
 		if sp.lastSynchronizedTick.Epoch > epochDelta.Epoch {
 			continue
 		}
@@ -339,6 +335,8 @@ func (sp *SyncProcessor) synchronize() error {
 		}
 
 		for _, interval := range epochDelta.ProcessedIntervals {
+
+			fmt.Printf("Processing range [%d - %d]\n", interval.InitialProcessedTick, interval.LastProcessedTick)
 
 			initialIntervalTick := interval.InitialProcessedTick
 
@@ -662,19 +660,16 @@ func (sp *SyncProcessor) storeTicks(validatedTicks validator.ValidatedTicks, epo
 				LastProcessedTick:    lastSynchronizedTick.TickNumber,
 			},
 		}
-
 	}
-	fmt.Printf("Initial: %d | Last: %d", initialIntervalTick, lastSynchronizedTick.TickNumber)
-	time.Sleep(5 * time.Second)
 
-	if initialIntervalTick > lastSynchronizedTick.TickNumber {
+	if processedTickIntervalsPerEpoch.Intervals[len(processedTickIntervalsPerEpoch.Intervals)-1].InitialProcessedTick != initialIntervalTick {
 		processedTickIntervalsPerEpoch.Intervals = append(processedTickIntervalsPerEpoch.Intervals, &protobuff.ProcessedTickInterval{
 			InitialProcessedTick: initialIntervalTick,
 			LastProcessedTick:    lastSynchronizedTick.TickNumber,
 		})
-	} else {
-		processedTickIntervalsPerEpoch.Intervals[len(processedTickIntervalsPerEpoch.Intervals)-1].LastProcessedTick = lastSynchronizedTick.TickNumber
 	}
+
+	processedTickIntervalsPerEpoch.Intervals[len(processedTickIntervalsPerEpoch.Intervals)-1].LastProcessedTick = lastSynchronizedTick.TickNumber
 
 	processedTickIntervalsPerEpochKey := store.AssembleKey(store.ProcessedTickIntervals, epoch)
 	serializedData, err = proto.Marshal(processedTickIntervalsPerEpoch)
