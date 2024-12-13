@@ -12,7 +12,6 @@ import (
 	"github.com/qubic/go-archiver/validator/tx"
 	"github.com/qubic/go-node-connector/types"
 	"log"
-	"runtime"
 	"slices"
 	"sync"
 	"time"
@@ -43,7 +42,7 @@ type SyncValidator struct {
 	processTickTimeout time.Duration
 }
 
-func NewSyncValidator(initialIntervalTick uint32, computors types.Computors, ticks []*protobuff.SyncTickData, processTickTimeout time.Duration, pebbleStore *store.PebbleStore, lastSynchronizedTick *protobuff.SyncLastSynchronizedTick) *SyncValidator {
+func NewSyncValidator(initialIntervalTick uint32, computors types.Computors, ticks []*protobuff.SyncTickData, pebbleStore *store.PebbleStore, lastSynchronizedTick *protobuff.SyncLastSynchronizedTick) *SyncValidator {
 
 	return &SyncValidator{
 		initialIntervalTick: initialIntervalTick,
@@ -52,21 +51,16 @@ func NewSyncValidator(initialIntervalTick uint32, computors types.Computors, tic
 
 		lastSynchronizedTick: lastSynchronizedTick,
 
-		pebbleStore:        pebbleStore,
-		processTickTimeout: processTickTimeout,
+		pebbleStore: pebbleStore,
 	}
 }
 
-func (sv *SyncValidator) Validate() (ValidatedTicks, error) {
-
-	/*ctx, cancel := context.WithTimeout(context.Background(), sv.processTickTimeout)
-	defer cancel()*/
+func (sv *SyncValidator) Validate(routineCount int) (ValidatedTicks, error) {
 
 	var validatedTicks ValidatedTicks
 	counter := 0
 	mutex := sync.RWMutex{}
 
-	routineCount := runtime.NumCPU()
 	batchSize := len(sv.ticks) / routineCount
 	errChannel := make(chan error, routineCount)
 	var waitGroup sync.WaitGroup

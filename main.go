@@ -58,11 +58,13 @@ func run() error {
 			Sources           []string      `conf:"default:localhost:8001"`
 			ResponseTimeout   time.Duration `conf:"default:5s"`
 			EnableCompression bool          `conf:"default:true"`
+			RetryCount        int           `conf:"default:10"`
 		}
 		Bootstrap struct {
-			Enable            bool `conf:"default:true"`
-			MaxRequestedItems int  `conf:"default:100"`
-			BatchSize         int  `conf:"default:10"`
+			Enable                   bool `conf:"default:true"`
+			MaxRequestedItems        int  `conf:"default:1000"`
+			MaxConcurrentConnections int  `conf:"default:30"`
+			BatchSize                int  `conf:"default:10"`
 		}
 	}
 
@@ -175,12 +177,21 @@ func run() error {
 	}
 
 	bootstrapConfiguration := rpc.BootstrapConfiguration{
-		Enable:                cfg.Bootstrap.Enable,
-		MaximumRequestedItems: cfg.Bootstrap.MaxRequestedItems,
-		BatchSize:             cfg.Bootstrap.BatchSize,
+		Enable:                   cfg.Bootstrap.Enable,
+		MaximumRequestedItems:    cfg.Bootstrap.MaxRequestedItems,
+		BatchSize:                cfg.Bootstrap.BatchSize,
+		MaxConcurrentConnections: cfg.Bootstrap.MaxConcurrentConnections,
 	}
 
-	rpcServer := rpc.NewServer(cfg.Server.GrpcHost, cfg.Server.HttpHost, cfg.Server.NodeSyncThreshold, cfg.Server.ChainTickFetchUrl, ps, p, bootstrapConfiguration)
+	syncConfiguration := processor.SyncConfiguration{
+		Enable:            cfg.Sync.Enable,
+		Sources:           cfg.Sync.Sources,
+		ResponseTimeout:   cfg.Sync.ResponseTimeout,
+		EnableCompression: cfg.Sync.EnableCompression,
+		RetryCount:        cfg.Sync.RetryCount,
+	}
+
+	rpcServer := rpc.NewServer(cfg.Server.GrpcHost, cfg.Server.HttpHost, cfg.Server.NodeSyncThreshold, cfg.Server.ChainTickFetchUrl, ps, p, bootstrapConfiguration, syncConfiguration)
 	err = rpcServer.Start()
 	if err != nil {
 		return errors.Wrap(err, "starting rpc server")
@@ -188,13 +199,6 @@ func run() error {
 
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
-
-	syncConfiguration := processor.SyncConfiguration{
-		Enable:            cfg.Sync.Enable,
-		Sources:           cfg.Sync.Sources,
-		ResponseTimeout:   cfg.Sync.ResponseTimeout,
-		EnableCompression: cfg.Sync.EnableCompression,
-	}
 
 	proc := processor.NewProcessor(p, ps, cfg.Qubic.ProcessTickTimeout, syncConfiguration)
 	procErrors := make(chan error, 1)

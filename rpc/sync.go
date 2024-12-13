@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/pkg/errors"
+	"github.com/qubic/go-archiver/processor"
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-archiver/utils"
@@ -13,20 +14,57 @@ import (
 	_ "google.golang.org/grpc/encoding/gzip"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"sync"
 )
 
 var _ protobuff.SyncServiceServer = &SyncService{}
+
+type currentConnectionCount struct {
+	mutex sync.RWMutex
+	value int
+}
+
+func (c *currentConnectionCount) getValue() int {
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+	return c.value
+}
+
+func (c *currentConnectionCount) increment() {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	c.value += 1
+}
+
+func (c *currentConnectionCount) decrement() {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	c.value -= 1
+}
+
+type SyncClientService struct {
+	protobuff.UnimplementedSyncClientServiceServer
+}
+
+func NewSyncClientService() *SyncClientService {
+	return &SyncClientService{}
+}
 
 type SyncService struct {
 	protobuff.UnimplementedSyncServiceServer
 	store                  *store.PebbleStore
 	bootstrapConfiguration BootstrapConfiguration
+	connectionCount        currentConnectionCount
 }
 
 func NewSyncService(pebbleStore *store.PebbleStore, bootstrapConfiguration BootstrapConfiguration) *SyncService {
 	return &SyncService{
 		bootstrapConfiguration: bootstrapConfiguration,
 		store:                  pebbleStore,
+		connectionCount: currentConnectionCount{
+			mutex: sync.RWMutex{},
+			value: 0,
+		},
 	}
 }
 
@@ -36,11 +74,6 @@ func (ss *SyncService) SyncGetBootstrapMetadata(ctx context.Context, _ *emptypb.
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "cannot get processed tick intervals: %v", err)
 	}
-
-	/*skippedIntervals, err := ss.store.GetSkippedTicksInterval(ctx)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "cannot get skipped tick intervals: %v", err)
-	}*/
 
 	return &protobuff.SyncMetadataResponse{
 		ArchiverVersion:  utils.ArchiverVersion,
@@ -115,6 +148,13 @@ func (ss *SyncService) sendTickInformationResponse(ticks []*protobuff.SyncTickDa
 
 func (ss *SyncService) SyncGetTickInformation(req *protobuff.SyncTickInfoRequest, stream protobuff.SyncService_SyncGetTickInformationServer) error {
 
+	available := ss.bootstrapConfiguration.MaxConcurrentConnections - ss.connectionCount.getValue()
+	if available < 1 {
+		return utils.SyncMaxConnReachedErr
+	}
+	ss.connectionCount.increment()
+	defer ss.connectionCount.decrement()
+
 	tickDifference := int(req.LastTick - req.FirstTick)
 
 	if tickDifference > ss.bootstrapConfiguration.MaximumRequestedItems || tickDifference < 0 {
@@ -174,4 +214,45 @@ func (ss *SyncService) SyncGetTickInformation(req *protobuff.SyncTickInfoRequest
 		return errors.Wrap(err, "sending tick information")
 	}
 	return nil
+}
+
+func (scs *SyncClientService) SyncGetStatus(ctx context.Context, _ *emptypb.Empty) (*protobuff.SyncStatus, error) {
+
+	if processor.SynchronizationStatus == nil {
+		return nil, status.Errorf(codes.Unavailable, "synchronization status not available yet, please try again in a couple of minutes")
+	}
+
+	syncStatus := processor.SynchronizationStatus.Get()
+
+	delta := make([]*protobuff.ProcessedTickIntervalsPerEpoch, 0)
+
+	for _, epochDelta := range syncStatus.Delta {
+		delta = append(delta, &protobuff.ProcessedTickIntervalsPerEpoch{
+			Epoch:     epochDelta.Epoch,
+			Intervals: epochDelta.ProcessedIntervals,
+		})
+	}
+
+	currentCompactions := store.CompactionCount.Get()
+
+	return &protobuff.SyncStatus{
+		NodeVersion:            syncStatus.NodeVersion,
+		BootstrapAddresses:     syncStatus.BootstrapAddresses,
+		LastSynchronizedTick:   syncStatus.LastSynchronizedTick,
+		CurrentEpoch:           syncStatus.CurrentEpoch,
+		CurrentTickRange:       syncStatus.CurrentTickRange,
+		AverageTicksPerMinute:  int32(syncStatus.AverageTicksPerMinute),
+		LastFetchDuration:      syncStatus.LastFetchDuration,
+		LastValidationDuration: syncStatus.LastValidationDuration,
+		LastStoreDuration:      syncStatus.LastStoreDuration,
+		LastTotalDuration:      syncStatus.LastTotalDuration,
+		ObjectRequestCount:     int32(syncStatus.ObjectRequestCount),
+		FetchRoutineCount:      int32(syncStatus.FetchRoutineCount),
+		ValidationRoutineCount: int32(syncStatus.ValidationRoutineCount),
+		CurrentCompactionCount: int32(currentCompactions),
+		Delta: &protobuff.SyncDelta{
+			DeltaPerEpoch: delta,
+		},
+	}, nil
+
 }

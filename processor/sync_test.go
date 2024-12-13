@@ -3,12 +3,11 @@ package processor
 import (
 	"github.com/qubic/go-archiver/protobuff"
 	"testing"
-	"time"
 )
 
 func TestSyncProcessor_CalculateSyncDelta(t *testing.T) {
 
-	mockSyncProcessor := NewSyncProcessor(SyncConfiguration{}, nil, time.Second)
+	mockSyncProcessor := NewSyncProcessor(SyncConfiguration{}, nil)
 
 	testData := []struct {
 		name                 string

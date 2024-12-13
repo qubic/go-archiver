@@ -8,6 +8,7 @@ import (
 	"github.com/cockroachdb/pebble"
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
+
 	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-archiver/utils"
 	"github.com/qubic/go-archiver/validator"
@@ -23,26 +24,128 @@ import (
 	"math/rand"
 	"runtime"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 )
 
-type SyncProcessor struct {
-	syncConfiguration    SyncConfiguration
-	syncServiceClients   []protobuff.SyncServiceClient
-	pebbleStore          *store.PebbleStore
-	syncDelta            SyncDelta
-	processTickTimeout   time.Duration
-	maxObjectRequest     uint32
-	lastSynchronizedTick *protobuff.SyncLastSynchronizedTick
+type SyncStatus struct {
+	NodeVersion            string
+	BootstrapAddresses     []string
+	Delta                  SyncDelta
+	LastSynchronizedTick   *protobuff.SyncLastSynchronizedTick
+	CurrentEpoch           uint32
+	CurrentTickRange       *protobuff.ProcessedTickInterval
+	AverageTicksPerMinute  int
+	LastFetchDuration      float32
+	LastValidationDuration float32
+	LastStoreDuration      float32
+	LastTotalDuration      float32
+	ObjectRequestCount     uint32
+	FetchRoutineCount      int
+	ValidationRoutineCount int
 }
 
-func NewSyncProcessor(syncConfiguration SyncConfiguration, pebbleStore *store.PebbleStore, processTickTimeout time.Duration) *SyncProcessor {
+type SyncStatusMutex struct {
+	mutex  sync.RWMutex
+	Status *SyncStatus
+}
+
+func (ssm *SyncStatusMutex) setLastSynchronizedTick(lastSynchronizedTick *protobuff.SyncLastSynchronizedTick) {
+	ssm.mutex.Lock()
+	defer ssm.mutex.Unlock()
+	ssm.Status.LastSynchronizedTick = lastSynchronizedTick
+}
+
+func (ssm *SyncStatusMutex) setCurrentEpoch(epoch uint32) {
+	ssm.mutex.Lock()
+	defer ssm.mutex.Unlock()
+	ssm.Status.CurrentEpoch = epoch
+}
+
+func (ssm *SyncStatusMutex) setCurrentTickRange(currentTickRange *protobuff.ProcessedTickInterval) {
+	ssm.mutex.Lock()
+	defer ssm.mutex.Unlock()
+	ssm.Status.CurrentTickRange = currentTickRange
+}
+
+func (ssm *SyncStatusMutex) setAverageTicksPerMinute(tickCount int) {
+	ssm.mutex.Lock()
+	defer ssm.mutex.Unlock()
+	ssm.Status.AverageTicksPerMinute = tickCount
+}
+
+func (ssm *SyncStatusMutex) setLastFetchDuration(seconds float32) {
+	ssm.mutex.Lock()
+	defer ssm.mutex.Unlock()
+	ssm.Status.LastFetchDuration = seconds
+}
+
+func (ssm *SyncStatusMutex) setLastValidationDuration(seconds float32) {
+	ssm.mutex.Lock()
+	defer ssm.mutex.Unlock()
+	ssm.Status.LastValidationDuration = seconds
+}
+
+func (ssm *SyncStatusMutex) setLastStoreDuration(seconds float32) {
+	ssm.mutex.Lock()
+	defer ssm.mutex.Unlock()
+	ssm.Status.LastStoreDuration = seconds
+}
+
+func (ssm *SyncStatusMutex) setLastTotalDuration(seconds float32) {
+	ssm.mutex.Lock()
+	defer ssm.mutex.Unlock()
+	ssm.Status.LastTotalDuration = seconds
+}
+
+func (ssm *SyncStatusMutex) Get() SyncStatus {
+	ssm.mutex.RLock()
+	defer ssm.mutex.RUnlock()
+
+	return SyncStatus{
+		NodeVersion:            ssm.Status.NodeVersion,
+		BootstrapAddresses:     ssm.Status.BootstrapAddresses,
+		Delta:                  ssm.Status.Delta,
+		LastSynchronizedTick:   proto.Clone(ssm.Status.LastSynchronizedTick).(*protobuff.SyncLastSynchronizedTick),
+		CurrentEpoch:           ssm.Status.CurrentEpoch,
+		CurrentTickRange:       proto.Clone(ssm.Status.CurrentTickRange).(*protobuff.ProcessedTickInterval),
+		AverageTicksPerMinute:  ssm.Status.AverageTicksPerMinute,
+		LastFetchDuration:      ssm.Status.LastFetchDuration,
+		LastValidationDuration: ssm.Status.LastValidationDuration,
+		LastStoreDuration:      ssm.Status.LastStoreDuration,
+		LastTotalDuration:      ssm.Status.LastTotalDuration,
+		ObjectRequestCount:     ssm.Status.ObjectRequestCount,
+		FetchRoutineCount:      ssm.Status.FetchRoutineCount,
+		ValidationRoutineCount: ssm.Status.ValidationRoutineCount,
+	}
+
+}
+
+var SynchronizationStatus *SyncStatusMutex
+
+type SyncProcessor struct {
+	syncConfiguration      SyncConfiguration
+	syncServiceClients     []protobuff.SyncServiceClient
+	pebbleStore            *store.PebbleStore
+	syncDelta              SyncDelta
+	processTickTimeout     time.Duration
+	maxObjectRequest       uint32
+	lastSynchronizedTick   *protobuff.SyncLastSynchronizedTick
+	fetchRoutineCount      int
+	validationRoutineCount int
+}
+
+func NewSyncProcessor(syncConfiguration SyncConfiguration, pebbleStore *store.PebbleStore) *SyncProcessor {
+
+	fetchRoutineCount := min(6, runtime.NumCPU())
+
 	return &SyncProcessor{
-		syncConfiguration:  syncConfiguration,
-		pebbleStore:        pebbleStore,
-		processTickTimeout: processTickTimeout,
-		syncServiceClients: make([]protobuff.SyncServiceClient, 0),
+		syncConfiguration:      syncConfiguration,
+		pebbleStore:            pebbleStore,
+		syncServiceClients:     make([]protobuff.SyncServiceClient, 0),
+		fetchRoutineCount:      fetchRoutineCount,
+		validationRoutineCount: runtime.NumCPU(),
 	}
 }
 
@@ -62,6 +165,13 @@ func (sp *SyncProcessor) Start() error {
 
 	grpcConnections := make([]*grpc.ClientConn, 0)
 
+	var bootstrapMetadata *protobuff.SyncMetadataResponse
+
+	clientMetadata, err := sp.getClientMetadata()
+	if err != nil {
+		return errors.Wrap(err, "getting client metadata")
+	}
+
 	fmt.Println("Sync sources:")
 	for _, source := range sp.syncConfiguration.Sources {
 		grpcConnection, err := grpc.NewClient(source, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -73,8 +183,33 @@ func (sp *SyncProcessor) Start() error {
 		grpcConnections = append(grpcConnections, grpcConnection)
 
 		syncServiceClient := protobuff.NewSyncServiceClient(grpcConnection)
-		sp.syncServiceClients = append(sp.syncServiceClients, syncServiceClient)
 
+		metadata, err := sp.getBootstrapMetadata(syncServiceClient)
+		if err != nil {
+			log.Printf("Unable to get metadata for bootstrap node %s. It will not be used.\n", source)
+			continue
+		}
+
+		versionCheck, err := sp.checkVersionSupport(clientMetadata.ArchiverVersion, metadata.ArchiverVersion)
+		if err != nil {
+			log.Printf("Bootstrap node %s does not match client version. It will not be used: %v\n", source, err)
+			continue
+		}
+
+		if !versionCheck {
+			log.Printf("Bootstrap node %s does not match client version. It will not be used. Client:%s, Bootstrap: %v\n", source, clientMetadata.ArchiverVersion, metadata.ArchiverVersion)
+		}
+
+		sp.syncServiceClients = append(sp.syncServiceClients, syncServiceClient)
+		if bootstrapMetadata == nil {
+			bootstrapMetadata = metadata
+		}
+
+		if sp.maxObjectRequest == 0 {
+			sp.maxObjectRequest = uint32(bootstrapMetadata.MaxObjectRequest)
+		}
+
+		sp.maxObjectRequest = min(uint32(bootstrapMetadata.MaxObjectRequest), sp.maxObjectRequest)
 	}
 
 	defer func() {
@@ -83,24 +218,14 @@ func (sp *SyncProcessor) Start() error {
 		}
 	}()
 
+	if len(sp.syncServiceClients) == 0 || bootstrapMetadata == nil {
+		log.Println("No suitable sync sources found, resuming to synchronizing current epoch.")
+		return nil
+	}
+
 	metadataClient, err := sp.getRandomClient()
 	if err != nil {
 		return errors.Wrap(err, "getting random sync client")
-	}
-
-	log.Printf("Connecting to random bootstrap node...\n")
-
-	log.Println("Fetching bootstrap metadata...")
-	bootstrapMetadata, err := sp.getBootstrapMetadata(metadataClient)
-	if err != nil {
-		return err
-	}
-
-	sp.maxObjectRequest = uint32(bootstrapMetadata.MaxObjectRequest)
-
-	clientMetadata, err := sp.getClientMetadata()
-	if err != nil {
-		return errors.Wrap(err, "getting client metadata")
 	}
 
 	lastSynchronizedTick, err := sp.pebbleStore.GetSyncLastSynchronizedTick()
@@ -130,6 +255,20 @@ func (sp *SyncProcessor) Start() error {
 	sp.syncDelta = syncDelta
 
 	log.Println("Starting tick synchronization")
+
+	SynchronizationStatus = &SyncStatusMutex{
+		mutex: sync.RWMutex{},
+		Status: &SyncStatus{
+			NodeVersion:            utils.ArchiverVersion,
+			BootstrapAddresses:     sp.syncConfiguration.Sources,
+			Delta:                  sp.syncDelta,
+			LastSynchronizedTick:   sp.lastSynchronizedTick,
+			ObjectRequestCount:     sp.maxObjectRequest,
+			FetchRoutineCount:      sp.fetchRoutineCount,
+			ValidationRoutineCount: sp.validationRoutineCount,
+		},
+	}
+
 	err = sp.synchronize()
 	if err != nil {
 		return errors.Wrap(err, "performing synchronization")
@@ -185,10 +324,6 @@ func areIntervalsEqual(a, b []*protobuff.ProcessedTickInterval) bool {
 }
 
 func (sp *SyncProcessor) CalculateSyncDelta(bootstrapMetadata, clientMetadata *protobuff.SyncMetadataResponse, lastSynchronizedTick *protobuff.SyncLastSynchronizedTick) (SyncDelta, error) {
-
-	if bootstrapMetadata.ArchiverVersion != clientMetadata.ArchiverVersion {
-		return nil, errors.New(fmt.Sprintf("client version (%s) does not match bootstrap version (%s)", clientMetadata.ArchiverVersion, bootstrapMetadata.ArchiverVersion))
-	}
 
 	bootstrapProcessedTicks := make(map[uint32][]*protobuff.ProcessedTickInterval)
 	clientProcessedTicks := make(map[uint32][]*protobuff.ProcessedTickInterval)
@@ -246,6 +381,27 @@ func (sp *SyncProcessor) CalculateSyncDelta(bootstrapMetadata, clientMetadata *p
 	})
 
 	return syncDelta, nil
+}
+
+func (sp *SyncProcessor) checkVersionSupport(clientVersion, bootstrapVersion string) (bool, error) {
+
+	if clientVersion[0] != 'v' && bootstrapVersion[0] != 'v' {
+		return clientVersion == bootstrapVersion, nil
+	}
+
+	clientSplit := strings.Split(clientVersion, ".")
+	bootstrapSplit := strings.Split(bootstrapVersion, ".")
+
+	if len(clientSplit) != len(bootstrapSplit) {
+		return false, errors.Errorf("mismatch between client and bootstrap version format: client: %s, bootstrap: %s", clientVersion, bootstrapVersion)
+	}
+
+	for index := 0; index < len(clientSplit)-1; index++ {
+		if clientSplit[index] != bootstrapSplit[index] {
+			return false, errors.Errorf("mismatch between client and bootstrap versions: client: %s, bootstrap: %s", clientVersion, bootstrapVersion)
+		}
+	}
+	return true, nil
 }
 
 func (sp *SyncProcessor) storeEpochInfo(response *protobuff.SyncEpochInfoResponse) error {
@@ -307,6 +463,8 @@ func (sp *SyncProcessor) synchronize() error {
 			continue
 		}
 
+		SynchronizationStatus.setCurrentEpoch(epochDelta.Epoch)
+
 		log.Printf("Synchronizing ticks for epoch %d...\n", epochDelta.Epoch)
 
 		processedTickIntervalsForEpoch, err := sp.pebbleStore.GetProcessedTickIntervalsPerEpoch(nil, epochDelta.Epoch)
@@ -336,6 +494,8 @@ func (sp *SyncProcessor) synchronize() error {
 
 		for _, interval := range epochDelta.ProcessedIntervals {
 
+			SynchronizationStatus.setCurrentTickRange(interval)
+
 			fmt.Printf("Processing range [%d - %d]\n", interval.InitialProcessedTick, interval.LastProcessedTick)
 
 			initialIntervalTick := interval.InitialProcessedTick
@@ -358,26 +518,41 @@ func (sp *SyncProcessor) synchronize() error {
 					endTick = interval.LastProcessedTick
 				}
 
-				duration := time.Now()
+				start := time.Now()
+
+				secondStart := time.Now()
 
 				fetchedTicks, err := sp.fetchTicks(startTick, endTick)
 				if err != nil {
 					return errors.Wrapf(err, "fetching tick range %d - %d", startTick, endTick)
 				}
+				SynchronizationStatus.setLastFetchDuration(float32(time.Since(secondStart).Seconds()))
+				secondStart = time.Now()
 
 				processedTicks, err := sp.processTicks(fetchedTicks, initialIntervalTick, qubicComputors)
 				if err != nil {
 					return errors.Wrapf(err, "processing tick range %d - %d", startTick, endTick)
 				}
+				SynchronizationStatus.setLastValidationDuration(float32(time.Since(secondStart).Seconds()))
+				secondStart = time.Now()
+
 				lastSynchronizedTick, err := sp.storeTicks(processedTicks, epochDelta.Epoch, processedTickIntervalsForEpoch, initialIntervalTick)
-				sp.lastSynchronizedTick = lastSynchronizedTick
 				if err != nil {
 					return errors.Wrapf(err, "storing processed tick range %d - %d", startTick, endTick)
 				}
+				SynchronizationStatus.setLastStoreDuration(float32(time.Since(secondStart).Seconds()))
+				secondStart = time.Now()
 
-				elapsed := time.Since(duration)
+				sp.lastSynchronizedTick = lastSynchronizedTick
+				SynchronizationStatus.setLastSynchronizedTick(lastSynchronizedTick)
 
-				log.Printf("Done processing %d ticks. Took: %v | Average time / tick: %v\n", len(processedTicks), elapsed, elapsed.Seconds()/float64(sp.maxObjectRequest))
+				elapsed := time.Since(start)
+				SynchronizationStatus.setLastTotalDuration(float32(elapsed.Seconds()))
+
+				ticksPerMinute := int(float64(len(processedTicks)) / elapsed.Seconds() * 60)
+				SynchronizationStatus.setAverageTicksPerMinute(ticksPerMinute)
+
+				log.Printf("Done processing %d ticks. Took: %v | Average time / tick: %v\n", len(processedTicks), elapsed, elapsed.Seconds()/float64(len(processedTicks)))
 			}
 		}
 
@@ -396,6 +571,18 @@ func (sp *SyncProcessor) synchronize() error {
 	return nil
 }
 
+func (sp *SyncProcessor) performTickInfoRequest(ctx context.Context, randomClient protobuff.SyncServiceClient, compression grpc.CallOption, start, end uint32) (protobuff.SyncService_SyncGetTickInformationClient, error) {
+
+	stream, err := randomClient.SyncGetTickInformation(ctx, &protobuff.SyncTickInfoRequest{
+		FirstTick: start,
+		LastTick:  end,
+	}, compression)
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching tick information")
+	}
+	return stream, nil
+}
+
 func (sp *SyncProcessor) fetchTicks(startTick, endTick uint32) ([]*protobuff.SyncTickData, error) {
 
 	//TODO: We are currently fetching a large process of ticks, and using the default will cause the method to error before we are finished
@@ -411,7 +598,7 @@ func (sp *SyncProcessor) fetchTicks(startTick, endTick uint32) ([]*protobuff.Syn
 	var responses []*protobuff.SyncTickData
 
 	mutex := sync.RWMutex{}
-	routineCount := runtime.NumCPU() / 2
+	routineCount := sp.fetchRoutineCount
 	tickDifference := endTick - startTick
 	batchSize := tickDifference / uint32(routineCount)
 	errChannel := make(chan error, routineCount)
@@ -440,21 +627,36 @@ func (sp *SyncProcessor) fetchTicks(startTick, endTick uint32) ([]*protobuff.Syn
 
 			log.Printf("[Routine %d] Fetching tick range %d - %d", index, start, end)
 
-			randomClient, err := sp.getRandomClient()
-			if err != nil {
-				errChannel <- errors.Wrap(err, "getting random sync client")
-			}
-
-			stream, err := randomClient.SyncGetTickInformation(ctx, &protobuff.SyncTickInfoRequest{
-				FirstTick: start,
-				LastTick:  end,
-			}, compression)
-			if err != nil {
-				errChannel <- errors.Wrap(err, "fetching tick information")
-				return
-			}
-
 			lastTime := time.Now()
+
+			var stream protobuff.SyncService_SyncGetTickInformationClient
+
+			for i := 0; i < sp.syncConfiguration.RetryCount; i++ {
+
+				if i == sp.syncConfiguration.RetryCount-1 {
+					errChannel <- errors.Errorf("failed to fetch tick range [%d - %d] after retrying %d times", start, end, sp.syncConfiguration.RetryCount)
+					return
+				}
+
+				randomClient, err := sp.getRandomClient()
+				if err != nil {
+					errChannel <- errors.Wrap(err, "getting random sync client")
+					return
+				}
+
+				s, err := sp.performTickInfoRequest(ctx, randomClient, compression, start, end)
+				if err != nil {
+					if errors.Is(err, utils.SyncMaxConnReachedErr) {
+						log.Printf("Failed to fetch tick range [%d - %d]: %v\n", start, end, err)
+						continue
+					}
+					errChannel <- errors.Wrapf(err, "fetching tick range [%d - %d]", start, end)
+					return
+				}
+
+				stream = s
+				break
+			}
 
 			for {
 				data, err := stream.Recv()
@@ -511,8 +713,8 @@ func (sp *SyncProcessor) fetchTicks(startTick, endTick uint32) ([]*protobuff.Syn
 
 func (sp *SyncProcessor) processTicks(tickInfoResponses []*protobuff.SyncTickData, initialIntervalTick uint32, computors types.Computors) (validator.ValidatedTicks, error) {
 
-	syncValidator := validator.NewSyncValidator(initialIntervalTick, computors, tickInfoResponses, sp.processTickTimeout, sp.pebbleStore, sp.lastSynchronizedTick)
-	validatedTicks, err := syncValidator.Validate()
+	syncValidator := validator.NewSyncValidator(initialIntervalTick, computors, tickInfoResponses, sp.pebbleStore, sp.lastSynchronizedTick)
+	validatedTicks, err := syncValidator.Validate(sp.validationRoutineCount)
 	if err != nil {
 		return nil, errors.Wrap(err, "validating ticks")
 	}

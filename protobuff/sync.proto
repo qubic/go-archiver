@@ -3,6 +3,7 @@ syntax = "proto3";
 package qubic.archiver.archive.pb;
 
 option go_package = "github.com/qubic/go-archiver/protobuff/";
+import "google/api/annotations.proto";
 import "google/protobuf/empty.proto";
 import "archive.proto";
 
@@ -48,7 +49,28 @@ message SyncLastSynchronizedTick {
   uint32 epoch = 2;
   bytes chain_hash = 3;
   bytes store_hash = 4;
+}
 
+message SyncDelta {
+  repeated ProcessedTickIntervalsPerEpoch delta_per_epoch = 1;
+}
+
+message SyncStatus {
+  string node_version = 1;
+  repeated string bootstrap_addresses = 2;
+  SyncLastSynchronizedTick last_synchronized_tick = 3;
+  uint32 current_epoch = 4;
+  ProcessedTickInterval current_tick_range = 5;
+  int32 average_ticks_per_minute = 6;
+  float last_fetch_duration = 7;
+  float last_validation_duration = 8;
+  float last_store_duration = 9;
+  float last_total_duration = 10;
+  int32 object_request_count = 11;
+  int32 fetch_routine_count = 12;
+  int32 validation_routine_count = 13;
+  int32 current_compaction_count = 14;
+  SyncDelta delta = 15;
 }
 
 service SyncService {
@@ -57,4 +79,12 @@ service SyncService {
   rpc SyncGetEpochInformation(SyncEpochInfoRequest) returns (stream SyncEpochInfoResponse) {};
 
   rpc SyncGetTickInformation(SyncTickInfoRequest) returns (stream SyncTickInfoResponse) {};
+}
+
+service SyncClientService {
+  rpc SyncGetStatus(google.protobuf.Empty) returns (SyncStatus) {
+    option (google.api.http) = {
+      get: "/v2/sync-status"
+    };
+  };
 }

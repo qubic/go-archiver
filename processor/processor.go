@@ -30,6 +30,7 @@ type SyncConfiguration struct {
 	Sources           []string
 	ResponseTimeout   time.Duration
 	EnableCompression bool
+	RetryCount        int
 }
 
 type Processor struct {
@@ -51,7 +52,7 @@ func NewProcessor(p *qubic.Pool, ps *store.PebbleStore, processTickTimeout time.
 func (p *Processor) Start() error {
 
 	if p.SyncConfiguration.Enable {
-		syncProcessor := NewSyncProcessor(p.SyncConfiguration, p.ps, p.processTickTimeout)
+		syncProcessor := NewSyncProcessor(p.SyncConfiguration, p.ps)
 		err := syncProcessor.Start()
 		if err != nil {
 			return errors.Wrap(err, "performing synchronization")

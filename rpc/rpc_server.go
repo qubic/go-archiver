@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/pkg/errors"
+	"github.com/qubic/go-archiver/processor"
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-archiver/validator/quorum"
@@ -26,9 +27,10 @@ import (
 )
 
 type BootstrapConfiguration struct {
-	Enable                bool
-	MaximumRequestedItems int
-	BatchSize             int
+	Enable                   bool
+	MaximumRequestedItems    int
+	BatchSize                int
+	MaxConcurrentConnections int
 }
 
 var _ protobuff.ArchiveServiceServer = &Server{}
@@ -49,9 +51,10 @@ type Server struct {
 	store                  *store.PebbleStore
 	pool                   *qubic.Pool
 	bootstrapConfiguration BootstrapConfiguration
+	syncConfiguration      processor.SyncConfiguration
 }
 
-func NewServer(listenAddrGRPC, listenAddrHTTP string, syncThreshold int, chainTickUrl string, store *store.PebbleStore, pool *qubic.Pool, bootstrapConfiguration BootstrapConfiguration) *Server {
+func NewServer(listenAddrGRPC, listenAddrHTTP string, syncThreshold int, chainTickUrl string, store *store.PebbleStore, pool *qubic.Pool, bootstrapConfiguration BootstrapConfiguration, syncConfiguration processor.SyncConfiguration) *Server {
 	return &Server{
 		listenAddrGRPC:         listenAddrGRPC,
 		listenAddrHTTP:         listenAddrHTTP,
@@ -60,6 +63,7 @@ func NewServer(listenAddrGRPC, listenAddrHTTP string, syncThreshold int, chainTi
 		store:                  store,
 		pool:                   pool,
 		bootstrapConfiguration: bootstrapConfiguration,
+		syncConfiguration:      syncConfiguration,
 	}
 }
 
@@ -649,8 +653,11 @@ func (s *Server) Start() error {
 	protobuff.RegisterArchiveServiceServer(srv, s)
 	if s.bootstrapConfiguration.Enable {
 		syncService := NewSyncService(s.store, s.bootstrapConfiguration)
-
 		protobuff.RegisterSyncServiceServer(srv, syncService)
+	}
+	if s.syncConfiguration.Enable {
+		syncClientService := NewSyncClientService()
+		protobuff.RegisterSyncClientServiceServer(srv, syncClientService)
 	}
 	reflection.Register(srv)
 
@@ -676,6 +683,17 @@ func (s *Server) Start() error {
 					grpc.MaxCallRecvMsgSize(600*1024*1024),
 					grpc.MaxCallSendMsgSize(600*1024*1024),
 				),
+			}
+
+			if s.syncConfiguration.Enable {
+				if err := protobuff.RegisterSyncClientServiceHandlerFromEndpoint(
+					context.Background(),
+					mux,
+					s.listenAddrGRPC,
+					opts,
+				); err != nil {
+					panic(err)
+				}
 			}
 
 			if err := protobuff.RegisterArchiveServiceHandlerFromEndpoint(
