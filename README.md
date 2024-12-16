@@ -46,13 +46,13 @@ This can be configured using the `QUBIC_NODES_QUBIC_PEER_LIST` environment varia
   
   $QUBIC_ARCHIVER_SYNC_ENABLE                                <bool>                 (default: false)
   $QUBIC_ARCHIVER_SYNC_SOURCES                               <string>,[string...]   (default: localhost:8001) // TODO: To be changed with official bootstrap node list
-  $QUBIC_ARCHIVER_SYNC_RESPONSE_TIMEOUT                      <duration>             (default: 5s)             // TODO: Review implementation
+  $QUBIC_ARCHIVER_SYNC_RESPONSE_TIMEOUT                      <duration>             (default: 1m)
   $QUBIC_ARCHIVER_SYNC_ENABLE_COMPRESSION                    <bool>                 (default: true)
   $QUBIC_ARCHIVER_SYNC_RETRY_COUNT                           <int>                  (default: 10)
   
   $QUBIC_ARCHIVER_BOOTSTRAP_ENABLE                           <bool>                 (default: true)
   $QUBIC_ARCHIVER_BOOTSTRAP_MAX_REQUESTED_ITEMS              <int>                  (default: 1000)
-  $QUBIC_ARCHIVER_BOOTSTRAP_MAX_CONCURRENT_CONNECTIONS       <int>                  (default: 30)             // TODO: Figure out the optimal count
+  $QUBIC_ARCHIVER_BOOTSTRAP_MAX_CONCURRENT_CONNECTIONS       <int>                  (default: 20)
   $QUBIC_ARCHIVER_BOOTSTRAP_BATCH_SIZE                       <int>                  (default: 10)
 ```
 
@@ -87,7 +87,7 @@ Storage speed is also a factor to consider, and in some cases may become a bottl
 
 - `QUBIC_ARCHIVER_SYNC_ENABLE`: Whether to enable the synchronization feature or not.  
 - `QUBIC_ARCHIVER_SYNC_SOURCES`: The list of bootstrap nodes to fetch from.  
-- `QUBIC_ARCHIVER_SYNC_RESPONSE_TIMEOUT`: **TODO**
+- `QUBIC_ARCHIVER_SYNC_RESPONSE_TIMEOUT`: The maximum time fetching a tick batch should take.
 - `QUBIC_ARCHIVER_SYNC_RETRY_COUNT`: The number of times to retry fetching a tick range, in the event that the bootstrap has reached the maximum number of connections.
 
 #### Bootstrap

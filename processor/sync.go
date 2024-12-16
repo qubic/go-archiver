@@ -585,10 +585,8 @@ func (sp *SyncProcessor) performTickInfoRequest(ctx context.Context, randomClien
 
 func (sp *SyncProcessor) fetchTicks(startTick, endTick uint32) ([]*protobuff.SyncTickData, error) {
 
-	//TODO: We are currently fetching a large process of ticks, and using the default will cause the method to error before we are finished
-	//ctx, cancel := context.WithTimeout(context.Background(), sp.syncConfiguration.ResponseTimeout)
-	//defer cancel()
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), sp.syncConfiguration.ResponseTimeout)
+	defer cancel()
 
 	var compression grpc.CallOption = grpc.EmptyCallOption{}
 	if sp.syncConfiguration.EnableCompression {

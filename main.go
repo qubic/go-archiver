@@ -47,7 +47,7 @@ func run() error {
 		}
 		Qubic struct {
 			NodePort           string        `conf:"default:21841"`
-			StorageFolder      string        `conf:"default:storage"`
+			StorageFolder      string        `conf:"default:store"`
 			ProcessTickTimeout time.Duration `conf:"default:5s"`
 		}
 		Store struct {
@@ -56,14 +56,14 @@ func run() error {
 		Sync struct {
 			Enable            bool          `conf:"default:false"`
 			Sources           []string      `conf:"default:localhost:8001"`
-			ResponseTimeout   time.Duration `conf:"default:5s"`
+			ResponseTimeout   time.Duration `conf:"default:1m"`
 			EnableCompression bool          `conf:"default:true"`
 			RetryCount        int           `conf:"default:10"`
 		}
 		Bootstrap struct {
 			Enable                   bool `conf:"default:true"`
 			MaxRequestedItems        int  `conf:"default:1000"`
-			MaxConcurrentConnections int  `conf:"default:30"`
+			MaxConcurrentConnections int  `conf:"default:20"`
 			BatchSize                int  `conf:"default:10"`
 		}
 	}
