@@ -459,7 +459,7 @@ func (sp *SyncProcessor) synchronize() error {
 
 	for _, epochDelta := range sp.syncDelta {
 
-		if epochDelta.Epoch == 105 {
+		if epochDelta.Epoch == 105 || epochDelta.Epoch == 106 {
 			continue
 		}
 
