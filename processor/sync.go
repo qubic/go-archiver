@@ -459,6 +459,10 @@ func (sp *SyncProcessor) synchronize() error {
 
 	for _, epochDelta := range sp.syncDelta {
 
+		if epochDelta.Epoch == 105 {
+			continue
+		}
+
 		if sp.lastSynchronizedTick.Epoch > epochDelta.Epoch {
 			continue
 		}
