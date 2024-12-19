@@ -11,6 +11,8 @@ import (
 	"github.com/qubic/go-archiver/validator/tick"
 	qubic "github.com/qubic/go-node-connector"
 	"log"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"runtime"
@@ -34,6 +36,7 @@ func run() error {
 			ShutdownTimeout   time.Duration `conf:"default:5s"`
 			HttpHost          string        `conf:"default:0.0.0.0:8000"`
 			GrpcHost          string        `conf:"default:0.0.0.0:8001"`
+			ProfilingHost     string        `conf:"default:0.0.0.0:8002"`
 			NodeSyncThreshold int           `conf:"default:3"`
 			ChainTickFetchUrl string        `conf:"default:http://127.0.0.1:8080/max-tick"`
 		}
@@ -178,6 +181,12 @@ func run() error {
 	// Start the service listening for requests.
 	go func() {
 		procErrors <- proc.Start()
+	}()
+
+	pprofErrors := make(chan error, 1)
+
+	go func() {
+		pprofErrors <- http.ListenAndServe(cfg.Server.ProfilingHost, nil)
 	}()
 
 	for {

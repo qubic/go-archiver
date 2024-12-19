@@ -15,6 +15,7 @@ RUN chmod +x /app/go-archiver
 
 EXPOSE 8000
 EXPOSE 8001
+EXPOSE 8002
 
 WORKDIR /app
 
