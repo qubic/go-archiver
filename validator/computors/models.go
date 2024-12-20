@@ -36,7 +36,7 @@ func pubKeysToIdentities(pubKeys [types.NumberOfComputors][32]byte) ([]string, e
 	return identities, nil
 }
 
-func protoToQubic(computors *protobuff.Computors) (types.Computors, error) {
+func ProtoToQubic(computors *protobuff.Computors) (types.Computors, error) {
 	pubKeys, err := identitiesToPubKeys(computors.Identities)
 	if err != nil {
 		return types.Computors{}, errors.Wrap(err, "converting proto identities to qubic model")

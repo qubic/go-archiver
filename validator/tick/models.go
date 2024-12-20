@@ -2,13 +2,14 @@ package tick
 
 import (
 	"encoding/hex"
+	"fmt"
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-node-connector/types"
 	"time"
 )
 
-func qubicToProto(tickData types.TickData) (*protobuff.TickData, error) {
+func QubicToProto(tickData types.TickData) (*protobuff.TickData, error) {
 	if tickData.IsEmpty() {
 		return nil, nil
 	}
@@ -116,4 +117,146 @@ func IsTickLastInAnyEpochInterval(tickNumber uint32, epoch uint32, intervals []*
 	}
 
 	return false, -1, nil
+}
+
+func identitiesToDigests(identities []string) ([types.NumberOfTransactionsPerTick][32]byte, error) {
+
+	var digests [types.NumberOfTransactionsPerTick][32]byte
+
+	for index, identity := range identities {
+
+		id := types.Identity(identity)
+		digest, err := id.ToPubKey(true)
+		if err != nil {
+			return [1024][32]byte{}, errors.Wrapf(err, "obtaining digest from transaction id %s", identity)
+		}
+		digests[index] = digest
+	}
+
+	return digests, nil
+}
+
+func contractFeesFromProto(feesProto []int64) ([1024]int64, error) {
+
+	if len(feesProto) > 1024 {
+		return [1024]int64{}, errors.New(fmt.Sprintf("fees array length larger than maximum allowed: %d > 1024 ", len(feesProto)))
+	}
+
+	var contractFees [1024]int64
+	for index, fee := range feesProto {
+		contractFees[index] = fee
+	}
+	return contractFees, nil
+
+}
+
+func ProtoToQubic(tickData *protobuff.TickData) (types.TickData, error) {
+
+	if CheckIfTickIsEmptyProto(tickData) {
+		return types.TickData{}, nil
+	}
+
+	tickTime := time.UnixMilli(int64(tickData.Timestamp)).UTC()
+	tickTimeNoMilli := time.Date(tickTime.Year(), tickTime.Month(), tickTime.Day(), tickTime.Hour(), tickTime.Minute(), tickTime.Second(), 0, time.UTC)
+	milli := tickTime.UnixMilli() - tickTimeNoMilli.UnixMilli()
+
+	var timeLock [32]byte
+	copy(timeLock[:], tickData.TimeLock[:])
+
+	transactionDigests, err := identitiesToDigests(tickData.TransactionIds)
+	if err != nil {
+		return types.TickData{}, errors.Wrap(err, "decoding transaction ids to digests")
+	}
+
+	contractFees, err := contractFeesFromProto(tickData.ContractFees)
+	if err != nil {
+		return types.TickData{}, errors.Wrap(err, "converting contract fees")
+	}
+
+	decodedSignature, err := hex.DecodeString(tickData.SignatureHex)
+	if err != nil {
+		return types.TickData{}, errors.Wrap(err, "decoding signature")
+	}
+
+	var signature [types.SignatureSize]byte
+	copy(signature[:], decodedSignature[:])
+
+	data := types.TickData{
+		ComputorIndex:      uint16(tickData.ComputorIndex),
+		Epoch:              uint16(tickData.Epoch),
+		Tick:               tickData.TickNumber,
+		Millisecond:        uint16(milli),
+		Second:             uint8(tickTime.Second()),
+		Minute:             uint8(tickTime.Minute()),
+		Hour:               uint8(tickTime.Hour()),
+		Day:                uint8(tickTime.Day()),
+		Month:              uint8(tickTime.Month()),
+		Year:               uint8(tickTime.Year() - 2000),
+		Timelock:           timeLock,
+		TransactionDigests: transactionDigests,
+		ContractFees:       contractFees,
+		Signature:          signature,
+	}
+
+	return data, nil
+}
+
+func ProtoToQubicFull(tickData *protobuff.TickData) (FullTickData, error) {
+
+	qubicTickData, err := ProtoToQubic(tickData)
+	if err != nil {
+		return FullTickData{}, errors.Wrap(err, "converting tick data to qubic format")
+	}
+
+	varStruct := tickData.VarStruct
+	var unionData [256]byte
+	copy(unionData[:], varStruct[:])
+
+	return FullTickData{
+		ComputorIndex:      qubicTickData.ComputorIndex,
+		Epoch:              qubicTickData.Epoch,
+		Tick:               qubicTickData.Tick,
+		Millisecond:        qubicTickData.Millisecond,
+		Second:             qubicTickData.Second,
+		Minute:             qubicTickData.Minute,
+		Hour:               qubicTickData.Hour,
+		Day:                qubicTickData.Day,
+		Month:              qubicTickData.Month,
+		Year:               qubicTickData.Year,
+		Timelock:           qubicTickData.Timelock,
+		UnionData:          unionData,
+		TransactionDigests: qubicTickData.TransactionDigests,
+		ContractFees:       qubicTickData.ContractFees,
+		Signature:          qubicTickData.Signature,
+	}, nil
+}
+
+func QubicFullToProto(tickData FullTickData) (*protobuff.TickData, error) {
+
+	oldTickData := types.TickData{
+		ComputorIndex:      tickData.ComputorIndex,
+		Epoch:              tickData.Epoch,
+		Tick:               tickData.Tick,
+		Millisecond:        tickData.Millisecond,
+		Second:             tickData.Second,
+		Minute:             tickData.Minute,
+		Hour:               tickData.Hour,
+		Day:                tickData.Day,
+		Month:              tickData.Month,
+		Year:               tickData.Year,
+		Timelock:           tickData.Timelock,
+		TransactionDigests: tickData.TransactionDigests,
+		ContractFees:       tickData.ContractFees,
+		Signature:          tickData.Signature,
+	}
+
+	proto, err := QubicToProto(oldTickData)
+	if err != nil {
+		return nil, errors.Wrapf(err, "qubic to proto")
+	}
+
+	proto.VarStruct = tickData.UnionData[:]
+
+	return proto, nil
+
 }

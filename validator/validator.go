@@ -164,33 +164,41 @@ func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumb
 	}
 
 	if isEmpty {
-		emptyTicks, err := v.store.GetEmptyTicksForEpoch(uint32(epoch))
+		err = handleEmptyTick(v.store, tickNumber, uint32(epoch))
 		if err != nil {
-			if !errors.Is(err, pebble.ErrNotFound) {
-				return errors.Wrap(err, "getting empty ticks for current epoch")
-			}
+			return errors.Wrap(err, "handling empty tick")
 		}
+	}
+	return nil
+}
 
-		if emptyTicks == 0 {
-			fmt.Printf("Initializing empty ticks for epoch: %d\n", epoch)
-			err := v.store.SetEmptyTickListPerEpoch(uint32(epoch), make([]uint32, 0))
-			if err != nil {
-				return errors.Wrapf(err, "initializing empty tick list for epoch %d", epoch)
-			}
+func handleEmptyTick(pebbleStore *store.PebbleStore, tickNumber, epoch uint32) error {
+	emptyTicks, err := pebbleStore.GetEmptyTicksForEpoch(epoch)
+	if err != nil {
+		if !errors.Is(err, pebble.ErrNotFound) {
+			return errors.Wrap(err, "getting empty ticks for current epoch")
 		}
+	}
 
-		emptyTicks += 1
-
-		err = v.store.SetEmptyTicksForEpoch(uint32(epoch), emptyTicks)
+	if emptyTicks == 0 {
+		fmt.Printf("Initializing empty ticks for epoch: %d\n", epoch)
+		err := pebbleStore.SetEmptyTickListPerEpoch(epoch, make([]uint32, 0))
 		if err != nil {
-			return errors.Wrap(err, "setting current ticks for current epoch")
+			return errors.Wrapf(err, "initializing empty tick list for epoch %d", epoch)
 		}
-		fmt.Printf("Empty ticks for epoch %d: %d\n", epoch, emptyTicks)
+	}
 
-		err = v.store.AppendEmptyTickToEmptyTickListPerEpoch(uint32(epoch), tickNumber)
-		if err != nil {
-			return errors.Wrap(err, "appending tick to empty tick list")
-		}
+	emptyTicks += 1
+
+	err = pebbleStore.SetEmptyTicksForEpoch(epoch, emptyTicks)
+	if err != nil {
+		return errors.Wrap(err, "setting current ticks for current epoch")
+	}
+	fmt.Printf("Empty ticks for epoch %d: %d\n", epoch, emptyTicks)
+
+	err = pebbleStore.AppendEmptyTickToEmptyTickListPerEpoch(epoch, tickNumber)
+	if err != nil {
+		return errors.Wrap(err, "appending tick to empty tick list")
 	}
 	return nil
 }

@@ -77,7 +77,7 @@ func getFullDigestFromTickData(data types.TickData) ([32]byte, error) {
 }
 
 func Store(ctx context.Context, store *store.PebbleStore, tickNumber uint32, tickData types.TickData) error {
-	protoTickData, err := qubicToProto(tickData)
+	protoTickData, err := QubicToProto(tickData)
 	if err != nil {
 		return errors.Wrap(err, "converting qubic tick data to proto")
 	}

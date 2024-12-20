@@ -3,7 +3,36 @@ package store
 import (
 	"github.com/cockroachdb/pebble"
 	"log"
+	"sync"
 )
+
+type CompactionCountMutex struct {
+	mutex sync.RWMutex
+	value int
+}
+
+func (ccm *CompactionCountMutex) increment() {
+	ccm.mutex.Lock()
+	defer ccm.mutex.Unlock()
+	ccm.value++
+}
+
+func (ccm *CompactionCountMutex) decrement() {
+	ccm.mutex.Lock()
+	defer ccm.mutex.Unlock()
+	ccm.value--
+}
+
+func (ccm *CompactionCountMutex) Get() int {
+	ccm.mutex.RLock()
+	defer ccm.mutex.RUnlock()
+	return ccm.value
+}
+
+var CompactionCount = &CompactionCountMutex{
+	mutex: sync.RWMutex{},
+	value: 0,
+}
 
 type PebbleEventListener struct {
 	pebble.EventListener
@@ -37,12 +66,13 @@ func compactionBegin(info pebble.CompactionInfo) {
 	for _, level := range info.Input {
 		log.Printf("  From Level %d - %s\n", level.Level, level.String())
 	}
-	log.Printf("  To level %d %ss\n", info.Output.Level, info.Output.String())
-
+	log.Printf("  To level %d %s\n", info.Output.Level, info.Output.String())
+	CompactionCount.increment()
 }
 
 func compactionEnd(info pebble.CompactionInfo) {
 	log.Printf("[PEBBLE]: Compaction with JobID %d ended. Took %v\n", info.JobID, info.TotalDuration)
+	CompactionCount.decrement()
 }
 
 func flushBegin(info pebble.FlushInfo) {

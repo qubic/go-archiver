@@ -115,7 +115,7 @@ func Store(ctx context.Context, store *store.PebbleStore, tickNumber uint32, tra
 }
 
 func storeTickTransactions(ctx context.Context, store *store.PebbleStore, transactions types.Transactions) error {
-	protoModel, err := qubicToProto(transactions)
+	protoModel, err := QubicToProto(transactions)
 	if err != nil {
 		return errors.Wrap(err, "converting to proto")
 	}

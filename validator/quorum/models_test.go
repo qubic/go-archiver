@@ -97,7 +97,7 @@ func TestQubicModelToProto(t *testing.T) {
 	}
 
 	// Invoke the function under test
-	result := qubicToProto(mockData)
+	result := QubicToProto(mockData)
 
 	if diff := cmp.Diff(expectedProtoQuorumTickData, result, cmpopts.IgnoreUnexported(protobuff.QuorumTickData{}, protobuff.QuorumTickStructure{}, protobuff.QuorumDiff{})); diff != "" {
 		t.Errorf("Unexpected result: %v", diff)

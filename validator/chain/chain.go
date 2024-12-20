@@ -14,7 +14,7 @@ func ComputeAndSave(ctx context.Context, store *store.PebbleStore, initialEpochT
 		return errors.Wrap(err, "getting prev chain digest")
 	}
 
-	currentDigest, err := computeCurrentTickDigest(ctx, quorumVote, prevDigest)
+	currentDigest, err := ComputeCurrentTickDigest(ctx, quorumVote, prevDigest)
 	if err != nil {
 		return errors.Wrap(err, "computing current tick digest")
 	}
@@ -37,7 +37,7 @@ func ComputeStoreAndSave(ctx context.Context, store *store.PebbleStore, initialE
 		return errors.Wrap(err, "getting prev chain digest")
 	}
 
-	currentDigest, err := computeCurrentTickStoreDigest(ctx, validTxs, tickTxsStatus, prevDigest)
+	currentDigest, err := ComputeCurrentTickStoreDigest(ctx, validTxs, tickTxsStatus, prevDigest)
 	if err != nil {
 		return errors.Wrap(err, "computing current tick digest")
 	}
@@ -85,7 +85,7 @@ func getPrevChainDigest(ctx context.Context, store *store.PebbleStore, initialEp
 	return previousTickChainDigest, nil
 }
 
-func computeCurrentTickDigest(ctx context.Context, vote types.QuorumTickVote, previousTickChainDigest [32]byte) ([32]byte, error) {
+func ComputeCurrentTickDigest(ctx context.Context, vote types.QuorumTickVote, previousTickChainDigest [32]byte) ([32]byte, error) {
 	chain := Chain{
 		Epoch:                         vote.Epoch,
 		Tick:                          vote.Tick,
@@ -111,7 +111,7 @@ func computeCurrentTickDigest(ctx context.Context, vote types.QuorumTickVote, pr
 	return digest, nil
 }
 
-func computeCurrentTickStoreDigest(ctx context.Context, validTxs []types.Transaction, tickTxsStatus *protobuff.TickTransactionsStatus, previousTickChainDigest [32]byte) ([32]byte, error) {
+func ComputeCurrentTickStoreDigest(ctx context.Context, validTxs []types.Transaction, tickTxsStatus *protobuff.TickTransactionsStatus, previousTickChainDigest [32]byte) ([32]byte, error) {
 	s := Store{
 		PreviousTickStoreDigest: previousTickChainDigest,
 		ValidTxs:                validTxs,

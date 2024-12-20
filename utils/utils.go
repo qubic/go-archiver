@@ -8,6 +8,10 @@ import (
 	"github.com/pkg/errors"
 )
 
+const ArchiverVersion = "dev"
+
+var SyncMaxConnReachedErr = errors.New("max connection count reached, please try again later")
+
 type SigVerifierFunc = func(ctx context.Context, pubkey [32]byte, digest [32]byte, sig [64]byte) error
 
 func K12Hash(data []byte) ([32]byte, error) {

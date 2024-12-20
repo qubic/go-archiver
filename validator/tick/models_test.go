@@ -85,7 +85,7 @@ func TestQubicToProto(t *testing.T) {
 		SignatureHex:   fillStringTo(128, "0102030405060708091001020304050607080910"),
 	}
 
-	got, err := qubicToProto(qubicTickData)
+	got, err := QubicToProto(qubicTickData)
 	if err != nil {
 		t.Fatalf("qubicToProto() unexpected error: %v", err)
 	}
@@ -93,7 +93,7 @@ func TestQubicToProto(t *testing.T) {
 		t.Fatalf("qubicToProto() mismatch (-got +want):\n%s", diff)
 	}
 
-	got, err = qubicToProto(types.TickData{})
+	got, err = QubicToProto(types.TickData{})
 	if err != nil {
 		t.Fatalf("qubicToProto() unexpected error: %v", err)
 	}
