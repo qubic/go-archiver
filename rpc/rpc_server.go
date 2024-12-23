@@ -370,14 +370,9 @@ func (s *Server) GetStatus(ctx context.Context, _ *emptypb.Empty) (*protobuff.Ge
 		return nil, status.Errorf(codes.Internal, "getting processed tick intervals")
 	}
 
-	var epochs []uint32
-	for epoch, _ := range lastProcessedTicksPerEpoch {
-		epochs = append(epochs, epoch)
-	}
-
-	emptyTicksForAllEpochs, err := s.store.GetEmptyTicksForEpochs(epochs)
+	emptyTickForCurrentEpoch, err := s.store.GetEmptyTicksForEpoch(lastProcessedTick.Epoch)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "getting empty ticks for all epochs: %v", err)
+		return nil, status.Errorf(codes.Internal, "getting empty ticks for current epoch: %v", err)
 	}
 
 	return &protobuff.GetStatusResponse{
@@ -385,7 +380,7 @@ func (s *Server) GetStatus(ctx context.Context, _ *emptypb.Empty) (*protobuff.Ge
 		LastProcessedTicksPerEpoch:     lastProcessedTicksPerEpoch,
 		SkippedTicks:                   skippedTicks.SkippedTicks,
 		ProcessedTickIntervalsPerEpoch: ptie,
-		EmptyTicksPerEpoch:             emptyTicksForAllEpochs,
+		EmptyTicksPerEpoch:             map[uint32]uint32{lastProcessedTick.Epoch: emptyTickForCurrentEpoch},
 	}, nil
 }
 
