@@ -11,11 +11,11 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/qubic/go-node-connector v0.10.2
 	github.com/qubic/go-schnorrq v1.0.1
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20241007155032-5fefd90f89a9
 	google.golang.org/grpc v1.67.1
-	google.golang.org/protobuf v1.35.1
+	google.golang.org/protobuf v1.36.1
 )
 
 require (
@@ -48,7 +48,7 @@ require (
 	github.com/silenceper/pool v1.0.0 // indirect
 	github.com/sirupsen/logrus v1.9.0 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
-	golang.org/x/exp v0.0.0-20230626212559-97b1e661b5df // indirect
+	golang.org/x/exp v0.0.0-20240325151524-a685a6edb6d8 // indirect
 	golang.org/x/net v0.28.0 // indirect
 	golang.org/x/sys v0.26.0 // indirect
 	golang.org/x/text v0.17.0 // indirect

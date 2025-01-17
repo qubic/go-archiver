@@ -235,7 +235,8 @@ message PerTickIdentityTransfers {
 }
 
 message GetIdentityTransfersInTickRangeResponseV2 {
-  repeated PerTickIdentityTransfers transactions = 1;
+  Pagination pagination = 1;
+  repeated PerTickIdentityTransfers transactions = 2;
 }
 
 //SendMany Transaction
@@ -319,6 +320,8 @@ message GetTransferTransactionsPerTickRequestV2 {
   uint32 end_tick = 3;
   bool sc_only = 4;
   bool desc = 5;
+  uint32 page = 6;
+  uint32 page_size = 7;
 }
 
 message Pagination {
