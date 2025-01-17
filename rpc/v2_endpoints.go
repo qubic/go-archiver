@@ -318,7 +318,21 @@ func (s *Server) GetSendManyTransactionV2(ctx context.Context, req *protobuff.Ge
 }
 
 func (s *Server) GetIdentityTransfersInTickRangeV2(ctx context.Context, req *protobuff.GetTransferTransactionsPerTickRequestV2) (*protobuff.GetIdentityTransfersInTickRangeResponseV2, error) {
-	txs, err := s.store.GetTransferTransactions(ctx, req.Identity, uint64(req.GetStartTick()), uint64(req.GetEndTick()))
+
+	var pageSize uint32
+	if req.GetPageSize() > 1000 {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid page size")
+	} else if req.GetPageSize() == 0 {
+		pageSize = 1000
+	} else {
+		pageSize = req.GetPageSize()
+	}
+	pageNumber := max(0, int(req.Page)-1) // API index starts with '1', implementation index starts with '0'.
+	txs, totalCount, err := s.store.GetTransferTransactionsPaged(ctx, req.Identity,
+		uint64(req.GetStartTick()), uint64(req.GetEndTick()),
+		store.Pageable{Page: uint32(pageNumber), Size: pageSize},
+		store.Sortable{Descending: req.Desc},
+		store.Filterable{ScOnly: req.ScOnly})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "getting transfer transactions: %s", err.Error())
 	}
@@ -335,9 +349,10 @@ func (s *Server) GetIdentityTransfersInTickRangeV2(ctx context.Context, req *pro
 				return nil, status.Errorf(codes.Internal, "Got Err: %s when getting transaction info for tx id: %s", err.Error(), transaction.TxId)
 			}
 
-			if req.ScOnly == true && transaction.GetInputType() == 0 {
-				continue
-			}
+			// TODO move into store and remove me later
+			//if req.ScOnly == true && transaction.GetInputType() == 0 {
+			//	continue
+			//}
 
 			transactionData := &protobuff.TransactionData{
 				Transaction: transaction,
@@ -357,18 +372,51 @@ func (s *Server) GetIdentityTransfersInTickRangeV2(ctx context.Context, req *pro
 		totalTransactions = append(totalTransactions, transfers)
 	}
 
-	if req.Desc == true {
-
-		slices.SortFunc(totalTransactions, func(a, b *protobuff.PerTickIdentityTransfers) int {
-			return -cmp.Compare(a.TickNumber, b.TickNumber)
-		})
-
-	}
+	// FIXME move into store and remove me later
+	//if req.Desc == true {
+	//
+	//	slices.SortFunc(totalTransactions, func(a, b *protobuff.PerTickIdentityTransfers) int {
+	//		return -cmp.Compare(a.TickNumber, b.TickNumber)
+	//	})
+	//
+	//}
 
 	return &protobuff.GetIdentityTransfersInTickRangeResponseV2{
+		Pagination:   getPaginationInformation(totalCount, pageNumber+1, int(pageSize)),
 		Transactions: totalTransactions,
 	}, nil
 
+}
+
+// ATTENTION: first page has pageNumber == 1 as API starts with index 1
+func getPaginationInformation(totalRecords, pageNumber, pageSize int) *protobuff.Pagination {
+
+	totalPages := totalRecords / pageSize // rounds down
+	if totalRecords%pageSize != 0 {
+		totalPages += 1
+	}
+
+	// next page starts at index 1. -1 if no next page.
+	nextPage := pageNumber + 1
+	if nextPage > totalPages {
+		nextPage = -1
+	}
+
+	// previous page starts at index 1. -1 if no previous page
+	previousPage := pageNumber - 1
+	if previousPage == 0 {
+		previousPage = -1
+	}
+
+	pagination := protobuff.Pagination{
+		TotalRecords: int32(totalRecords),
+		CurrentPage:  int32(min(totalRecords, pageNumber)), // 0 if there are no records
+		TotalPages:   int32(totalPages),                    // 0 if there are no records
+		PageSize:     int32(pageSize),
+		NextPage:     int32(nextPage),     // -1 if there is none
+		PreviousPage: int32(previousPage), // -1 if there is none
+	}
+	return &pagination
 }
 
 func (s *Server) GetEmptyTickListV2(ctx context.Context, req *protobuff.GetEmptyTickListRequestV2) (*protobuff.GetEmptyTickListResponseV2, error) {

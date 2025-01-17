@@ -399,36 +399,111 @@ func (s *PebbleStore) PutTransferTransactionsPerTick(ctx context.Context, identi
 	return nil
 }
 
+type Pageable struct {
+	Page, Size uint32
+}
+
+type Sortable struct {
+	Descending bool
+}
+
+type Filterable struct {
+	ScOnly bool
+}
+
 func (s *PebbleStore) GetTransferTransactions(ctx context.Context, identity string, startTick, endTick uint64) ([]*protobuff.TransferTransactionsPerTick, error) {
+	transfers, _, err := s.GetTransferTransactionsPaged(ctx, identity, startTick, endTick,
+		Pageable{0, 1000},
+		Sortable{false},
+		Filterable{false},
+	)
+	return transfers, err
+}
+
+func (s *PebbleStore) GetTransferTransactionsPaged(_ context.Context, identity string, startTick, endTick uint64, page Pageable, sort Sortable, filter Filterable) ([]*protobuff.TransferTransactionsPerTick, int, error) {
+
+	var index, start, end int
+	start = int(page.Page) * int(page.Size)
+	end = start + int(page.Size)
+
+	var transferTxs []*protobuff.TransferTransactionsPerTick
+	transferTxs = make([]*protobuff.TransferTransactionsPerTick, 0, min(page.Size, 1000))
+
 	partialKey := identityTransferTransactions(identity)
 	iter, err := s.db.NewIter(&pebble.IterOptions{
 		LowerBound: binary.BigEndian.AppendUint64(partialKey, startTick),
 		UpperBound: binary.BigEndian.AppendUint64(partialKey, endTick+1),
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "creating iter")
+		return nil, -1, errors.Wrap(err, "creating iterator")
 	}
 	defer iter.Close()
 
-	transferTxs := make([]*protobuff.TransferTransactionsPerTick, 0)
-
-	for iter.First(); iter.Valid(); iter.Next() {
-		value, err := iter.ValueAndErr()
-		if err != nil {
-			return nil, errors.Wrap(err, "getting value from iter")
+	if sort.Descending { // TODO test
+		for iter.Last(); iter.Valid(); iter.Prev() {
+			index, transferTxs, err = getTransfersPage(iter, index, transferTxs, start, end, filter)
 		}
-
-		var perTick protobuff.TransferTransactionsPerTick
-
-		err = proto.Unmarshal(value, &perTick)
-		if err != nil {
-			return nil, errors.Wrap(err, "unmarshalling transfer tx per tick to protobuff type")
+	} else {
+		for iter.First(); iter.Valid(); iter.Next() { // per tick
+			index, transferTxs, err = getTransfersPage(iter, index, transferTxs, start, end, filter)
 		}
-
-		transferTxs = append(transferTxs, &perTick)
+	}
+	if err != nil {
+		return nil, -1, errors.Wrap(err, "getting transfers page")
 	}
 
-	return transferTxs, nil
+	return transferTxs, index, nil
+}
+
+func getTransfersPage(iter *pebble.Iterator, index int, transferTxs []*protobuff.TransferTransactionsPerTick, pageStart int, pageEnd int, filter Filterable) (int, []*protobuff.TransferTransactionsPerTick, error) {
+	value, err := iter.ValueAndErr()
+	if err != nil {
+		return -1, nil, errors.Wrap(err, "getting value from iter")
+	}
+
+	var perTick protobuff.TransferTransactionsPerTick
+	var toBeAdded *protobuff.TransferTransactionsPerTick
+
+	err = proto.Unmarshal(value, &perTick)
+	if err != nil {
+		return -1, nil, errors.Wrap(err, "unmarshalling transfer tx per tick to protobuff type")
+	}
+
+	transactions := filterTransactions(filter, &perTick) // TODO TEST
+
+	count := len(transactions)
+	if count > 0 && index+count >= pageStart && index < pageEnd {
+
+		startIndex := max(pageStart-index, 0) // if index < pageStart we need to skip first items
+		endIndex := min(pageEnd-index, count)
+		// log.Printf("index [%d], pageStart [%d], pageEnd [%d], slice [%d:%d].", index, pageStart, pageEnd, startIndex, endIndex)
+
+		if index+count >= pageStart && endIndex > startIndex { // covers case index >= pageStart and index+count >= pageStart
+			toBeAdded = &protobuff.TransferTransactionsPerTick{
+				TickNumber:   perTick.GetTickNumber(),
+				Identity:     perTick.GetIdentity(),
+				Transactions: transactions[startIndex:endIndex],
+			}
+			transferTxs = append(transferTxs, toBeAdded)
+		}
+	}
+	index += count
+	return index, transferTxs, nil
+}
+
+func filterTransactions(filter Filterable, perTick *protobuff.TransferTransactionsPerTick) []*protobuff.Transaction {
+	var transactions []*protobuff.Transaction
+	if filter.ScOnly { // filter if necessary
+		transactions = make([]*protobuff.Transaction, 0)
+		for _, tx := range perTick.GetTransactions() {
+			if tx.InputType != 0 {
+				transactions = append(transactions, tx)
+			}
+		}
+	} else {
+		transactions = perTick.GetTransactions()
+	}
+	return transactions
 }
 
 func (s *PebbleStore) PutChainDigest(ctx context.Context, tickNumber uint32, digest []byte) error {

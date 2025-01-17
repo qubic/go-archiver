@@ -566,6 +566,8 @@ func TestPebbleStore_TransferTransactions(t *testing.T) {
 
 	got, err := store.GetTransferTransactions(ctx, idOne, 12, 12)
 	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.Len(t, got[0].Transactions, 2)
 	diff := cmp.Diff([]*pb.TransferTransactionsPerTick{&forTickOne}, got, cmpopts.IgnoreUnexported(pb.TransferTransactionsPerTick{}, pb.Transaction{}))
 	require.Equal(t, "", diff, "comparing first TransferTransactionsPerTick for idOne, forTickOne")
 
@@ -602,6 +604,7 @@ func TestPebbleStore_TransferTransactions(t *testing.T) {
 	diff = cmp.Diff([]*pb.TransferTransactionsPerTick{}, perTickTx, cmpopts.IgnoreUnexported(pb.TransferTransactionsPerTick{}, pb.Transaction{}))
 	require.Equal(t, "", diff, "comparison of perTickTx for idOne and tick 14")
 }
+
 func TestPebbleStore_ChainHash(t *testing.T) {
 	ctx := context.Background()
 
