@@ -30,7 +30,8 @@ type SyncConfiguration struct {
 	Sources           []string
 	ResponseTimeout   time.Duration
 	EnableCompression bool
-	RetryCount        int
+	FetchRoutineCount int
+	RetryTimeout      time.Duration
 }
 
 type Processor struct {

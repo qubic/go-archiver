@@ -61,7 +61,8 @@ func run() error {
 			Sources           []string      `conf:"default:localhost:8001"`
 			ResponseTimeout   time.Duration `conf:"default:1m"`
 			EnableCompression bool          `conf:"default:true"`
-			RetryCount        int           `conf:"default:10"`
+			RetryTimeout      time.Duration `conf:"default:5s"`
+			FetchRoutineCount int           `conf:"default:6"`
 		}
 		Bootstrap struct {
 			Enable                   bool `conf:"default:true"`
@@ -191,7 +192,8 @@ func run() error {
 		Sources:           cfg.Sync.Sources,
 		ResponseTimeout:   cfg.Sync.ResponseTimeout,
 		EnableCompression: cfg.Sync.EnableCompression,
-		RetryCount:        cfg.Sync.RetryCount,
+		FetchRoutineCount: cfg.Sync.FetchRoutineCount,
+		RetryTimeout:      cfg.Sync.RetryTimeout,
 	}
 
 	rpcServer := rpc.NewServer(cfg.Server.GrpcHost, cfg.Server.HttpHost, cfg.Server.NodeSyncThreshold, cfg.Server.ChainTickFetchUrl, ps, p, bootstrapConfiguration, syncConfiguration)

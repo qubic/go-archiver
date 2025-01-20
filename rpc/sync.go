@@ -19,29 +19,6 @@ import (
 
 var _ protobuff.SyncServiceServer = &SyncService{}
 
-type currentConnectionCount struct {
-	mutex sync.RWMutex
-	value int
-}
-
-func (c *currentConnectionCount) getValue() int {
-	c.mutex.RLock()
-	defer c.mutex.RUnlock()
-	return c.value
-}
-
-func (c *currentConnectionCount) increment() {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	c.value += 1
-}
-
-func (c *currentConnectionCount) decrement() {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	c.value -= 1
-}
-
 type SyncClientService struct {
 	protobuff.UnimplementedSyncClientServiceServer
 }
@@ -255,4 +232,27 @@ func (scs *SyncClientService) SyncGetStatus(ctx context.Context, _ *emptypb.Empt
 		},
 	}, nil
 
+}
+
+type currentConnectionCount struct {
+	mutex sync.RWMutex
+	value int
+}
+
+func (c *currentConnectionCount) getValue() int {
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+	return c.value
+}
+
+func (c *currentConnectionCount) increment() {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	c.value += 1
+}
+
+func (c *currentConnectionCount) decrement() {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	c.value -= 1
 }
