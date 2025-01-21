@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"github.com/cockroachdb/pebble"
+	"github.com/google/martian/log"
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
 	"go.uber.org/zap"
@@ -411,16 +412,16 @@ type Filterable struct {
 	ScOnly bool
 }
 
-func (s *PebbleStore) GetTransferTransactions(ctx context.Context, identity string, startTick, endTick uint64) ([]*protobuff.TransferTransactionsPerTick, error) {
-	transfers, _, err := s.GetTransferTransactionsPaged(ctx, identity, startTick, endTick,
-		Pageable{0, 1000},
-		Sortable{false},
-		Filterable{false},
+func (s *PebbleStore) GetTransactionsForEntity(ctx context.Context, identity string, startTick, endTick uint64) ([]*protobuff.TransferTransactionsPerTick, error) {
+	transfers, _, err := s.GetTransactionsForEntityPaged(ctx, identity, startTick, endTick,
+		Pageable{Size: 1000},
+		Sortable{},
+		Filterable{},
 	)
 	return transfers, err
 }
 
-func (s *PebbleStore) GetTransferTransactionsPaged(_ context.Context, identity string, startTick, endTick uint64, page Pageable, sort Sortable, filter Filterable) ([]*protobuff.TransferTransactionsPerTick, int, error) {
+func (s *PebbleStore) GetTransactionsForEntityPaged(_ context.Context, identity string, startTick, endTick uint64, page Pageable, sort Sortable, filter Filterable) ([]*protobuff.TransferTransactionsPerTick, int, error) {
 
 	var index, start, end int
 	start = int(page.Page) * int(page.Size)
@@ -437,9 +438,14 @@ func (s *PebbleStore) GetTransferTransactionsPaged(_ context.Context, identity s
 	if err != nil {
 		return nil, -1, errors.Wrap(err, "creating iterator")
 	}
-	defer iter.Close()
+	defer func(iter *pebble.Iterator) {
+		err := iter.Close()
+		if err != nil {
+			log.Errorf("closing iterator: %v", err)
+		}
+	}(iter)
 
-	if sort.Descending { // TODO test
+	if sort.Descending {
 		for iter.Last(); iter.Valid(); iter.Prev() {
 			index, transferTxs, err = getTransfersPage(iter, index, transferTxs, start, end, filter)
 		}
@@ -469,7 +475,7 @@ func getTransfersPage(iter *pebble.Iterator, index int, transferTxs []*protobuff
 		return -1, nil, errors.Wrap(err, "unmarshalling transfer tx per tick to protobuff type")
 	}
 
-	transactions := filterTransactions(filter, &perTick) // TODO TEST
+	transactions := filterTransactions(filter, &perTick)
 
 	count := len(transactions)
 	if count > 0 && index+count >= pageStart && index < pageEnd {

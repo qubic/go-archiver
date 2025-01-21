@@ -328,7 +328,7 @@ func (s *Server) GetIdentityTransfersInTickRangeV2(ctx context.Context, req *pro
 		pageSize = req.GetPageSize()
 	}
 	pageNumber := max(0, int(req.Page)-1) // API index starts with '1', implementation index starts with '0'.
-	txs, totalCount, err := s.store.GetTransferTransactionsPaged(ctx, req.Identity,
+	txs, totalCount, err := s.store.GetTransactionsForEntityPaged(ctx, req.Identity,
 		uint64(req.GetStartTick()), uint64(req.GetEndTick()),
 		store.Pageable{Page: uint32(pageNumber), Size: pageSize},
 		store.Sortable{Descending: req.Desc},
@@ -349,11 +349,6 @@ func (s *Server) GetIdentityTransfersInTickRangeV2(ctx context.Context, req *pro
 				return nil, status.Errorf(codes.Internal, "Got Err: %s when getting transaction info for tx id: %s", err.Error(), transaction.TxId)
 			}
 
-			// TODO move into store and remove me later
-			//if req.ScOnly == true && transaction.GetInputType() == 0 {
-			//	continue
-			//}
-
 			transactionData := &protobuff.TransactionData{
 				Transaction: transaction,
 				Timestamp:   transactionInfo.timestamp,
@@ -371,15 +366,6 @@ func (s *Server) GetIdentityTransfersInTickRangeV2(ctx context.Context, req *pro
 
 		totalTransactions = append(totalTransactions, transfers)
 	}
-
-	// FIXME move into store and remove me later
-	//if req.Desc == true {
-	//
-	//	slices.SortFunc(totalTransactions, func(a, b *protobuff.PerTickIdentityTransfers) int {
-	//		return -cmp.Compare(a.TickNumber, b.TickNumber)
-	//	})
-	//
-	//}
 
 	return &protobuff.GetIdentityTransfersInTickRangeResponseV2{
 		Pagination:   getPaginationInformation(totalCount, pageNumber+1, int(pageSize)),

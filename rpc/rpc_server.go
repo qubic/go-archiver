@@ -456,7 +456,7 @@ func (s *Server) GetLatestTick(ctx context.Context, _ *emptypb.Empty) (*protobuf
 }
 
 func (s *Server) GetTransferTransactionsPerTick(ctx context.Context, req *protobuff.GetTransferTransactionsPerTickRequest) (*protobuff.GetTransferTransactionsPerTickResponse, error) {
-	txs, err := s.store.GetTransferTransactions(ctx, req.Identity, uint64(req.GetStartTick()), uint64(req.GetEndTick()))
+	txs, err := s.store.GetTransactionsForEntity(ctx, req.Identity, uint64(req.GetStartTick()), uint64(req.GetEndTick()))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "getting transfer transactions: %v", err)
 	}
