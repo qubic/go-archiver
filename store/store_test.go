@@ -564,26 +564,26 @@ func TestPebbleStore_TransferTransactions(t *testing.T) {
 	err = store.PutTransferTransactionsPerTick(ctx, idOne, 13, &forTickOne)
 	require.NoError(t, err)
 
-	got, err := store.GetTransferTransactions(ctx, idOne, 12, 12)
+	got, err := store.GetTransactionsForEntity(ctx, idOne, 12, 12)
 	require.NoError(t, err)
 	require.Len(t, got, 1)
 	require.Len(t, got[0].Transactions, 2)
 	diff := cmp.Diff([]*pb.TransferTransactionsPerTick{&forTickOne}, got, cmpopts.IgnoreUnexported(pb.TransferTransactionsPerTick{}, pb.Transaction{}))
 	require.Equal(t, "", diff, "comparing first TransferTransactionsPerTick for idOne, forTickOne")
 
-	got, err = store.GetTransferTransactions(ctx, idOne, 13, 13)
+	got, err = store.GetTransactionsForEntity(ctx, idOne, 13, 13)
 	require.NoError(t, err)
 	diff = cmp.Diff([]*pb.TransferTransactionsPerTick{&forTickOne}, got, cmpopts.IgnoreUnexported(pb.TransferTransactionsPerTick{}, pb.Transaction{}))
 	require.Equal(t, "", diff, "comparing second TransferTransactionsPerTick for idOne, forTickOne")
 
 	err = store.PutTransferTransactionsPerTick(ctx, idTwo, 15, &forTickTwo)
 	require.NoError(t, err)
-	got, err = store.GetTransferTransactions(ctx, idTwo, 15, 15)
+	got, err = store.GetTransactionsForEntity(ctx, idTwo, 15, 15)
 	require.NoError(t, err)
 	diff = cmp.Diff([]*pb.TransferTransactionsPerTick{&forTickTwo}, got, cmpopts.IgnoreUnexported(pb.TransferTransactionsPerTick{}, pb.Transaction{}))
 	require.Equal(t, "", diff, "comparing TransferTransactionsPerTick for idTwo, forTickTwo")
 
-	perIdentityTx, err := store.GetTransferTransactions(ctx, idOne, 12, 13)
+	perIdentityTx, err := store.GetTransactionsForEntity(ctx, idOne, 12, 13)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(perIdentityTx))
 
@@ -593,13 +593,13 @@ func TestPebbleStore_TransferTransactions(t *testing.T) {
 	require.Equal(t, "", diff, "comparing perIdentityTx")
 
 	// not existing identity means no transfers
-	perIdentityTx, err = store.GetTransferTransactions(ctx, idThree, 1, 20)
+	perIdentityTx, err = store.GetTransactionsForEntity(ctx, idThree, 1, 20)
 	require.NoError(t, err)
 	diff = cmp.Diff([]*pb.TransferTransactionsPerTick{}, perIdentityTx, cmpopts.IgnoreUnexported(pb.TransferTransactionsPerTick{}, pb.Transaction{}))
 	require.Equal(t, "", diff, "comparison of perIdentityTx for idThree")
 
 	// not existing tick means no transfers
-	perTickTx, err := store.GetTransferTransactions(ctx, idOne, 14, 14)
+	perTickTx, err := store.GetTransactionsForEntity(ctx, idOne, 14, 14)
 	require.NoError(t, err)
 	diff = cmp.Diff([]*pb.TransferTransactionsPerTick{}, perTickTx, cmpopts.IgnoreUnexported(pb.TransferTransactionsPerTick{}, pb.Transaction{}))
 	require.Equal(t, "", diff, "comparison of perTickTx for idOne and tick 14")
