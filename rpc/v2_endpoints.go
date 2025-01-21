@@ -317,13 +317,16 @@ func (s *Server) GetSendManyTransactionV2(ctx context.Context, req *protobuff.Ge
 	}, nil
 }
 
+const maxPageSize uint32 = 100
+const defaultPageSize uint32 = 100
+
 func (s *Server) GetIdentityTransfersInTickRangeV2(ctx context.Context, req *protobuff.GetTransferTransactionsPerTickRequestV2) (*protobuff.GetIdentityTransfersInTickRangeResponseV2, error) {
 
 	var pageSize uint32
-	if req.GetPageSize() > 1000 {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid page size")
+	if req.GetPageSize() > maxPageSize { // max size
+		return nil, status.Errorf(codes.InvalidArgument, "Invalid page size (maximum is %d).", maxPageSize)
 	} else if req.GetPageSize() == 0 {
-		pageSize = 1000
+		pageSize = defaultPageSize // default
 	} else {
 		pageSize = req.GetPageSize()
 	}

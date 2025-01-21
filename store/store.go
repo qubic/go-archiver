@@ -414,7 +414,7 @@ type Filterable struct {
 
 func (s *PebbleStore) GetTransactionsForEntity(ctx context.Context, identity string, startTick, endTick uint64) ([]*protobuff.TransferTransactionsPerTick, error) {
 	transfers, _, err := s.GetTransactionsForEntityPaged(ctx, identity, startTick, endTick,
-		Pageable{Size: 1000},
+		Pageable{Size: 1000}, // default. old implementation was unlimited.
 		Sortable{},
 		Filterable{},
 	)
