@@ -23,6 +23,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"slices"
 )
 
 var _ protobuff.ArchiveServiceServer = &Server{}
@@ -375,7 +376,10 @@ func (s *Server) GetStatus(ctx context.Context, _ *emptypb.Empty) (*protobuff.Ge
 		epochs = append(epochs, epoch)
 	}
 
-	emptyTicksForAllEpochs, err := s.store.GetEmptyTicksForEpochs(epochs)
+	lowestEpoch := slices.Min(epochs)
+	highestEpoch := slices.Max(epochs)
+
+	emptyTicksForAllEpochs, err := s.store.GetEmptyTicksForEpochs(lowestEpoch, highestEpoch)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "getting empty ticks for all epochs: %v", err)
 	}
