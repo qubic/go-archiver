@@ -671,22 +671,34 @@ func (s *PebbleStore) GetEmptyTicksForEpoch(epoch uint32) (uint32, error) {
 	return emptyTicksCount, nil
 }
 
-func (s *PebbleStore) GetEmptyTicksForEpochs(epochs []uint32) (map[uint32]uint32, error) {
+func (s *PebbleStore) GetEmptyTicksForEpochs(firstEpoch, lastEpoch uint32) (map[uint32]uint32, error) {
 
-	emptyTickMap := make(map[uint32]uint32, len(epochs))
+	iter, err := s.db.NewIter(&pebble.IterOptions{
+		LowerBound: emptyTicksPerEpochKey(firstEpoch),
+		UpperBound: emptyTicksPerEpochKey(lastEpoch + 1), // Increment as upper bound is exclusive
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "creating iter")
+	}
+	defer iter.Close()
 
-	for _, epoch := range epochs {
-		emptyTicks, err := s.GetEmptyTicksForEpoch(epoch)
+	emptyTickMap := make(map[uint32]uint32)
+
+	for iter.First(); iter.Valid(); iter.Next() {
+
+		value, err := iter.ValueAndErr()
 		if err != nil {
-			if !errors.Is(err, pebble.ErrNotFound) {
-				return nil, errors.Wrapf(err, "getting empty ticks for epoch %d", epoch)
-			}
+			return nil, errors.Wrap(err, "getting value from iter")
 		}
-		emptyTickMap[epoch] = emptyTicks
+
+		key := iter.Key()
+		epochNumber := binary.BigEndian.Uint64(key[1:])
+		emptyTicksCount := binary.LittleEndian.Uint32(value)
+
+		emptyTickMap[uint32(epochNumber)] = emptyTicksCount
 	}
 
 	return emptyTickMap, nil
-
 }
 
 func (s *PebbleStore) DeleteEmptyTicksKeyForEpoch(epoch uint32) error {
