@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"github.com/cockroachdb/pebble"
 	"github.com/qubic/go-archiver/validator/tick"
+	"log"
 	"slices"
 
 	"github.com/pkg/errors"
@@ -370,15 +371,33 @@ func (s *Server) GetIdentityTransfersInTickRangeV2(ctx context.Context, req *pro
 		totalTransactions = append(totalTransactions, transfers)
 	}
 
+	pagination, err := getPaginationInformation(totalCount, pageNumber+1, int(pageSize))
+	if err != nil {
+		log.Printf("Error creating pagination info: %s", err.Error())
+		return nil, status.Error(codes.Internal, "creating pagination info")
+	}
+
 	return &protobuff.GetIdentityTransfersInTickRangeResponseV2{
-		Pagination:   getPaginationInformation(totalCount, pageNumber+1, int(pageSize)),
+		Pagination:   pagination,
 		Transactions: totalTransactions,
 	}, nil
 
 }
 
 // ATTENTION: first page has pageNumber == 1 as API starts with index 1
-func getPaginationInformation(totalRecords, pageNumber, pageSize int) *protobuff.Pagination {
+func getPaginationInformation(totalRecords, pageNumber, pageSize int) (*protobuff.Pagination, error) {
+
+	if pageNumber < 1 {
+		return nil, errors.Errorf("invalid page number [%d]", pageNumber)
+	}
+
+	if pageSize < 1 {
+		return nil, errors.Errorf("invalid page size [%d]", pageSize)
+	}
+
+	if totalRecords < 0 {
+		return nil, errors.Errorf("invalid number of total records [%d]", totalRecords)
+	}
 
 	totalPages := totalRecords / pageSize // rounds down
 	if totalRecords%pageSize != 0 {
@@ -402,10 +421,10 @@ func getPaginationInformation(totalRecords, pageNumber, pageSize int) *protobuff
 		CurrentPage:  int32(min(totalRecords, pageNumber)), // 0 if there are no records
 		TotalPages:   int32(totalPages),                    // 0 if there are no records
 		PageSize:     int32(pageSize),
-		NextPage:     int32(nextPage),     // -1 if there is none
-		PreviousPage: int32(previousPage), // -1 if there is none
+		NextPage:     int32(nextPage),                      // -1 if there is none
+		PreviousPage: int32(min(totalPages, previousPage)), // -1 if there is none, do not exceed total pages
 	}
-	return &pagination
+	return &pagination, nil
 }
 
 func (s *Server) GetEmptyTickListV2(ctx context.Context, req *protobuff.GetEmptyTickListRequestV2) (*protobuff.GetEmptyTickListResponseV2, error) {
