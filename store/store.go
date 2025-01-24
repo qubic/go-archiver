@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/binary"
 	"github.com/cockroachdb/pebble"
-	"github.com/google/martian/log"
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
 	"go.uber.org/zap"
@@ -413,8 +412,9 @@ type Filterable struct {
 }
 
 func (s *PebbleStore) GetTransactionsForEntity(ctx context.Context, identity string, startTick, endTick uint64) ([]*protobuff.TransferTransactionsPerTick, error) {
+	const limitForRequestWithoutPaging = 1000 // old implementation was unlimited.
 	transfers, _, err := s.GetTransactionsForEntityPaged(ctx, identity, startTick, endTick,
-		Pageable{Size: 1000}, // default. old implementation was unlimited.
+		Pageable{Size: limitForRequestWithoutPaging},
 		Sortable{},
 		Filterable{},
 	)
@@ -438,12 +438,7 @@ func (s *PebbleStore) GetTransactionsForEntityPaged(_ context.Context, identity 
 	if err != nil {
 		return nil, -1, errors.Wrap(err, "creating iterator")
 	}
-	defer func(iter *pebble.Iterator) {
-		err := iter.Close()
-		if err != nil {
-			log.Errorf("closing iterator: %v", err)
-		}
-	}(iter)
+	defer iter.Close()
 
 	if sort.Descending {
 		for iter.Last(); iter.Valid(); iter.Prev() {
@@ -482,7 +477,6 @@ func getTransfersPage(iter *pebble.Iterator, index int, transferTxs []*protobuff
 
 		startIndex := max(pageStart-index, 0) // if index < pageStart we need to skip first items
 		endIndex := min(pageEnd-index, count)
-		// log.Printf("index [%d], pageStart [%d], pageEnd [%d], slice [%d:%d].", index, pageStart, pageEnd, startIndex, endIndex)
 
 		if index+count >= pageStart && endIndex > startIndex { // covers case index >= pageStart and index+count >= pageStart
 			toBeAdded = &protobuff.TransferTransactionsPerTick{
