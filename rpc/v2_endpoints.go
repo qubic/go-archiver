@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/hex"
 	"github.com/cockroachdb/pebble"
-	"github.com/qubic/go-archiver/validator/tick"
 	"slices"
 
 	"github.com/pkg/errors"
@@ -53,35 +52,6 @@ func (s *Server) GetTickTransactionsV2(ctx context.Context, req *protobuff.GetTi
 }
 
 func (s *Server) GetAllTickTransactionsV2(ctx context.Context, req *protobuff.GetTickRequestV2) (*protobuff.GetTickTransactionsResponseV2, error) {
-	lastProcessedTick, err := s.store.GetLastProcessedTick(ctx)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "getting last processed tick: %v", err)
-	}
-	if req.TickNumber > lastProcessedTick.TickNumber {
-		st := status.Newf(codes.FailedPrecondition, "requested tick number %d is greater than last processed tick %d", req.TickNumber, lastProcessedTick.TickNumber)
-		st, err = st.WithDetails(&protobuff.LastProcessedTick{LastProcessedTick: lastProcessedTick.TickNumber})
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "creating custom status")
-		}
-
-		return nil, st.Err()
-	}
-
-	processedTickIntervalsPerEpoch, err := s.store.GetProcessedTickIntervals(ctx)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "getting processed tick intervals per epoch")
-	}
-
-	wasSkipped, nextAvailableTick := tick.WasSkippedByArchive(req.TickNumber, processedTickIntervalsPerEpoch)
-	if wasSkipped == true {
-		st := status.Newf(codes.OutOfRange, "provided tick number %d was skipped by the system, next available tick is %d", req.TickNumber, nextAvailableTick)
-		st, err = st.WithDetails(&protobuff.NextAvailableTick{NextTickNumber: nextAvailableTick})
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "creating custom status")
-		}
-
-		return nil, st.Err()
-	}
 
 	txs, err := s.store.GetTickTransactions(ctx, req.TickNumber)
 	if err != nil {
@@ -112,35 +82,6 @@ func (s *Server) GetAllTickTransactionsV2(ctx context.Context, req *protobuff.Ge
 }
 
 func (s *Server) GetTransferTickTransactionsV2(ctx context.Context, req *protobuff.GetTickRequestV2) (*protobuff.GetTickTransactionsResponseV2, error) {
-	lastProcessedTick, err := s.store.GetLastProcessedTick(ctx)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "getting last processed tick: %v", err)
-	}
-	if req.TickNumber > lastProcessedTick.TickNumber {
-		st := status.Newf(codes.FailedPrecondition, "requested tick number %d is greater than last processed tick %d", req.TickNumber, lastProcessedTick.TickNumber)
-		st, err = st.WithDetails(&protobuff.LastProcessedTick{LastProcessedTick: lastProcessedTick.TickNumber})
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "creating custom status")
-		}
-
-		return nil, st.Err()
-	}
-
-	processedTickIntervalsPerEpoch, err := s.store.GetProcessedTickIntervals(ctx)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "getting processed tick intervals per epoch")
-	}
-
-	wasSkipped, nextAvailableTick := tick.WasSkippedByArchive(req.TickNumber, processedTickIntervalsPerEpoch)
-	if wasSkipped == true {
-		st := status.Newf(codes.OutOfRange, "provided tick number %d was skipped by the system, next available tick is %d", req.TickNumber, nextAvailableTick)
-		st, err = st.WithDetails(&protobuff.NextAvailableTick{NextTickNumber: nextAvailableTick})
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "creating custom status")
-		}
-
-		return nil, st.Err()
-	}
 
 	txs, err := s.store.GetTickTransferTransactions(ctx, req.TickNumber)
 	if err != nil {
@@ -171,35 +112,6 @@ func (s *Server) GetTransferTickTransactionsV2(ctx context.Context, req *protobu
 }
 
 func (s *Server) GetApprovedTickTransactionsV2(ctx context.Context, req *protobuff.GetTickRequestV2) (*protobuff.GetTickTransactionsResponseV2, error) {
-	lastProcessedTick, err := s.store.GetLastProcessedTick(ctx)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "getting last processed tick: %v", err)
-	}
-	if req.TickNumber > lastProcessedTick.TickNumber {
-		st := status.Newf(codes.FailedPrecondition, "requested tick number %d is greater than last processed tick %d", req.TickNumber, lastProcessedTick.TickNumber)
-		st, err = st.WithDetails(&protobuff.LastProcessedTick{LastProcessedTick: lastProcessedTick.TickNumber})
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "creating custom status")
-		}
-
-		return nil, st.Err()
-	}
-
-	processedTickIntervalsPerEpoch, err := s.store.GetProcessedTickIntervals(ctx)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "getting processed tick intervals per epoch")
-	}
-
-	wasSkipped, nextAvailableTick := tick.WasSkippedByArchive(req.TickNumber, processedTickIntervalsPerEpoch)
-	if wasSkipped == true {
-		st := status.Newf(codes.OutOfRange, "provided tick number %d was skipped by the system, next available tick is %d", req.TickNumber, nextAvailableTick)
-		st, err = st.WithDetails(&protobuff.NextAvailableTick{NextTickNumber: nextAvailableTick})
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "creating custom status")
-		}
-
-		return nil, st.Err()
-	}
 
 	txs, err := s.store.GetTickTransferTransactions(ctx, req.TickNumber)
 	if err != nil {
