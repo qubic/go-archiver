@@ -10,26 +10,39 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func (s *Server) tickNumberInterceptor(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+type InterceptorStore interface {
+	GetLastProcessedTick(ctx context.Context) (*protobuff.ProcessedTick, error)
+	GetProcessedTickIntervals(ctx context.Context) ([]*protobuff.ProcessedTickIntervalsPerEpoch, error)
+}
+
+type TickWithinBoundsInterceptor struct {
+	store InterceptorStore
+}
+
+func NewTickWithinBoundsInterceptor(store InterceptorStore) *TickWithinBoundsInterceptor {
+	return &TickWithinBoundsInterceptor{store: store}
+}
+
+func (twb *TickWithinBoundsInterceptor) GetInterceptor(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 
 	var err error
 
 	switch request := req.(type) {
 
 	case *protobuff.GetTickRequestV2:
-		err = s.checkTickWithinArchiverIntervals(ctx, request.TickNumber)
+		err = twb.checkTickWithinArchiverIntervals(ctx, request.TickNumber)
 	case *protobuff.GetTickTransactionsRequest:
-		err = s.checkTickWithinArchiverIntervals(ctx, request.TickNumber)
+		err = twb.checkTickWithinArchiverIntervals(ctx, request.TickNumber)
 	case *protobuff.GetTickDataRequest:
-		err = s.checkTickWithinArchiverIntervals(ctx, request.TickNumber)
+		err = twb.checkTickWithinArchiverIntervals(ctx, request.TickNumber)
 	case *protobuff.GetQuorumTickDataRequest:
-		err = s.checkTickWithinArchiverIntervals(ctx, request.TickNumber)
+		err = twb.checkTickWithinArchiverIntervals(ctx, request.TickNumber)
 	case *protobuff.GetTickApprovedTransactionsRequest:
-		err = s.checkTickWithinArchiverIntervals(ctx, request.TickNumber)
+		err = twb.checkTickWithinArchiverIntervals(ctx, request.TickNumber)
 	case *protobuff.GetChainHashRequest:
-		err = s.checkTickWithinArchiverIntervals(ctx, request.TickNumber)
+		err = twb.checkTickWithinArchiverIntervals(ctx, request.TickNumber)
 	case *protobuff.GetTickTransactionsRequestV2:
-		err = s.checkTickWithinArchiverIntervals(ctx, request.TickNumber)
+		err = twb.checkTickWithinArchiverIntervals(ctx, request.TickNumber)
 
 	default:
 		break
@@ -44,9 +57,9 @@ func (s *Server) tickNumberInterceptor(ctx context.Context, req any, _ *grpc.Una
 	return h, err
 }
 
-func (s *Server) checkTickWithinArchiverIntervals(ctx context.Context, tickNumber uint32) error {
+func (twb *TickWithinBoundsInterceptor) checkTickWithinArchiverIntervals(ctx context.Context, tickNumber uint32) error {
 
-	lastProcessedTick, err := s.store.GetLastProcessedTick(ctx)
+	lastProcessedTick, err := twb.store.GetLastProcessedTick(ctx)
 	if err != nil {
 		return status.Errorf(codes.Internal, "failed to get last processed tick")
 	}
@@ -60,7 +73,7 @@ func (s *Server) checkTickWithinArchiverIntervals(ctx context.Context, tickNumbe
 		return st.Err()
 	}
 
-	processedTickIntervalsPerEpoch, err := s.store.GetProcessedTickIntervals(ctx)
+	processedTickIntervalsPerEpoch, err := twb.store.GetProcessedTickIntervals(ctx)
 	if err != nil {
 		return status.Errorf(codes.Internal, "getting processed tick intervals per epoch")
 	}

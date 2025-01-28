@@ -521,10 +521,13 @@ func (s *Server) GetStoreHash(ctx context.Context, req *protobuff.GetChainHashRe
 }
 
 func (s *Server) Start() error {
+
+	tickInBoundsInterception := NewTickWithinBoundsInterceptor(s.store)
+
 	srv := grpc.NewServer(
 		grpc.MaxRecvMsgSize(600*1024*1024),
 		grpc.MaxSendMsgSize(600*1024*1024),
-		grpc.UnaryInterceptor(s.tickNumberInterceptor),
+		grpc.UnaryInterceptor(tickInBoundsInterception.GetInterceptor),
 	)
 	protobuff.RegisterArchiveServiceServer(srv, s)
 	reflection.Register(srv)
