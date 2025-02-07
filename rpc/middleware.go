@@ -10,16 +10,16 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-type InterceptorStore interface {
+type ProcessedTicksStore interface {
 	GetLastProcessedTick(ctx context.Context) (*protobuff.ProcessedTick, error)
 	GetProcessedTickIntervals(ctx context.Context) ([]*protobuff.ProcessedTickIntervalsPerEpoch, error)
 }
 
 type TickWithinBoundsInterceptor struct {
-	store InterceptorStore
+	store ProcessedTicksStore
 }
 
-func NewTickWithinBoundsInterceptor(store InterceptorStore) *TickWithinBoundsInterceptor {
+func NewTickWithinBoundsInterceptor(store ProcessedTicksStore) *TickWithinBoundsInterceptor {
 	return &TickWithinBoundsInterceptor{store: store}
 }
 
