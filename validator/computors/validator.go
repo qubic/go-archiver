@@ -2,9 +2,8 @@ package computors
 
 import (
 	"context"
-	"github.com/qubic/go-archiver/store"
-
 	"github.com/pkg/errors"
+	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-archiver/utils"
 	"github.com/qubic/go-node-connector/types"
 )
