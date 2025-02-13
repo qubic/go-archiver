@@ -2,20 +2,13 @@ package computors
 
 import (
 	"context"
-	"github.com/qubic/go-archiver/store"
-
 	"github.com/pkg/errors"
+	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-archiver/utils"
 	"github.com/qubic/go-node-connector/types"
 )
 
-func Validate(ctx context.Context, sigVerifierFunc utils.SigVerifierFunc, computors types.Computors) error {
-	arbitratorID := types.Identity(types.ArbitratorIdentity)
-	arbitratorPubKey, err := arbitratorID.ToPubKey(false)
-	if err != nil {
-		return errors.Wrap(err, "getting arbitrator pubkey")
-	}
-
+func Validate(ctx context.Context, sigVerifierFunc utils.SigVerifierFunc, computors types.Computors, arbitratorPubKey [32]byte) error {
 	digest, err := getDigestFromComputors(computors)
 	if err != nil {
 		return errors.Wrap(err, "getting digest from computors")
