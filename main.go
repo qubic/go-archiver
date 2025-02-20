@@ -56,6 +56,20 @@ func run() error {
 		Store struct {
 			ResetEmptyTickKeys bool `conf:"default:false"`
 		}
+		Sync struct {
+			Enable            bool          `conf:"default:false"`
+			Sources           []string      `conf:"default:localhost:8001"`
+			ResponseTimeout   time.Duration `conf:"default:1m"`
+			EnableCompression bool          `conf:"default:true"`
+			RetryTimeout      time.Duration `conf:"default:5s"`
+			FetchRoutineCount int           `conf:"default:6"`
+		}
+		Bootstrap struct {
+			Enable                   bool `conf:"default:true"`
+			MaxRequestedItems        int  `conf:"default:1000"`
+			MaxConcurrentConnections int  `conf:"default:20"`
+			BatchSize                int  `conf:"default:10"`
+		}
 	}
 
 	if err := conf.Parse(os.Args[1:], prefix, &cfg); err != nil {
@@ -148,7 +162,7 @@ func run() error {
 		}
 	}
 
-	err = tick.CalculateEmptyTicksForAllEpochs(ps)
+	err = tick.CalculateEmptyTicksForAllEpochs(ps, false)
 	if err != nil {
 		return errors.Wrap(err, "calculating empty ticks for all epochs")
 	}
@@ -166,7 +180,23 @@ func run() error {
 		return errors.Wrap(err, "creating qubic pool")
 	}
 
-	rpcServer := rpc.NewServer(cfg.Server.GrpcHost, cfg.Server.HttpHost, cfg.Server.NodeSyncThreshold, cfg.Server.ChainTickFetchUrl, ps, p)
+	bootstrapConfiguration := rpc.BootstrapConfiguration{
+		Enable:                   cfg.Bootstrap.Enable,
+		MaximumRequestedItems:    cfg.Bootstrap.MaxRequestedItems,
+		BatchSize:                cfg.Bootstrap.BatchSize,
+		MaxConcurrentConnections: cfg.Bootstrap.MaxConcurrentConnections,
+	}
+
+	syncConfiguration := processor.SyncConfiguration{
+		Enable:            cfg.Sync.Enable,
+		Sources:           cfg.Sync.Sources,
+		ResponseTimeout:   cfg.Sync.ResponseTimeout,
+		EnableCompression: cfg.Sync.EnableCompression,
+		FetchRoutineCount: cfg.Sync.FetchRoutineCount,
+		RetryTimeout:      cfg.Sync.RetryTimeout,
+	}
+
+	rpcServer := rpc.NewServer(cfg.Server.GrpcHost, cfg.Server.HttpHost, cfg.Server.NodeSyncThreshold, cfg.Server.ChainTickFetchUrl, ps, p, bootstrapConfiguration, syncConfiguration)
 	err = rpcServer.Start()
 	if err != nil {
 		return errors.Wrap(err, "starting rpc server")
@@ -175,7 +205,7 @@ func run() error {
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
 
-	proc := processor.NewProcessor(p, ps, cfg.Qubic.ProcessTickTimeout)
+	proc := processor.NewProcessor(p, ps, cfg.Qubic.ProcessTickTimeout, syncConfiguration)
 	procErrors := make(chan error, 1)
 
 	// Start the service listening for requests.

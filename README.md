@@ -23,25 +23,79 @@ This can be configured using the `QUBIC_NODES_QUBIC_PEER_LIST` environment varia
 ## Other optional configuration parameters for qubic-archiver can be specified as env variable by adding them to docker compose:
 
 ```bash
-  $QUBIC_ARCHIVER_SERVER_READ_TIMEOUT                        <duration>  (default: 5s)
-  $QUBIC_ARCHIVER_SERVER_WRITE_TIMEOUT                       <duration>  (default: 5s)
-  $QUBIC_ARCHIVER_SERVER_SHUTDOWN_TIMEOUT                    <duration>  (default: 5s)
-  $QUBIC_ARCHIVER_SERVER_HTTP_HOST                           <string>    (default: 0.0.0.0:8000)
-  $QUBIC_ARCHIVER_SERVER_GRPC_HOST                           <string>    (default: 0.0.0.0:8001)
-  $QUBIC_ARCHIVER_SERVER_NODE_SYNC_THRESHOLD                 <int>       (default: 3)
-  $QUBIC_ARCHIVER_SERVER_CHAIN_TICK_FETCH_URL                <string>    (default: http://127.0.0.1:8080/max-tick)
+  $QUBIC_ARCHIVER_SERVER_READ_TIMEOUT                        <duration>             (default: 5s)
+  $QUBIC_ARCHIVER_SERVER_WRITE_TIMEOUT                       <duration>             (default: 5s)
+  $QUBIC_ARCHIVER_SERVER_SHUTDOWN_TIMEOUT                    <duration>             (default: 5s)
+  $QUBIC_ARCHIVER_SERVER_HTTP_HOST                           <string>               (default: 0.0.0.0:8000)
+  $QUBIC_ARCHIVER_SERVER_GRPC_HOST                           <string>               (default: 0.0.0.0:8001)
+  $QUBIC_ARCHIVER_SERVER_NODE_SYNC_THRESHOLD                 <int>                  (default: 3)
+  $QUBIC_ARCHIVER_SERVER_CHAIN_TICK_FETCH_URL                <string>               (default: http://127.0.0.1:8080/max-tick)
+
+  $QUBIC_ARCHIVER_POOL_NODE_FETCHER_URL                      <string>               (default: http://127.0.0.1:8080/status)
+  $QUBIC_ARCHIVER_POOL_NODE_FETCHER_TIMEOUT                  <duration>             (default: 2s)
+  $QUBIC_ARCHIVER_POOL_INITIAL_CAP                           <int>                  (default: 5)
+  $QUBIC_ARCHIVER_POOL_MAX_IDLE                              <int>                  (default: 20)
+  $QUBIC_ARCHIVER_POOL_MAX_CAP                               <int>                  (default: 30)
+  $QUBIC_ARCHIVER_POOL_IDLE_TIMEOUT                          <duration>             (default: 15s)
+
+  $QUBIC_ARCHIVER_QUBIC_NODE_PORT                            <string>               (default: 21841)
+  $QUBIC_ARCHIVER_QUBIC_STORAGE_FOLDER                       <string>               (default: store)
+  $QUBIC_ARCHIVER_QUBIC_PROCESS_TICK_TIMEOUT                 <duration>             (default: 5s)
   
-  $QUBIC_ARCHIVER_POOL_NODE_FETCHER_URL                      <string>    (default: http://127.0.0.1:8080/status)
-  $QUBIC_ARCHIVER_POOL_NODE_FETCHER_TIMEOUT                  <duration>  (default: 2s)
-  $QUBIC_ARCHIVER_POOL_INITIAL_CAP                           <int>       (default: 5)
-  $QUBIC_ARCHIVER_POOL_MAX_IDLE                              <int>       (default: 20)
-  $QUBIC_ARCHIVER_POOL_MAX_CAP                               <int>       (default: 30)
-  $QUBIC_ARCHIVER_POOL_IDLE_TIMEOUT                          <duration>  (default: 15s)
+  $QUBIC_ARCHIVER_STORE_RESET_EMPTY_TICK_KEYS                <bool>                 (default: false)
   
-  $QUBIC_ARCHIVER_QUBIC_NODE_PORT                            <string>    (default: 21841)
-  $QUBIC_ARCHIVER_QUBIC_STORAGE_FOLDER                       <string>    (default: store)
-  $QUBIC_ARCHIVER_QUBIC_PROCESS_TICK_TIMEOUT                 <duration>  (default: 5s)
+  $QUBIC_ARCHIVER_SYNC_ENABLE                                <bool>                 (default: false)
+  $QUBIC_ARCHIVER_SYNC_SOURCES                               <string>,[string...]   (default: localhost:8001) // TODO: To be changed with official bootstrap node list
+  $QUBIC_ARCHIVER_SYNC_RESPONSE_TIMEOUT                      <duration>             (default: 1m)
+  $QUBIC_ARCHIVER_SYNC_ENABLE_COMPRESSION                    <bool>                 (default: true)
+  $QUBIC_ARCHIVER_SYNC_RETRY_COUNT                           <int>                  (default: 10)
+  
+  $QUBIC_ARCHIVER_BOOTSTRAP_ENABLE                           <bool>                 (default: true)
+  $QUBIC_ARCHIVER_BOOTSTRAP_MAX_REQUESTED_ITEMS              <int>                  (default: 1000)
+  $QUBIC_ARCHIVER_BOOTSTRAP_MAX_CONCURRENT_CONNECTIONS       <int>                  (default: 20)
+  $QUBIC_ARCHIVER_BOOTSTRAP_BATCH_SIZE                       <int>                  (default: 10)
 ```
+
+## Peer to Peer data synchronization
+
+Archiver supports data synchronization between nodes.  
+Nodes can be configured to either synchronize from other nodes (client nodes), or provide information to other nodes once they are up to date (bootstrap nodes).
+
+### Overview
+Upon starting a node with the `QUBIC_ARCHIVER_SYNC_ENABLE` path variable set to `true` it will start synchronizing information from the bootstrap nodes specified using the `QUBIC_ARCHIVER_SYNC_SOURCES` variable.  
+The synchronization works as follows:
+1. The client will attempt to establish a connection to the specified bootstrap nodes.
+2. The client will verify that it's version is compatible with each node. Incompatible nodes will not be used to synchronize information.
+3. From one of the nodes, metadata will be fetched in order to calculate the synchronization delta, or the difference in information between the client and the bootstrap, as well as how many ticks the bootstrap can provide per request.
+4. Missing epoch related information such as the computor list will be fetched and saved.
+5. The client will fetch missing tick ranges in batches. This is done concurrently in order to lower the synchronization duration.
+6. Upon fetching a batch of ticks, they are cryptographically verified to ensure data accuracy. This is also done concurrently to save time.
+7. After verification is finished, the ticks are saved to the database, and the last two steps are repeated until all the information has been synchronized. 
+8. After the synchronization is finished, the client will resume to normal operation and synchronize the current epoch directly from the Qubic network.
+
+Depending on the hardware and network conditions, the synchronization duration can vary.  
+Out tests show that a machine with a 16 core, 5Ghz CPU can synchronize an epoch in about 20 - 30 minutes at a rate of 3 - 4 thousand ticks per minute.  
+Storage speed is also a factor to consider, and in some cases may become a bottleneck.  
+
+>[!WARNING]  
+> It is not recommended to synchronize a node from zero close to the epoch transition.   
+> While synchronization of past epochs may finish before the transition, synchronization from the network itself is a couple of times slower, thus the current epoch may not be synchronized in time. 
+
+### Configuration
+
+#### Client
+
+- `QUBIC_ARCHIVER_SYNC_ENABLE`: Whether to enable the synchronization feature or not.  
+- `QUBIC_ARCHIVER_SYNC_SOURCES`: The list of bootstrap nodes to fetch from.  
+- `QUBIC_ARCHIVER_SYNC_RESPONSE_TIMEOUT`: The maximum time fetching a tick batch should take.
+- `QUBIC_ARCHIVER_SYNC_RETRY_COUNT`: The number of times to retry fetching a tick range, in the event that the bootstrap has reached the maximum number of connections.
+
+#### Bootstrap
+
+- `QUBIC_ARCHIVER_BOOTSTRAP_ENABLE`: Whether to enable the bootstrap functionality or not.
+- `QUBIC_ARCHIVER_BOOTSTRAP_MAX_REQUESTED_ITEMS`: The maximum number of ticks per request.
+- `QUBIC_ARCHIVER_BOOTSTRAP_MAX_CONCURRENT_CONNECTIONS`: The maximum number of concurrent connections across all clients.
+- `QUBIC_ARCHIVER_BOOTSTRAP_BATCH_SIZE`: The number of ticks that are sent to the client at a time. 
 
 ## Run with docker-compose:
 

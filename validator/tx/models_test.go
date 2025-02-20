@@ -80,7 +80,7 @@ func TestQubicToProto(t *testing.T) {
 		},
 	}
 
-	got, err := qubicToProto(qubicTransactions)
+	got, err := QubicToProto(qubicTransactions)
 	if err != nil {
 		t.Fatalf("qubicToProto() unexpected error: %v", err)
 	}

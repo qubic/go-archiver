@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/pkg/errors"
+	"github.com/qubic/go-archiver/processor"
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-archiver/validator/quorum"
@@ -26,6 +27,13 @@ import (
 	"slices"
 )
 
+type BootstrapConfiguration struct {
+	Enable                   bool
+	MaximumRequestedItems    int
+	BatchSize                int
+	MaxConcurrentConnections int
+}
+
 var _ protobuff.ArchiveServiceServer = &Server{}
 
 var emptyTd = &protobuff.TickData{}
@@ -37,22 +45,26 @@ type TransactionInfo struct {
 
 type Server struct {
 	protobuff.UnimplementedArchiveServiceServer
-	listenAddrGRPC    string
-	listenAddrHTTP    string
-	syncThreshold     int
-	chainTickFetchUrl string
-	store             *store.PebbleStore
-	pool              *qubic.Pool
+	listenAddrGRPC         string
+	listenAddrHTTP         string
+	syncThreshold          int
+	chainTickFetchUrl      string
+	store                  *store.PebbleStore
+	pool                   *qubic.Pool
+	bootstrapConfiguration BootstrapConfiguration
+	syncConfiguration      processor.SyncConfiguration
 }
 
-func NewServer(listenAddrGRPC, listenAddrHTTP string, syncThreshold int, chainTickUrl string, store *store.PebbleStore, pool *qubic.Pool) *Server {
+func NewServer(listenAddrGRPC, listenAddrHTTP string, syncThreshold int, chainTickUrl string, store *store.PebbleStore, pool *qubic.Pool, bootstrapConfiguration BootstrapConfiguration, syncConfiguration processor.SyncConfiguration) *Server {
 	return &Server{
-		listenAddrGRPC:    listenAddrGRPC,
-		listenAddrHTTP:    listenAddrHTTP,
-		syncThreshold:     syncThreshold,
-		chainTickFetchUrl: chainTickUrl,
-		store:             store,
-		pool:              pool,
+		listenAddrGRPC:         listenAddrGRPC,
+		listenAddrHTTP:         listenAddrHTTP,
+		syncThreshold:          syncThreshold,
+		chainTickFetchUrl:      chainTickUrl,
+		store:                  store,
+		pool:                   pool,
+		bootstrapConfiguration: bootstrapConfiguration,
+		syncConfiguration:      syncConfiguration,
 	}
 }
 
@@ -305,7 +317,7 @@ func (s *Server) GetStatus(ctx context.Context, _ *emptypb.Empty) (*protobuff.Ge
 	}, nil
 }
 
-type response struct {
+type chainTickResponse struct {
 	ChainTick int `json:"max_tick"`
 }
 
@@ -322,7 +334,7 @@ func fetchChainTick(ctx context.Context, url string) (int, error) {
 	}
 	defer res.Body.Close()
 
-	var resp response
+	var resp chainTickResponse
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return 0, errors.Wrap(err, "reading response body")
@@ -530,6 +542,14 @@ func (s *Server) Start() error {
 		grpc.UnaryInterceptor(tickInBoundsInterception.GetInterceptor),
 	)
 	protobuff.RegisterArchiveServiceServer(srv, s)
+	if s.bootstrapConfiguration.Enable {
+		syncService := NewSyncService(s.store, s.bootstrapConfiguration)
+		protobuff.RegisterSyncServiceServer(srv, syncService)
+	}
+	if s.syncConfiguration.Enable {
+		syncClientService := NewSyncClientService()
+		protobuff.RegisterSyncClientServiceServer(srv, syncClientService)
+	}
 	reflection.Register(srv)
 
 	lis, err := net.Listen("tcp", s.listenAddrGRPC)
@@ -554,6 +574,17 @@ func (s *Server) Start() error {
 					grpc.MaxCallRecvMsgSize(600*1024*1024),
 					grpc.MaxCallSendMsgSize(600*1024*1024),
 				),
+			}
+
+			if s.syncConfiguration.Enable {
+				if err := protobuff.RegisterSyncClientServiceHandlerFromEndpoint(
+					context.Background(),
+					mux,
+					s.listenAddrGRPC,
+					opts,
+				); err != nil {
+					panic(err)
+				}
 			}
 
 			if err := protobuff.RegisterArchiveServiceHandlerFromEndpoint(

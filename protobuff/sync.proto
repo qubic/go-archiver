@@ -1,0 +1,90 @@
+syntax = "proto3";
+
+package qubic.archiver.archive.pb;
+
+option go_package = "github.com/qubic/go-archiver/protobuff/";
+import "google/api/annotations.proto";
+import "google/protobuf/empty.proto";
+import "archive.proto";
+
+
+message SyncEpochData {
+  Computors computor_list = 1;
+  LastTickQuorumDataPerEpochIntervals last_tick_quorum_data_per_intervals = 2;
+}
+
+message SyncTickData {
+  TickData tick_data = 1;
+  QuorumTickData quorum_data = 2;
+  repeated Transaction transactions = 3;
+  repeated TransactionStatus transactions_status = 4;
+}
+
+message SyncMetadataResponse {
+  string archiver_version = 1;
+  int32 maxObjectRequest = 2;
+  repeated ProcessedTickIntervalsPerEpoch processed_tick_intervals = 3;
+  //repeated SkippedTicksInterval skipped_tick_intervals = 4;
+}
+
+message SyncEpochInfoRequest {
+  repeated uint32 epochs = 1;
+}
+
+message SyncEpochInfoResponse {
+  repeated SyncEpochData epochs = 1;
+}
+
+message SyncTickInfoRequest {
+  uint32 first_tick = 1;
+  uint32 last_tick = 2;
+}
+
+message SyncTickInfoResponse {
+  repeated SyncTickData ticks = 1;
+}
+
+message SyncLastSynchronizedTick {
+  uint32 tick_number = 1;
+  uint32 epoch = 2;
+  bytes chain_hash = 3;
+  bytes store_hash = 4;
+}
+
+message SyncDelta {
+  repeated ProcessedTickIntervalsPerEpoch delta_per_epoch = 1;
+}
+
+message SyncStatus {
+  string node_version = 1;
+  repeated string bootstrap_addresses = 2;
+  SyncLastSynchronizedTick last_synchronized_tick = 3;
+  uint32 current_epoch = 4;
+  ProcessedTickInterval current_tick_range = 5;
+  int32 average_ticks_per_minute = 6;
+  float last_fetch_duration = 7;
+  float last_validation_duration = 8;
+  float last_store_duration = 9;
+  float last_total_duration = 10;
+  int32 object_request_count = 11;
+  int32 fetch_routine_count = 12;
+  int32 validation_routine_count = 13;
+  int32 current_compaction_count = 14;
+  SyncDelta delta = 15;
+}
+
+service SyncService {
+  rpc SyncGetBootstrapMetadata(google.protobuf.Empty) returns (SyncMetadataResponse) {};
+
+  rpc SyncGetEpochInformation(SyncEpochInfoRequest) returns (stream SyncEpochInfoResponse) {};
+
+  rpc SyncGetTickInformation(SyncTickInfoRequest) returns (stream SyncTickInfoResponse) {};
+}
+
+service SyncClientService {
+  rpc SyncGetStatus(google.protobuf.Empty) returns (SyncStatus) {
+    option (google.api.http) = {
+      get: "/v2/sync-status"
+    };
+  };
+}

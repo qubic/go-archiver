@@ -21,6 +21,7 @@ const (
 	EmptyTicksPerEpoch                 = 0x13
 	LastTickQuorumDataPerEpochInterval = 0x14
 	EmptyTickListPerEpoch              = 0x15
+	SyncLastSynchronizedTick           = 0x20
 )
 
 func emptyTickListPerEpochKey(epoch uint32) []byte {
@@ -137,5 +138,44 @@ func tickTxStatusKey(tickNumber uint64) []byte {
 	key := []byte{TickTransactionsStatus}
 	key = binary.BigEndian.AppendUint64(key, tickNumber)
 
+	return key
+}
+
+func syncLastSynchronizedTick() []byte {
+	return []byte{SyncLastSynchronizedTick}
+}
+
+type IDType interface {
+	uint32 | uint64 | string
+}
+
+func AssembleKey[T IDType](keyPrefix int, id T) []byte {
+
+	prefix := byte(keyPrefix)
+
+	key := []byte{prefix}
+
+	switch any(id).(type) {
+
+	case uint32:
+		asserted := any(id).(uint32)
+
+		if keyPrefix == LastProcessedTickPerEpoch || keyPrefix == ProcessedTickIntervals {
+			key = binary.BigEndian.AppendUint32(key, asserted)
+			break
+		}
+
+		key = binary.BigEndian.AppendUint64(key, uint64(asserted))
+		break
+
+	case uint64:
+		asserted := any(id).(uint64)
+		key = binary.BigEndian.AppendUint64(key, asserted)
+		break
+
+	case string:
+		asserted := any(id).(string)
+		key = append(key, []byte(asserted)...)
+	}
 	return key
 }
