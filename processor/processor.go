@@ -26,18 +26,20 @@ func (e *TickInTheFutureError) Error() string {
 }
 
 type Processor struct {
-	pool               *qubic.Pool
-	ps                 *store.PebbleStore
-	arbitratorPubKey   [32]byte
-	processTickTimeout time.Duration
+	pool                  *qubic.Pool
+	ps                    *store.PebbleStore
+	arbitratorPubKey      [32]byte
+	processTickTimeout    time.Duration
+	disableStatusFetching bool
 }
 
-func NewProcessor(p *qubic.Pool, ps *store.PebbleStore, processTickTimeout time.Duration, arbitratorPubKey [32]byte) *Processor {
+func NewProcessor(p *qubic.Pool, ps *store.PebbleStore, processTickTimeout time.Duration, arbitratorPubKey [32]byte, disableStatusFetching bool) *Processor {
 	return &Processor{
-		pool:               p,
-		ps:                 ps,
-		processTickTimeout: processTickTimeout,
-		arbitratorPubKey:   arbitratorPubKey,
+		pool:                  p,
+		ps:                    ps,
+		processTickTimeout:    processTickTimeout,
+		arbitratorPubKey:      arbitratorPubKey,
+		disableStatusFetching: disableStatusFetching,
 	}
 }
 
@@ -98,7 +100,7 @@ func (p *Processor) processOneByOne() error {
 	}
 
 	val := validator.New(client, p.ps, p.arbitratorPubKey)
-	err = val.ValidateTick(ctx, tickInfo.InitialTick, nextTick.TickNumber)
+	err = val.ValidateTick(ctx, tickInfo.InitialTick, nextTick.TickNumber, p.disableStatusFetching)
 	if err != nil {
 		return errors.Wrapf(err, "validating tick %d", nextTick.TickNumber)
 	}

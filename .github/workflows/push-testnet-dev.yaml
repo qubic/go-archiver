@@ -3,7 +3,7 @@ name: Deploy dev images to GHCR
 on:
   push:
     branches:
-      - 'interval-quorum-data'
+      - 'testnet-dev'
 
 jobs:
   push-store-image:
