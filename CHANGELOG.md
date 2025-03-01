@@ -1,6 +1,6 @@
 # Changelog
 
-## Next
+## v0.9.4
 
 * Make arbitrator identity configurable.
 
