@@ -28,15 +28,17 @@ func qubicTickStructureToProto(tickVote types.QuorumTickVote) *protobuff.QuorumT
 	date := time.Date(2000+int(tickVote.Year), time.Month(tickVote.Month), int(tickVote.Day), int(tickVote.Hour), int(tickVote.Minute), int(tickVote.Second), 0, time.UTC)
 	timestamp := date.UnixMilli() + int64(tickVote.Millisecond)
 	protoQuorumTickStructure := protobuff.QuorumTickStructure{
-		Epoch:                        uint32(tickVote.Epoch),
-		TickNumber:                   tickVote.Tick,
-		Timestamp:                    uint64(timestamp),
+		Epoch:      uint32(tickVote.Epoch),
+		TickNumber: tickVote.Tick,
+		Timestamp:  uint64(timestamp),
+
 		PrevResourceTestingDigestHex: convertUint32ToHex(tickVote.PreviousResourceTestingDigest),
-		PrevSpectrumDigestHex:        hex.EncodeToString(tickVote.PreviousSpectrumDigest[:]),
-		PrevUniverseDigestHex:        hex.EncodeToString(tickVote.PreviousUniverseDigest[:]),
-		PrevComputerDigestHex:        hex.EncodeToString(tickVote.PreviousComputerDigest[:]),
-		TxDigestHex:                  hex.EncodeToString(tickVote.TxDigest[:]),
 		PrevTransactionBodyHex:       convertUint32ToHex(tickVote.PreviousTransactionBodyDigest),
+
+		PrevSpectrumDigestHex: hex.EncodeToString(tickVote.PreviousSpectrumDigest[:]),
+		PrevUniverseDigestHex: hex.EncodeToString(tickVote.PreviousUniverseDigest[:]),
+		PrevComputerDigestHex: hex.EncodeToString(tickVote.PreviousComputerDigest[:]),
+		TxDigestHex:           hex.EncodeToString(tickVote.TxDigest[:]),
 	}
 
 	return &protoQuorumTickStructure
@@ -45,12 +47,13 @@ func qubicTickStructureToProto(tickVote types.QuorumTickVote) *protobuff.QuorumT
 func qubicDiffToProto(tickVote types.QuorumTickVote) *protobuff.QuorumDiff {
 	protoQuorumDiff := protobuff.QuorumDiff{
 		SaltedResourceTestingDigestHex: convertUint32ToHex(tickVote.SaltedResourceTestingDigest),
-		SaltedSpectrumDigestHex:        hex.EncodeToString(tickVote.SaltedSpectrumDigest[:]),
-		SaltedUniverseDigestHex:        hex.EncodeToString(tickVote.SaltedUniverseDigest[:]),
-		SaltedComputerDigestHex:        hex.EncodeToString(tickVote.SaltedComputerDigest[:]),
-		ExpectedNextTickTxDigestHex:    hex.EncodeToString(tickVote.ExpectedNextTickTxDigest[:]),
-		SignatureHex:                   hex.EncodeToString(tickVote.Signature[:]),
 		SaltedTransactionBodyHex:       convertUint32ToHex(tickVote.SaltedTransactionBodyDigest),
+
+		SaltedSpectrumDigestHex:     hex.EncodeToString(tickVote.SaltedSpectrumDigest[:]),
+		SaltedUniverseDigestHex:     hex.EncodeToString(tickVote.SaltedUniverseDigest[:]),
+		SaltedComputerDigestHex:     hex.EncodeToString(tickVote.SaltedComputerDigest[:]),
+		ExpectedNextTickTxDigestHex: hex.EncodeToString(tickVote.ExpectedNextTickTxDigest[:]),
+		SignatureHex:                hex.EncodeToString(tickVote.Signature[:]),
 	}
 	return &protoQuorumDiff
 }
