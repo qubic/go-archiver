@@ -23,7 +23,6 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"slices"
 )
 
 var _ protobuff.ArchiveServiceServer = &Server{}
