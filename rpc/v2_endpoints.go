@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"github.com/cockroachdb/pebble"
 
-	"github.com/qubic/go-archiver/validator/tick"
 	"log"
 
 	"slices"
