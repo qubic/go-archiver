@@ -7,10 +7,9 @@ require (
 	github.com/cloudflare/circl v1.5.0
 	github.com/cockroachdb/pebble v1.1.2
 	github.com/google/go-cmp v0.6.0
-	github.com/google/martian v2.1.0+incompatible
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.22.0
 	github.com/pkg/errors v0.9.1
-	github.com/qubic/go-node-connector v0.10.3-0.20250228142005-68b8add89013
+	github.com/qubic/go-node-connector v0.11.0
 	github.com/qubic/go-schnorrq v1.0.1
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0
