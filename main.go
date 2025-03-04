@@ -49,9 +49,10 @@ func run() error {
 			IdleTimeout        time.Duration `conf:"default:15s"`
 		}
 		Qubic struct {
-			NodePort           string        `conf:"default:21841"`
-			StorageFolder      string        `conf:"default:store"`
-			ProcessTickTimeout time.Duration `conf:"default:5s"`
+			NodePort                      string        `conf:"default:21841"`
+			StorageFolder                 string        `conf:"default:store"`
+			ProcessTickTimeout            time.Duration `conf:"default:5s"`
+			DisableTransactionStatusAddon bool          `conf:"default:false"`
 		}
 		Store struct {
 			ResetEmptyTickKeys bool `conf:"default:false"`
@@ -175,7 +176,7 @@ func run() error {
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
 
-	proc := processor.NewProcessor(p, ps, cfg.Qubic.ProcessTickTimeout)
+	proc := processor.NewProcessor(p, ps, cfg.Qubic.ProcessTickTimeout, cfg.Qubic.DisableTransactionStatusAddon)
 	procErrors := make(chan error, 1)
 
 	// Start the service listening for requests.
