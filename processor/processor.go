@@ -30,14 +30,16 @@ type Processor struct {
 	ps                 *store.PebbleStore
 	arbitratorPubKey   [32]byte
 	processTickTimeout time.Duration
+	disableStatusAddon bool
 }
 
-func NewProcessor(p *qubic.Pool, ps *store.PebbleStore, processTickTimeout time.Duration, arbitratorPubKey [32]byte) *Processor {
+func NewProcessor(p *qubic.Pool, ps *store.PebbleStore, processTickTimeout time.Duration, arbitratorPubKey [32]byte, disableStatusAddon bool) *Processor {
 	return &Processor{
 		pool:               p,
 		ps:                 ps,
 		processTickTimeout: processTickTimeout,
 		arbitratorPubKey:   arbitratorPubKey,
+		disableStatusAddon: disableStatusAddon,
 	}
 }
 
@@ -98,7 +100,7 @@ func (p *Processor) processOneByOne() error {
 	}
 
 	val := validator.New(client, p.ps, p.arbitratorPubKey)
-	err = val.ValidateTick(ctx, tickInfo.InitialTick, nextTick.TickNumber)
+	err = val.ValidateTick(ctx, tickInfo.InitialTick, nextTick.TickNumber, p.disableStatusAddon)
 	if err != nil {
 		return errors.Wrapf(err, "validating tick %d", nextTick.TickNumber)
 	}

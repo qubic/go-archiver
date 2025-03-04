@@ -28,14 +28,17 @@ func qubicTickStructureToProto(tickVote types.QuorumTickVote) *protobuff.QuorumT
 	date := time.Date(2000+int(tickVote.Year), time.Month(tickVote.Month), int(tickVote.Day), int(tickVote.Hour), int(tickVote.Minute), int(tickVote.Second), 0, time.UTC)
 	timestamp := date.UnixMilli() + int64(tickVote.Millisecond)
 	protoQuorumTickStructure := protobuff.QuorumTickStructure{
-		Epoch:                        uint32(tickVote.Epoch),
-		TickNumber:                   tickVote.Tick,
-		Timestamp:                    uint64(timestamp),
-		PrevResourceTestingDigestHex: convertUint64ToHex(tickVote.PreviousResourceTestingDigest),
-		PrevSpectrumDigestHex:        hex.EncodeToString(tickVote.PreviousSpectrumDigest[:]),
-		PrevUniverseDigestHex:        hex.EncodeToString(tickVote.PreviousUniverseDigest[:]),
-		PrevComputerDigestHex:        hex.EncodeToString(tickVote.PreviousComputerDigest[:]),
-		TxDigestHex:                  hex.EncodeToString(tickVote.TxDigest[:]),
+		Epoch:      uint32(tickVote.Epoch),
+		TickNumber: tickVote.Tick,
+		Timestamp:  uint64(timestamp),
+
+		PrevResourceTestingDigestHex: convertUint32ToHex(tickVote.PreviousResourceTestingDigest),
+		PrevTransactionBodyHex:       convertUint32ToHex(tickVote.PreviousTransactionBodyDigest),
+
+		PrevSpectrumDigestHex: hex.EncodeToString(tickVote.PreviousSpectrumDigest[:]),
+		PrevUniverseDigestHex: hex.EncodeToString(tickVote.PreviousUniverseDigest[:]),
+		PrevComputerDigestHex: hex.EncodeToString(tickVote.PreviousComputerDigest[:]),
+		TxDigestHex:           hex.EncodeToString(tickVote.TxDigest[:]),
 	}
 
 	return &protoQuorumTickStructure
@@ -43,12 +46,14 @@ func qubicTickStructureToProto(tickVote types.QuorumTickVote) *protobuff.QuorumT
 
 func qubicDiffToProto(tickVote types.QuorumTickVote) *protobuff.QuorumDiff {
 	protoQuorumDiff := protobuff.QuorumDiff{
-		SaltedResourceTestingDigestHex: convertUint64ToHex(tickVote.SaltedResourceTestingDigest),
-		SaltedSpectrumDigestHex:        hex.EncodeToString(tickVote.SaltedSpectrumDigest[:]),
-		SaltedUniverseDigestHex:        hex.EncodeToString(tickVote.SaltedUniverseDigest[:]),
-		SaltedComputerDigestHex:        hex.EncodeToString(tickVote.SaltedComputerDigest[:]),
-		ExpectedNextTickTxDigestHex:    hex.EncodeToString(tickVote.ExpectedNextTickTxDigest[:]),
-		SignatureHex:                   hex.EncodeToString(tickVote.Signature[:]),
+		SaltedResourceTestingDigestHex: convertUint32ToHex(tickVote.SaltedResourceTestingDigest),
+		SaltedTransactionBodyHex:       convertUint32ToHex(tickVote.SaltedTransactionBodyDigest),
+
+		SaltedSpectrumDigestHex:     hex.EncodeToString(tickVote.SaltedSpectrumDigest[:]),
+		SaltedUniverseDigestHex:     hex.EncodeToString(tickVote.SaltedUniverseDigest[:]),
+		SaltedComputerDigestHex:     hex.EncodeToString(tickVote.SaltedComputerDigest[:]),
+		ExpectedNextTickTxDigestHex: hex.EncodeToString(tickVote.ExpectedNextTickTxDigest[:]),
+		SignatureHex:                hex.EncodeToString(tickVote.Signature[:]),
 	}
 	return &protoQuorumDiff
 }
@@ -57,6 +62,26 @@ func convertUint64ToHex(value uint64) string {
 	b := make([]byte, 8)
 	binary.LittleEndian.PutUint64(b, value)
 	return hex.EncodeToString(b)
+}
+
+func convertUint32ToHex(value uint32) string {
+	b := make([]byte, 4)
+	binary.LittleEndian.PutUint32(b, value)
+	return hex.EncodeToString(b)
+}
+
+func convertHexToUint32(value string) (uint32, error) {
+	b, err := hex.DecodeString(value)
+	if err != nil {
+		return 0, errors.Wrap(err, "decoding string value")
+	}
+	return binary.LittleEndian.Uint32(b), nil
+}
+
+func convertUint32ToBytes(value uint32) [4]byte {
+	var b [4]byte
+	binary.LittleEndian.PutUint32(b[:], value)
+	return b
 }
 
 func qubicToProtoStored(votes types.QuorumVotes) *protobuff.QuorumTickDataStored {
@@ -100,10 +125,18 @@ func ReconstructQuorumData(currentTickQuorumData, nextTickQuorumData *protobuff.
 	if err != nil {
 		return nil, errors.Wrap(err, "obtaining computer digest from next tick quorum data")
 	}
-	resourceDigest, err := hex.DecodeString(nextTickQuorumData.QuorumTickStructure.PrevResourceTestingDigestHex)
+
+	resourceDigestValue, err := convertHexToUint32(nextTickQuorumData.QuorumTickStructure.PrevResourceTestingDigestHex)
 	if err != nil {
 		return nil, errors.Wrap(err, "obtaining resource testing digest from next tick quorum data")
 	}
+	resourceDigest := convertUint32ToBytes(resourceDigestValue)
+
+	transactionBodyDigestValue, err := convertHexToUint32(nextTickQuorumData.QuorumTickStructure.PrevTransactionBodyHex)
+	if err != nil {
+		return nil, errors.Wrap(err, "obtaining transaction body digest from the next tick quorum data")
+	}
+	transactionBodyDigest := convertUint32ToBytes(transactionBodyDigestValue)
 
 	for id, voteDiff := range currentTickQuorumData.QuorumDiffPerComputor {
 
@@ -135,7 +168,8 @@ func ReconstructQuorumData(currentTickQuorumData, nextTickQuorumData *protobuff.
 			return nil, errors.Wrap(err, "hashing salted computer digest")
 		}
 
-		var tmp2 [40]byte
+		var tmp2 [36]byte
+
 		copy(tmp2[:32], computorPublicKey[:])
 		copy(tmp2[32:], resourceDigest[:])
 		saltedResourceTestingDigest, err := utils.K12Hash(tmp2[:])
@@ -143,13 +177,21 @@ func ReconstructQuorumData(currentTickQuorumData, nextTickQuorumData *protobuff.
 			return nil, errors.Wrap(err, "hashing salted resource testing digest")
 		}
 
+		copy(tmp2[:32], computorPublicKey[:])
+		copy(tmp2[32:], transactionBodyDigest[:])
+		saltedTransactionBodyDigest, err := utils.K12Hash(tmp2[:])
+		if err != nil {
+			return nil, errors.Wrap(err, "hashing salted transaction body digest")
+		}
+
 		reconstructedQuorumData.QuorumDiffPerComputor[id] = &protobuff.QuorumDiff{
-			SaltedResourceTestingDigestHex: hex.EncodeToString(saltedResourceTestingDigest[:8]),
+			SaltedResourceTestingDigestHex: hex.EncodeToString(saltedResourceTestingDigest[:4]),
 			SaltedSpectrumDigestHex:        hex.EncodeToString(saltedSpectrumDigest[:]),
 			SaltedUniverseDigestHex:        hex.EncodeToString(saltedUniverseDigest[:]),
 			SaltedComputerDigestHex:        hex.EncodeToString(saltedComputerDigest[:]),
 			ExpectedNextTickTxDigestHex:    voteDiff.ExpectedNextTickTxDigestHex,
 			SignatureHex:                   voteDiff.SignatureHex,
+			SaltedTransactionBodyHex:       hex.EncodeToString(saltedTransactionBodyDigest[:4]),
 		}
 	}
 
