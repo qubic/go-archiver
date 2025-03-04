@@ -15,6 +15,10 @@ The archive system consists of two services:
 > Archiver **DOES NOT** migrate the database to the new format by itself, and **MAY BREAK** your existing information, if not migrated correctly.  
 > For a migration tool, please see the [Archiver DB Migrator](https://github.com/qubic/archiver-db-migrator), and make sure to back up your data!  
 > See [this](db-migration.md) for how to migrate the database to the new format.
+>   
+> Release `v0.9.0` is not entirely compatible with release `v0.8.x`, due to changes to the way the last tick per epoch is stored.  
+> **These changes fix the issue where the Archiver would save and return only the quorum data for the last tick in the epoch, but not for the last tick in any given processed tick range. This issue would affect querying the quorum data for epochs that have multiple tick ranges.**  
+> Please see this [DB Migrator section](https://github.com/qubic/archiver-db-migrator/blob/main/README.md#new-last-quorum-data-per-epoch-interval-format) for a way to migrate the database to the new format, as well importing the missing quorum data.
 
 Before starting the system, open the `docker-compose.yml` file and make sure that you have a reliable peer list setup
 for the `qubic-nodes` service.

@@ -25,15 +25,20 @@ import (
 )
 
 type Validator struct {
-	qu    *qubic.Client
-	store *store.PebbleStore
+	qu               *qubic.Client
+	store            *store.PebbleStore
+	arbitratorPubKey [32]byte
 }
 
-func New(qu *qubic.Client, store *store.PebbleStore) *Validator {
-	return &Validator{qu: qu, store: store}
+func New(qu *qubic.Client, store *store.PebbleStore, arbitratorPubKey [32]byte) *Validator {
+	return &Validator{
+		qu:               qu,
+		store:            store,
+		arbitratorPubKey: arbitratorPubKey,
+	}
 }
 
-func GoSchnorrqVerify(ctx context.Context, pubkey [32]byte, digest [32]byte, sig [64]byte) error {
+func GoSchnorrqVerify(_ context.Context, pubkey [32]byte, digest [32]byte, sig [64]byte) error {
 	return schnorrq.Verify(pubkey, digest, sig)
 }
 
@@ -62,7 +67,7 @@ func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumb
 		}
 	}
 
-	err = computors.Validate(ctx, GoSchnorrqVerify, comps)
+	err = computors.Validate(ctx, GoSchnorrqVerify, comps, v.arbitratorPubKey)
 	if err != nil {
 		return errors.Wrap(err, "validating comps")
 	}
@@ -84,7 +89,7 @@ func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumb
 
 	log.Printf("Quorum validated. Aligned %d. Misaligned %d.\n", len(alignedVotes), len(quorumVotes)-len(alignedVotes))
 
-	tickData, err := v.qu.GetTickData(ctx, uint32(tickNumber))
+	tickData, err := v.qu.GetTickData(ctx, tickNumber)
 	if err != nil {
 		return errors.Wrap(err, "getting tick data")
 	}

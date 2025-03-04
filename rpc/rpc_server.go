@@ -23,7 +23,6 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"slices"
 )
 
 var _ protobuff.ArchiveServiceServer = &Server{}
@@ -283,17 +282,10 @@ func (s *Server) GetStatus(ctx context.Context, _ *emptypb.Empty) (*protobuff.Ge
 		return nil, status.Errorf(codes.Internal, "getting processed tick intervals")
 	}
 
-	var epochs []uint32
-	for epoch, _ := range lastProcessedTicksPerEpoch {
-		epochs = append(epochs, epoch)
-	}
+	emptyTickForCurrentEpoch, err := s.store.GetEmptyTicksForEpoch(lastProcessedTick.Epoch)
 
-	lowestEpoch := slices.Min(epochs)
-	highestEpoch := slices.Max(epochs)
-
-	emptyTicksForAllEpochs, err := s.store.GetEmptyTicksForEpochs(lowestEpoch, highestEpoch)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "getting empty ticks for all epochs: %v", err)
+		return nil, status.Errorf(codes.Internal, "getting empty ticks for current epoch: %v", err)
 	}
 
 	return &protobuff.GetStatusResponse{
@@ -301,7 +293,7 @@ func (s *Server) GetStatus(ctx context.Context, _ *emptypb.Empty) (*protobuff.Ge
 		LastProcessedTicksPerEpoch:     lastProcessedTicksPerEpoch,
 		SkippedTicks:                   skippedTicks.SkippedTicks,
 		ProcessedTickIntervalsPerEpoch: ptie,
-		EmptyTicksPerEpoch:             emptyTicksForAllEpochs,
+		EmptyTicksPerEpoch:             map[uint32]uint32{lastProcessedTick.Epoch: emptyTickForCurrentEpoch},
 	}, nil
 }
 
@@ -377,7 +369,7 @@ func (s *Server) GetLatestTick(ctx context.Context, _ *emptypb.Empty) (*protobuf
 }
 
 func (s *Server) GetTransferTransactionsPerTick(ctx context.Context, req *protobuff.GetTransferTransactionsPerTickRequest) (*protobuff.GetTransferTransactionsPerTickResponse, error) {
-	txs, err := s.store.GetTransferTransactions(ctx, req.Identity, uint64(req.GetStartTick()), uint64(req.GetEndTick()))
+	txs, err := s.store.GetTransactionsForEntity(ctx, req.Identity, uint64(req.GetStartTick()), uint64(req.GetEndTick()))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "getting transfer transactions: %v", err)
 	}

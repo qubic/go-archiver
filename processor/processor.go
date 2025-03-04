@@ -28,14 +28,16 @@ func (e *TickInTheFutureError) Error() string {
 type Processor struct {
 	pool               *qubic.Pool
 	ps                 *store.PebbleStore
+	arbitratorPubKey   [32]byte
 	processTickTimeout time.Duration
 }
 
-func NewProcessor(p *qubic.Pool, ps *store.PebbleStore, processTickTimeout time.Duration) *Processor {
+func NewProcessor(p *qubic.Pool, ps *store.PebbleStore, processTickTimeout time.Duration, arbitratorPubKey [32]byte) *Processor {
 	return &Processor{
 		pool:               p,
 		ps:                 ps,
 		processTickTimeout: processTickTimeout,
+		arbitratorPubKey:   arbitratorPubKey,
 	}
 }
 
@@ -95,7 +97,7 @@ func (p *Processor) processOneByOne() error {
 		return err
 	}
 
-	val := validator.New(client, p.ps)
+	val := validator.New(client, p.ps, p.arbitratorPubKey)
 	err = val.ValidateTick(ctx, tickInfo.InitialTick, nextTick.TickNumber)
 	if err != nil {
 		return errors.Wrapf(err, "validating tick %d", nextTick.TickNumber)
@@ -123,7 +125,7 @@ func (p *Processor) processStatus(ctx context.Context, lastTick *protobuff.Proce
 	return nil
 }
 
-func (p *Processor) getNextProcessingTick(ctx context.Context, lastTick *protobuff.ProcessedTick, currentTickInfo types.TickInfo) (*protobuff.ProcessedTick, error) {
+func (p *Processor) getNextProcessingTick(_ context.Context, lastTick *protobuff.ProcessedTick, currentTickInfo types.TickInfo) (*protobuff.ProcessedTick, error) {
 	//handles the case where the initial tick of epoch returned by the node is greater than the last processed tick
 	// which means that we are in the next epoch and we should start from the initial tick of the current epoch
 	if currentTickInfo.InitialTick > lastTick.TickNumber {

@@ -10,6 +10,7 @@ import (
 	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-archiver/validator/tick"
 	qubic "github.com/qubic/go-node-connector"
+	"github.com/qubic/go-node-connector/types"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
@@ -52,6 +53,7 @@ func run() error {
 			NodePort           string        `conf:"default:21841"`
 			StorageFolder      string        `conf:"default:store"`
 			ProcessTickTimeout time.Duration `conf:"default:5s"`
+			ArbitratorIdentity string        `conf:"default:AFZPUAIYVPNUYGJRQVLUKOPPVLHAZQTGLYAAUUNBXFTVTAMSBKQBLEIEPCVJ"`
 		}
 		Store struct {
 			ResetEmptyTickKeys bool `conf:"default:false"`
@@ -175,7 +177,13 @@ func run() error {
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
 
-	proc := processor.NewProcessor(p, ps, cfg.Qubic.ProcessTickTimeout)
+	arbitratorID := types.Identity(cfg.Qubic.ArbitratorIdentity)
+	arbitratorPubKey, err := arbitratorID.ToPubKey(false)
+	if err != nil {
+		return errors.Wrapf(err, "getting arbitrator public key from [%s]", cfg.Qubic.ArbitratorIdentity)
+	}
+
+	proc := processor.NewProcessor(p, ps, cfg.Qubic.ProcessTickTimeout, arbitratorPubKey)
 	procErrors := make(chan error, 1)
 
 	// Start the service listening for requests.
