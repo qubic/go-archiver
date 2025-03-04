@@ -101,6 +101,7 @@ message QuorumTickStructure {
   string prev_universe_digest_hex = 7;
   string prev_computer_digest_hex = 8;
   string tx_digest_hex = 9;
+  string prev_transaction_body_hex = 10;
 }
 
 message QuorumDiff {
@@ -108,6 +109,17 @@ message QuorumDiff {
   string salted_spectrum_digest_hex = 2;
   string salted_universe_digest_hex = 3;
   string salted_computer_digest_hex = 4;
+  string expected_next_tick_tx_digest_hex = 5;
+  string signature_hex = 6;
+  string salted_transaction_body_hex = 7;
+}
+
+message QuorumTickDataStored {
+  QuorumTickStructure quorum_tick_structure = 1;
+  map<uint32, QuorumDiffStored> quorum_diff_per_computor = 2;
+}
+
+message QuorumDiffStored {
   string expected_next_tick_tx_digest_hex = 5;
   string signature_hex = 6;
 }
@@ -119,16 +131,6 @@ message SkippedTicksInterval {
 
 message SkippedTicksIntervalList {
   repeated SkippedTicksInterval skipped_ticks = 1;
-}
-
-message QuorumTickDataStored {
-  QuorumTickStructure quorum_tick_structure = 1;
-  map<uint32, QuorumDiffStored> quorum_diff_per_computor = 2;
-}
-
-message QuorumDiffStored {
-  string expected_next_tick_tx_digest_hex = 5;
-  string signature_hex = 6;
 }
 
 message LastTickQuorumDataPerEpochIntervals {
