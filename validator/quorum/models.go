@@ -113,6 +113,8 @@ func ReconstructQuorumData(currentTickQuorumData, nextTickQuorumData *protobuff.
 		QuorumDiffPerComputor: make(map[uint32]*protobuff.QuorumDiff),
 	}
 
+	epoch := currentTickQuorumData.QuorumTickStructure.Epoch
+
 	spectrumDigest, err := hex.DecodeString(nextTickQuorumData.QuorumTickStructure.PrevSpectrumDigestHex)
 	if err != nil {
 		return nil, errors.Wrap(err, "obtaining spectrum digest from next tick quorum data")
@@ -126,17 +128,15 @@ func ReconstructQuorumData(currentTickQuorumData, nextTickQuorumData *protobuff.
 		return nil, errors.Wrap(err, "obtaining computer digest from next tick quorum data")
 	}
 
-	resourceDigestValue, err := convertHexToUint32(nextTickQuorumData.QuorumTickStructure.PrevResourceTestingDigestHex)
+	resourceDigest, err := hex.DecodeString(nextTickQuorumData.QuorumTickStructure.PrevResourceTestingDigestHex)
 	if err != nil {
 		return nil, errors.Wrap(err, "obtaining resource testing digest from next tick quorum data")
 	}
-	resourceDigest := convertUint32ToBytes(resourceDigestValue)
 
-	transactionBodyDigestValue, err := convertHexToUint32(nextTickQuorumData.QuorumTickStructure.PrevTransactionBodyHex)
+	transactionBodyDigest, err := hex.DecodeString(nextTickQuorumData.QuorumTickStructure.PrevTransactionBodyHex)
 	if err != nil {
 		return nil, errors.Wrap(err, "obtaining transaction body digest from the next tick quorum data")
 	}
-	transactionBodyDigest := convertUint32ToBytes(transactionBodyDigestValue)
 
 	for id, voteDiff := range currentTickQuorumData.QuorumDiffPerComputor {
 
@@ -168,32 +168,59 @@ func ReconstructQuorumData(currentTickQuorumData, nextTickQuorumData *protobuff.
 			return nil, errors.Wrap(err, "hashing salted computer digest")
 		}
 
-		var tmp2 [36]byte
+		newFormat := epoch >= 151
 
-		copy(tmp2[:32], computorPublicKey[:])
-		copy(tmp2[32:], resourceDigest[:])
-		saltedResourceTestingDigest, err := utils.K12Hash(tmp2[:])
-		if err != nil {
-			return nil, errors.Wrap(err, "hashing salted resource testing digest")
+		// Establish length of returned digest based on format
+		digestSize := 8
+		if newFormat {
+			digestSize = 4
 		}
 
-		copy(tmp2[:32], computorPublicKey[:])
-		copy(tmp2[32:], transactionBodyDigest[:])
-		saltedTransactionBodyDigest, err := utils.K12Hash(tmp2[:])
+		// Create resource testing digest no matter what
+		saltedResourceTestingDigestBytes, err := reconstructShortSaltedDigest(computorPublicKey[:], resourceDigest, newFormat)
 		if err != nil {
-			return nil, errors.Wrap(err, "hashing salted transaction body digest")
+			return nil, errors.Wrap(err, "reconstructing salted resource testing digest")
+		}
+		saltedResourceTestingDigest := hex.EncodeToString(saltedResourceTestingDigestBytes[:digestSize])
+
+		// Declare transaction body digest no matter what and populate only if new data format
+		var saltedTransactionBodyDigest string
+		if newFormat {
+			saltedTransactionBodyDigestBytes, err := reconstructShortSaltedDigest(computorPublicKey[:], transactionBodyDigest, true)
+			if err != nil {
+				return nil, errors.Wrap(err, "reconstructing salted transaction body digest")
+			}
+			saltedTransactionBodyDigest = hex.EncodeToString(saltedTransactionBodyDigestBytes[:digestSize])
 		}
 
 		reconstructedQuorumData.QuorumDiffPerComputor[id] = &protobuff.QuorumDiff{
-			SaltedResourceTestingDigestHex: hex.EncodeToString(saltedResourceTestingDigest[:4]),
+			SaltedResourceTestingDigestHex: saltedResourceTestingDigest,
+			SaltedTransactionBodyHex:       saltedTransactionBodyDigest,
 			SaltedSpectrumDigestHex:        hex.EncodeToString(saltedSpectrumDigest[:]),
 			SaltedUniverseDigestHex:        hex.EncodeToString(saltedUniverseDigest[:]),
 			SaltedComputerDigestHex:        hex.EncodeToString(saltedComputerDigest[:]),
 			ExpectedNextTickTxDigestHex:    voteDiff.ExpectedNextTickTxDigestHex,
 			SignatureHex:                   voteDiff.SignatureHex,
-			SaltedTransactionBodyHex:       hex.EncodeToString(saltedTransactionBodyDigest[:4]),
 		}
 	}
 
 	return &reconstructedQuorumData, nil
+}
+
+func reconstructShortSaltedDigest(computorPubkey, prevDigest []byte, newFormat bool) ([32]byte, error) {
+
+	var buf [40]byte
+	copy(buf[:32], computorPubkey)
+	copy(buf[32:], prevDigest)
+
+	buf2 := buf[:]
+	if newFormat {
+		buf2 = buf2[:36]
+	}
+
+	saltedDigest, err := utils.K12Hash(buf2)
+	if err != nil {
+		return [32]byte{}, errors.Wrap(err, "hashing salted digest")
+	}
+	return saltedDigest, nil
 }
