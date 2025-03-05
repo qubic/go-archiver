@@ -50,9 +50,10 @@ func run() error {
 			IdleTimeout        time.Duration `conf:"default:15s"`
 		}
 		Qubic struct {
-			NodePort           string        `conf:"default:21841"`
-			StorageFolder      string        `conf:"default:store"`
-			ProcessTickTimeout time.Duration `conf:"default:5s"`
+			NodePort                      string        `conf:"default:21841"`
+			StorageFolder                 string        `conf:"default:store"`
+			ProcessTickTimeout            time.Duration `conf:"default:5s"`
+			DisableTransactionStatusAddon bool          `conf:"default:false"`
 			ArbitratorIdentity string        `conf:"default:AFZPUAIYVPNUYGJRQVLUKOPPVLHAZQTGLYAAUUNBXFTVTAMSBKQBLEIEPCVJ"`
 		}
 		Store struct {
@@ -183,7 +184,7 @@ func run() error {
 		return errors.Wrapf(err, "getting arbitrator public key from [%s]", cfg.Qubic.ArbitratorIdentity)
 	}
 
-	proc := processor.NewProcessor(p, ps, cfg.Qubic.ProcessTickTimeout, arbitratorPubKey)
+	proc := processor.NewProcessor(p, ps, cfg.Qubic.ProcessTickTimeout, arbitratorPubKey, cfg.Qubic.DisableTransactionStatusAddon)
 	procErrors := make(chan error, 1)
 
 	// Start the service listening for requests.

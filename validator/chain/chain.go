@@ -97,6 +97,7 @@ func computeCurrentTickDigest(ctx context.Context, vote types.QuorumTickVote, pr
 		Month:                         vote.Month,
 		Year:                          vote.Year,
 		PreviousResourceTestingDigest: vote.PreviousResourceTestingDigest,
+		PreviousTransactionBodyDigest: vote.PreviousTransactionBodyDigest,
 		PreviousSpectrumDigest:        vote.PreviousSpectrumDigest,
 		PreviousUniverseDigest:        vote.PreviousUniverseDigest,
 		PreviousComputerDigest:        vote.PreviousComputerDigest,

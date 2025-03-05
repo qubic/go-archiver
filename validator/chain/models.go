@@ -21,7 +21,8 @@ type Chain struct {
 	Day                           uint8
 	Month                         uint8
 	Year                          uint8
-	PreviousResourceTestingDigest uint64
+	PreviousResourceTestingDigest uint32
+	PreviousTransactionBodyDigest uint32
 	PreviousSpectrumDigest        [32]byte
 	PreviousUniverseDigest        [32]byte
 	PreviousComputerDigest        [32]byte

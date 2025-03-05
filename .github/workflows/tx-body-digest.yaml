@@ -1,0 +1,50 @@
+name: Test branch and deploy to Github Container Registry
+
+on:
+  push:
+    branches:
+      - 'tx-body-digest'
+
+jobs:
+  test:
+    name: "Perform GO tests"
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        go-version: [ '1.22.x' ]
+
+    steps:
+      - name: "Git checkout"
+        uses: actions/checkout@v4
+
+      - name: "Setup go environment"
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{matrix.go-version}}
+          cache: false
+
+      - name: "Perform tests"
+        run: 'go test ./...'
+
+  publish:
+    name: "Build package and deploy to Github Container Registry"
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: "Git checkout"
+        uses: actions/checkout@v4
+
+      - name: "Log into Github Container Registry"
+        uses: docker/login-action@v3
+        with:
+          registry: "ghcr.io"
+          username: ${{github.actor}}
+          password: ${{secrets.GITHUB_TOKEN}}
+
+      - name: "Build package"
+        run: 'docker build . --tag ghcr.io/qubic/qubic-archiver:${{github.ref_name}}'
+
+      - name: "Publish package"
+        run: 'docker push ghcr.io/qubic/qubic-archiver:${{github.ref_name}}'

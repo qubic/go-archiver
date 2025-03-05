@@ -42,7 +42,7 @@ func GoSchnorrqVerify(_ context.Context, pubkey [32]byte, digest [32]byte, sig [
 	return schnorrq.Verify(pubkey, digest, sig)
 }
 
-func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumber uint32) error {
+func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumber uint32, disableStatusAddon bool) error {
 	quorumVotes, err := v.qu.GetQuorumVotes(ctx, tickNumber)
 	if err != nil {
 		return errors.Wrap(err, "getting quorum tick data")
@@ -116,9 +116,21 @@ func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumb
 
 	log.Printf("Validated %d transactions\n", len(validTxs))
 
-	tickTxStatus, err := v.qu.GetTxStatus(ctx, tickNumber)
-	if err != nil {
-		return errors.Wrap(err, "getting tx status")
+	var tickTxStatus types.TransactionStatus
+
+	if disableStatusAddon {
+		tickTxStatus = types.TransactionStatus{
+			CurrentTickOfNode:  tickNumber,
+			Tick:               tickNumber,
+			TxCount:            uint32(len(validTxs)),
+			MoneyFlew:          [128]byte{},
+			TransactionDigests: nil,
+		}
+	} else {
+		tickTxStatus, err = v.qu.GetTxStatus(ctx, tickNumber)
+		if err != nil {
+			return errors.Wrap(err, "getting tx status")
+		}
 	}
 
 	approvedTxs, err := txstatus.Validate(ctx, tickTxStatus, validTxs)
