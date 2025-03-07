@@ -1,5 +1,9 @@
 # Changelog
 
+## V0.10.1
+
+* Increase maximum page size for endpoint `/v2/identities/{identity}/transfers`.
+
 ## v0.10.0
 
 * Tick structure changes.
