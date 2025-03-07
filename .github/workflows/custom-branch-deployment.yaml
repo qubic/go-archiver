@@ -44,7 +44,7 @@ jobs:
           password: ${{secrets.GITHUB_TOKEN}}
 
       - name: "Build package"
-        run: 'docker build . --tag ghcr.io/qubic/qubic-archiver:${{github.ref_name}}'
+        run: 'docker build . --tag ghcr.io/qubic/qubic-archiver:page-size'
 
       - name: "Publish package"
-        run: 'docker push ghcr.io/qubic/qubic-archiver:${{github.ref_name}}'
+        run: 'docker push ghcr.io/qubic/qubic-archiver:page-size'
