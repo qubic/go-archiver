@@ -232,7 +232,7 @@ func (s *Server) GetSendManyTransactionV2(ctx context.Context, req *protobuff.Ge
 	}, nil
 }
 
-const maxPageSize uint32 = 1000
+const maxPageSize uint32 = 250
 const defaultPageSize uint32 = 100
 
 func (s *Server) GetIdentityTransfersInTickRangeV2(ctx context.Context, req *protobuff.GetTransferTransactionsPerTickRequestV2) (*protobuff.GetIdentityTransfersInTickRangeResponseV2, error) {
