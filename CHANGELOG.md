@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.10.0
+
+* Tick structure changes.
+
 ## v0.9.4
 
 * Make arbitrator identity configurable.
