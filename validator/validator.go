@@ -102,40 +102,47 @@ func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumb
 
 	log.Println("Tick data validated")
 
-	transactions, err := v.qu.GetTickTransactions(ctx, tickNumber)
-	if err != nil {
-		return errors.Wrap(err, "getting tick transactions")
-	}
+	var validTxs = make([]types.Transaction, 0)
+	approvedTxs := &protobuff.TickTransactionsStatus{}
 
-	log.Printf("Validating %d transactions\n", len(transactions))
-
-	validTxs, err := tx.Validate(ctx, GoSchnorrqVerify, transactions, tickData)
-	if err != nil {
-		return errors.Wrap(err, "validating transactions")
-	}
-
-	log.Printf("Validated %d transactions\n", len(validTxs))
-
-	var tickTxStatus types.TransactionStatus
-
-	if disableStatusAddon {
-		tickTxStatus = types.TransactionStatus{
-			CurrentTickOfNode:  tickNumber,
-			Tick:               tickNumber,
-			TxCount:            uint32(len(validTxs)),
-			MoneyFlew:          [128]byte{},
-			TransactionDigests: nil,
-		}
-	} else {
-		tickTxStatus, err = v.qu.GetTxStatus(ctx, tickNumber)
+	if quorumVotes[0].TxDigest != [32]byte{} {
+		transactions, err := v.qu.GetTickTransactions(ctx, tickNumber)
 		if err != nil {
-			return errors.Wrap(err, "getting tx status")
+			return errors.Wrap(err, "getting tick transactions")
 		}
-	}
 
-	approvedTxs, err := txstatus.Validate(ctx, tickTxStatus, validTxs)
-	if err != nil {
-		return errors.Wrap(err, "validating tx status")
+		log.Printf("Validating %d transactions\n", len(transactions))
+
+		txs, err := tx.Validate(ctx, GoSchnorrqVerify, transactions, tickData)
+		if err != nil {
+			return errors.Wrap(err, "validating transactions")
+		}
+
+		validTxs = txs
+
+		log.Printf("Validated %d transactions\n", len(validTxs))
+
+		var tickTxStatus types.TransactionStatus
+
+		if disableStatusAddon {
+			tickTxStatus = types.TransactionStatus{
+				CurrentTickOfNode:  tickNumber,
+				Tick:               tickNumber,
+				TxCount:            uint32(len(validTxs)),
+				MoneyFlew:          [128]byte{},
+				TransactionDigests: nil,
+			}
+		} else {
+			tickTxStatus, err = v.qu.GetTxStatus(ctx, tickNumber)
+			if err != nil {
+				return errors.Wrap(err, "getting tx status")
+			}
+		}
+
+		approvedTxs, err = txstatus.Validate(ctx, tickTxStatus, validTxs)
+		if err != nil {
+			return errors.Wrap(err, "validating tx status")
+		}
 	}
 
 	// proceed to storing tick information
@@ -158,7 +165,7 @@ func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumb
 		return errors.Wrap(err, "storing transactions")
 	}
 
-	log.Printf("Stored %d transactions\n", len(transactions))
+	log.Printf("Stored %d transactions\n", len(validTxs))
 
 	err = txstatus.Store(ctx, v.store, tickNumber, approvedTxs)
 	if err != nil {
