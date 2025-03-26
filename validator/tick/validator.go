@@ -10,6 +10,10 @@ import (
 )
 
 func Validate(ctx context.Context, sigVerifierFunc utils.SigVerifierFunc, data types.TickData, quorumTickVote types.QuorumTickVote, comps types.Computors) error {
+	if data.Epoch == 0xffff {
+		data.Epoch = 0
+	}
+
 	//empty tick with empty quorum tx digest means other verification is not needed
 	if (data.IsEmpty()) && quorumTickVote.TxDigest == [32]byte{} {
 		return nil
