@@ -81,31 +81,28 @@ func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumb
 		return errors.Wrap(err, "validating quorum")
 	}
 
-	// if the quorum votes have an empty tick data, it means that POTENTIALLY there is no tick data, it doesn't for
-	// validation, but we may need to fetch it in the future ?!
-	//if quorumVotes[0].TxDigest == [32]byte{} {
-	//	return nil
-	//}
-
 	log.Printf("Quorum validated. Aligned %d. Misaligned %d.\n", len(alignedVotes), len(quorumVotes)-len(alignedVotes))
 
-	tickData, err := v.qu.GetTickData(ctx, tickNumber)
-	if err != nil {
-		return errors.Wrap(err, "getting tick data")
-	}
-	log.Println("Got tick data")
-
-	err = tick.Validate(ctx, GoSchnorrqVerify, tickData, alignedVotes[0], comps)
-	if err != nil {
-		return errors.Wrap(err, "validating tick data")
-	}
-
-	log.Println("Tick data validated")
-
+	var tickData types.TickData
 	var validTxs = make([]types.Transaction, 0)
 	approvedTxs := &protobuff.TickTransactionsStatus{}
 
 	if quorumVotes[0].TxDigest != [32]byte{} {
+		td, err := v.qu.GetTickData(ctx, tickNumber)
+		if err != nil {
+			return errors.Wrap(err, "getting tick data")
+		}
+
+		tickData = td
+		log.Println("Got tick data")
+
+		err = tick.Validate(ctx, GoSchnorrqVerify, tickData, alignedVotes[0], comps)
+		if err != nil {
+			return errors.Wrap(err, "validating tick data")
+		}
+
+		log.Println("Tick data validated")
+
 		transactions, err := v.qu.GetTickTransactions(ctx, tickNumber)
 		if err != nil {
 			return errors.Wrap(err, "getting tick transactions")
@@ -113,12 +110,10 @@ func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumb
 
 		log.Printf("Validating %d transactions\n", len(transactions))
 
-		txs, err := tx.Validate(ctx, GoSchnorrqVerify, transactions, tickData)
+		validTxs, err = tx.Validate(ctx, GoSchnorrqVerify, transactions, tickData)
 		if err != nil {
 			return errors.Wrap(err, "validating transactions")
 		}
-
-		validTxs = txs
 
 		log.Printf("Validated %d transactions\n", len(validTxs))
 
