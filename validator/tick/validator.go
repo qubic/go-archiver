@@ -19,6 +19,10 @@ func Validate(ctx context.Context, sigVerifierFunc utils.SigVerifierFunc, data t
 		return nil
 	}
 
+	if data.Epoch == 0 {
+		data.Epoch = quorumTickVote.Epoch
+	}
+
 	computorPubKey := comps.PubKeys[data.ComputorIndex]
 
 	digest, err := getDigestFromTickData(data)
