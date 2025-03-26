@@ -39,10 +39,10 @@ func run() error {
 			GrpcHost          string        `conf:"default:0.0.0.0:8001"`
 			ProfilingHost     string        `conf:"default:0.0.0.0:8002"`
 			NodeSyncThreshold int           `conf:"default:3"`
-			ChainTickFetchUrl string        `conf:"default:http://127.0.0.1:8080/max-tick"`
+			ChainTickFetchUrl string        `conf:"default:http://37.27.19.14:8080/max-tick"`
 		}
 		Pool struct {
-			NodeFetcherUrl     string        `conf:"default:http://127.0.0.1:8080/status"`
+			NodeFetcherUrl     string        `conf:"default:http://37.27.19.14:8080/status"`
 			NodeFetcherTimeout time.Duration `conf:"default:2s"`
 			InitialCap         int           `conf:"default:5"`
 			MaxIdle            int           `conf:"default:20"`
@@ -54,7 +54,7 @@ func run() error {
 			StorageFolder                 string        `conf:"default:store"`
 			ProcessTickTimeout            time.Duration `conf:"default:5s"`
 			DisableTransactionStatusAddon bool          `conf:"default:false"`
-			ArbitratorIdentity string        `conf:"default:AFZPUAIYVPNUYGJRQVLUKOPPVLHAZQTGLYAAUUNBXFTVTAMSBKQBLEIEPCVJ"`
+			ArbitratorIdentity            string        `conf:"default:AFZPUAIYVPNUYGJRQVLUKOPPVLHAZQTGLYAAUUNBXFTVTAMSBKQBLEIEPCVJ"`
 		}
 		Store struct {
 			ResetEmptyTickKeys bool `conf:"default:false"`

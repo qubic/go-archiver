@@ -100,7 +100,7 @@ func (p *Processor) processOneByOne() error {
 	}
 
 	val := validator.New(client, p.ps, p.arbitratorPubKey)
-	err = val.ValidateTick(ctx, tickInfo.InitialTick, nextTick.TickNumber, p.disableStatusAddon)
+	err = val.ValidateTick(ctx, tickInfo.InitialTick, 22186216, p.disableStatusAddon)
 	if err != nil {
 		return errors.Wrapf(err, "validating tick %d", nextTick.TickNumber)
 	}
