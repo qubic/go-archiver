@@ -1,8 +1,6 @@
-version: '3'
-
 services:
   qubic-http:
-    image: ghcr.io/qubic/qubic-http:dev
+    image: ghcr.io/qubic/qubic-http:v0.8.0
     container_name: qubic-http
     environment:
       QUBIC_API_SIDECAR_SERVER_HTTP_HOST: "0.0.0.0:8000"
@@ -17,7 +15,7 @@ services:
     restart: always
 
   qubic-archiver:
-    image: ghcr.io/qubic/qubic-archiver:v0.2.2
+    image: ghcr.io/qubic/qubic-archiver:v0.10.1
     container_name: qubic-archiver
     ports:
       - "127.0.0.1:8001:8000"
@@ -27,6 +25,7 @@ services:
       QUBIC_ARCHIVER_SERVER_CHAIN_TICK_FETCH_URL: "http://qubic-nodes:8080/max-tick"
       QUBIC_ARCHIVER_POOL_NODE_FETCHER_URL: "http://qubic-nodes:8080/status"
       QUBIC_ARCHIVER_QUBIC_PROCESS_TICK_TIMEOUT: "20s"
+      QUBIC_ARCHIVER_QUBIC_DISABLE_TRANSACTION_STATUS_ADDON: "false"
     volumes:
       - ./store/archiver:/app/store
     networks:
@@ -37,11 +36,12 @@ services:
     restart: always
 
   qubic-nodes:
-    image: ghcr.io/qubic/qubic-nodes:v1.0.2
+    image: ghcr.io/qubic/qubic-nodes:v2.0.1
+    container_name: qubic-nodes
     ports:
       - "127.0.0.1:8080:8080"
     environment:
-      QUBIC_NODES_QUBIC_PEER_LIST: "5.39.222.64;82.197.173.130;82.197.173.129"
+      QUBIC_NODES_QUBIC_PEER_LIST: "1.2.3.4;2.3.4.5"
     volumes:
       - ./store/qubic-nodes:/app/store
     networks:

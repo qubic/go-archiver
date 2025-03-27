@@ -54,7 +54,7 @@ func run() error {
 			StorageFolder                 string        `conf:"default:store"`
 			ProcessTickTimeout            time.Duration `conf:"default:5s"`
 			DisableTransactionStatusAddon bool          `conf:"default:false"`
-			ArbitratorIdentity string        `conf:"default:AFZPUAIYVPNUYGJRQVLUKOPPVLHAZQTGLYAAUUNBXFTVTAMSBKQBLEIEPCVJ"`
+			ArbitratorIdentity            string        `conf:"default:AFZPUAIYVPNUYGJRQVLUKOPPVLHAZQTGLYAAUUNBXFTVTAMSBKQBLEIEPCVJ"`
 		}
 		Store struct {
 			ResetEmptyTickKeys bool `conf:"default:false"`
