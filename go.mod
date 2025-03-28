@@ -6,6 +6,7 @@ require (
 	github.com/ardanlabs/conf v1.5.0
 	github.com/cloudflare/circl v1.5.0
 	github.com/cockroachdb/pebble v1.1.2
+	github.com/elastic/go-elasticsearch/v8 v8.17.1
 	github.com/google/go-cmp v0.6.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.22.0
 	github.com/pkg/errors v0.9.1
@@ -30,7 +31,10 @@ require (
 	github.com/cockroachdb/tokenbucket v0.0.0-20230807174530-cc333fc44b06 // indirect
 	github.com/consensys/gnark-crypto v0.14.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/elastic/elastic-transport-go/v8 v8.6.1 // indirect
 	github.com/getsentry/sentry-go v0.27.0 // indirect
+	github.com/go-logr/logr v1.4.2 // indirect
+	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
@@ -47,6 +51,9 @@ require (
 	github.com/rogpeppe/go-internal v1.13.1 // indirect
 	github.com/silenceper/pool v1.0.0 // indirect
 	github.com/sirupsen/logrus v1.9.0 // indirect
+	go.opentelemetry.io/otel v1.28.0 // indirect
+	go.opentelemetry.io/otel/metric v1.28.0 // indirect
+	go.opentelemetry.io/otel/trace v1.28.0 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/exp v0.0.0-20240325151524-a685a6edb6d8 // indirect
 	golang.org/x/net v0.28.0 // indirect
