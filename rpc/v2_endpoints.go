@@ -55,7 +55,6 @@ func (s *Server) GetTickTransactionsV2(ctx context.Context, req *protobuff.GetTi
 }
 
 func (s *Server) GetAllTickTransactionsV2(ctx context.Context, req *protobuff.GetTickRequestV2) (*protobuff.GetTickTransactionsResponseV2, error) {
-
 	txs, err := s.store.GetTickTransactions(ctx, req.TickNumber)
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
@@ -64,24 +63,53 @@ func (s *Server) GetAllTickTransactionsV2(ctx context.Context, req *protobuff.Ge
 		return nil, status.Errorf(codes.Internal, "getting tick transactions: %v", err)
 	}
 
+	tts, err := s.store.GetTickTransactionsStatus(ctx, uint64(req.TickNumber))
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, status.Errorf(codes.NotFound, "tick transactions status for specified tick not found")
+		}
+		return nil, status.Errorf(codes.Internal, "getting tick transactions status: %v", err)
+	}
+
+	td, err := s.store.GetTickData(ctx, req.TickNumber)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, status.Errorf(codes.NotFound, "tick data for specified tick not found")
+		}
+		return nil, status.Errorf(codes.Internal, "getting tick data: %v", err)
+	}
+
+	ttsMap := createTxStatusMap(tts)
+
 	var transactions []*protobuff.TransactionData
 
 	for _, transaction := range txs {
-
-		transactionInfo, err := getTransactionInfo(ctx, s.store, transaction.TxId, transaction.TickNumber)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "failed to get transaction info: %v", err)
+		moneyFlew, ok := ttsMap[transaction.TxId]
+		if !ok {
+			transactions = append(transactions, &protobuff.TransactionData{Transaction: transaction, Timestamp: td.Timestamp, MoneyFlew: false})
+			continue
 		}
 
 		transactions = append(transactions, &protobuff.TransactionData{
 			Transaction: transaction,
-			Timestamp:   transactionInfo.timestamp,
-			MoneyFlew:   transactionInfo.moneyFlew,
+			Timestamp:   td.Timestamp,
+			MoneyFlew:   moneyFlew,
 		})
 
 	}
 
 	return &protobuff.GetTickTransactionsResponseV2{Transactions: transactions}, nil
+}
+
+func createTxStatusMap(tts *protobuff.TickTransactionsStatus) map[string]bool {
+	txStatusMap := make(map[string]bool)
+
+	for _, txStatus := range tts.Transactions {
+		txStatusMap[txStatus.TxId] = txStatus.MoneyFlew
+	}
+
+	return txStatusMap
+
 }
 
 func (s *Server) GetTransferTickTransactionsV2(ctx context.Context, req *protobuff.GetTickRequestV2) (*protobuff.GetTickTransactionsResponseV2, error) {
