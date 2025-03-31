@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"github.com/qubic/go-archiver/protobuff"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
 	"log"
-	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -16,9 +17,14 @@ type LongTermStorageClient interface {
 	PushMultipleTx(ctx context.Context, txs []Tx) error
 }
 
+type ArchiveTransactionFetcher interface {
+	GetTickTransactionsV2(ctx context.Context, req *protobuff.GetTickTransactionsRequestV2, opts ...grpc.CallOption) (*protobuff.GetTickTransactionsResponseV2, error)
+}
+
 type Processor struct {
 	internalStore                 *ProcessorStore
 	archiveClient                 protobuff.ArchiveServiceClient
+	archiveTransactionFetcher     ArchiveTransactionFetcher
 	ltsClient                     LongTermStorageClient
 	batchSize                     int
 	logger                        *zap.SugaredLogger
@@ -26,8 +32,8 @@ type Processor struct {
 	ltsBatchInsertTimeout         time.Duration
 }
 
-func NewProcessor(store *ProcessorStore, archiveClient protobuff.ArchiveServiceClient, ltsClient LongTermStorageClient, batchSize int, logger *zap.SugaredLogger, archiveTickTransactionTimeout time.Duration, ltsBatchInsertTimeout time.Duration) (*Processor, error) {
-	return &Processor{internalStore: store, archiveClient: archiveClient, ltsClient: ltsClient, batchSize: batchSize, logger: logger, archiveTickTransactionTimeout: archiveTickTransactionTimeout, ltsBatchInsertTimeout: ltsBatchInsertTimeout}, nil
+func NewProcessor(store *ProcessorStore, archiveClient protobuff.ArchiveServiceClient, archiveTransactionFetcher ArchiveTransactionFetcher, ltsClient LongTermStorageClient, batchSize int, logger *zap.SugaredLogger, archiveTickTransactionTimeout time.Duration, ltsBatchInsertTimeout time.Duration) (*Processor, error) {
+	return &Processor{internalStore: store, archiveClient: archiveClient, archiveTransactionFetcher: archiveTransactionFetcher, ltsClient: ltsClient, batchSize: batchSize, logger: logger, archiveTickTransactionTimeout: archiveTickTransactionTimeout, ltsBatchInsertTimeout: ltsBatchInsertTimeout}, nil
 }
 
 func (p *Processor) Start(nrWorkers int) error {
@@ -42,12 +48,16 @@ func (p *Processor) Start(nrWorkers int) error {
 			return fmt.Errorf("getting starting ticks for epochs: %v", err)
 		}
 
-		var startedWorkers int
-		var wg sync.WaitGroup
+		var startedWorkers atomic.Int32
+
 		for _, epochIntervals := range status.ProcessedTickIntervalsPerEpoch {
-			if startedWorkers == nrWorkers {
-				wg.Wait()
-				startedWorkers = 0
+			for {
+				if startedWorkers.Load() != int32(nrWorkers) {
+					break
+				}
+
+				time.Sleep(5 * time.Second)
+				continue
 			}
 
 			startingTick, ok := startingTicksForEpochs[epochIntervals.Epoch]
@@ -59,10 +69,10 @@ func (p *Processor) Start(nrWorkers int) error {
 				continue
 			}
 
-			wg.Add(1)
-			startedWorkers++
+			startedWorkers.Add(1)
 			go func() {
-				defer wg.Done()
+				defer startedWorkers.Add(-1)
+
 				err = p.processEpoch(epochIntervals.Epoch, startingTick, epochIntervals)
 				if err != nil {
 					p.logger.Errorw("error processing epoch", "epoch", epochIntervals.Epoch, "error", err)
@@ -70,6 +80,15 @@ func (p *Processor) Start(nrWorkers int) error {
 					p.logger.Infow("Finished processing epoch", "epoch", epochIntervals.Epoch)
 				}
 			}()
+		}
+
+		for {
+			if startedWorkers.Load() == int32(0) {
+				break
+			}
+
+			time.Sleep(5 * time.Second)
+			continue
 		}
 	}
 }
@@ -120,7 +139,7 @@ func (p *Processor) processEpoch(epoch uint32, startTick uint32, epochTickInterv
 
 			batchTxToInsert = append(batchTxToInsert, txs...)
 			if len(batchTxToInsert) >= p.batchSize || tick == interval.LastProcessedTick {
-				err = p.PushMultipleTxWithRetry(batchTxToInsert)
+				err = p.PushMultipleTxWithRetry(epoch, batchTxToInsert)
 				if err != nil {
 					return fmt.Errorf("inserting batch: %v", err)
 				}
@@ -145,7 +164,7 @@ func (p *Processor) getTransactionsFromArchiver(tick uint32) ([]Tx, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), p.archiveTickTransactionTimeout)
 	defer cancel()
 
-	txs, err := p.archiveClient.GetTickTransactionsV2(ctx, &protobuff.GetTickTransactionsRequestV2{TickNumber: tick})
+	txs, err := p.archiveTransactionFetcher.GetTickTransactionsV2(ctx, &protobuff.GetTickTransactionsRequestV2{TickNumber: tick})
 	if err != nil {
 		if err.Error() == "rpc error: code = NotFound desc = tick transactions for specified tick not found" {
 			return []Tx{}, ErrEmptyTick
@@ -172,12 +191,16 @@ func (p *Processor) getTransactionsFromArchiver(tick uint32) ([]Tx, error) {
 	return tickTransactions, nil
 }
 
-func (p *Processor) PushMultipleTxWithRetry(txs []Tx) error {
+func (p *Processor) PushMultipleTxWithRetry(epoch uint32, txs []Tx) error {
+	if len(txs) == 0 {
+		return nil
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), p.ltsBatchInsertTimeout)
 	defer cancel()
 
 	var lastErr error
-	p.logger.Infow("Inserting batch of transactions", "inserted_batch_size", len(txs))
+	p.logger.Infow("Inserting batch of transactions", "epoch", epoch, "inserted_batch_size", len(txs))
 	for i := 0; i < 20; i++ {
 		err := p.ltsClient.PushMultipleTx(ctx, txs)
 		if err != nil {
