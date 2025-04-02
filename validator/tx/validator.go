@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"github.com/pkg/errors"
-	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-archiver/utils"
 	"github.com/qubic/go-node-connector/types"
@@ -105,12 +104,6 @@ func Store(ctx context.Context, store *store.PebbleStore, tickNumber uint32, tra
 	if err != nil {
 		return errors.Wrap(err, "storing tick transactions")
 	}
-
-	err = storeTransferTransactions(ctx, store, tickNumber, transactions)
-	if err != nil {
-		return errors.Wrap(err, "storing transfer transactions")
-	}
-
 	return nil
 }
 
@@ -120,68 +113,10 @@ func storeTickTransactions(ctx context.Context, store *store.PebbleStore, transa
 		return errors.Wrap(err, "converting to proto")
 	}
 
-	err = store.SetTransactions(ctx, protoModel)
+	err = store.GetCurrentEpochStore().SetTransactions(protoModel)
 	if err != nil {
 		return errors.Wrap(err, "storing tick transactions")
 	}
 
 	return nil
-}
-
-func storeTransferTransactions(ctx context.Context, store *store.PebbleStore, tickNumber uint32, transactions types.Transactions) error {
-	transferTransactions, err := removeNonTransferTransactionsAndConvert(transactions)
-	if err != nil {
-		return errors.Wrap(err, "removing non transfer transactions")
-	}
-	txsPerIdentity, err := createTransferTransactionsIdentityMap(ctx, transferTransactions)
-	if err != nil {
-		return errors.Wrap(err, "filtering transfer transactions")
-	}
-
-	for id, txs := range txsPerIdentity {
-		err = store.PutTransferTransactionsPerTick(ctx, id, tickNumber, &protobuff.TransferTransactionsPerTick{TickNumber: uint32(tickNumber), Identity: id, Transactions: txs})
-		if err != nil {
-			return errors.Wrap(err, "storing transfer transactions")
-		}
-	}
-
-	return nil
-}
-
-func removeNonTransferTransactionsAndConvert(transactions []types.Transaction) ([]*protobuff.Transaction, error) {
-	transferTransactions := make([]*protobuff.Transaction, 0)
-	for _, tx := range transactions {
-		if tx.Amount == 0 {
-			continue
-		}
-
-		protoTx, err := txToProto(tx)
-		if err != nil {
-			return nil, errors.Wrap(err, "converting to proto")
-		}
-
-		transferTransactions = append(transferTransactions, protoTx)
-	}
-
-	return transferTransactions, nil
-}
-
-func createTransferTransactionsIdentityMap(ctx context.Context, txs []*protobuff.Transaction) (map[string][]*protobuff.Transaction, error) {
-	txsPerIdentity := make(map[string][]*protobuff.Transaction)
-	for _, tx := range txs {
-		_, ok := txsPerIdentity[tx.DestId]
-		if !ok {
-			txsPerIdentity[tx.DestId] = make([]*protobuff.Transaction, 0)
-		}
-
-		_, ok = txsPerIdentity[tx.SourceId]
-		if !ok {
-			txsPerIdentity[tx.SourceId] = make([]*protobuff.Transaction, 0)
-		}
-
-		txsPerIdentity[tx.DestId] = append(txsPerIdentity[tx.DestId], tx)
-		txsPerIdentity[tx.SourceId] = append(txsPerIdentity[tx.SourceId], tx)
-	}
-
-	return txsPerIdentity, nil
 }

@@ -119,7 +119,7 @@ func (p *Processor) processStatus(ctx context.Context, lastTick *protobuff.Proce
 		return errors.Wrap(err, "processing skipped ticks")
 	}
 
-	err = p.ps.SetLastProcessedTick(ctx, nextTick)
+	err = p.ps.SetLastProcessedTick(nextTick)
 	if err != nil {
 		return errors.Wrapf(err, "setting last processed tick %d", nextTick.TickNumber)
 	}
@@ -130,7 +130,21 @@ func (p *Processor) processStatus(ctx context.Context, lastTick *protobuff.Proce
 func (p *Processor) getNextProcessingTick(_ context.Context, lastTick *protobuff.ProcessedTick, currentTickInfo types.TickInfo) (*protobuff.ProcessedTick, error) {
 	//handles the case where the initial tick of epoch returned by the node is greater than the last processed tick
 	// which means that we are in the next epoch and we should start from the initial tick of the current epoch
+
+	//Simulate epoch transition
+	if lastTick.TickNumber > 22690020 {
+		currentTickInfo.InitialTick = 22690023
+		currentTickInfo.Epoch = 156
+		lastTick.Epoch = 156
+	}
+
 	if currentTickInfo.InitialTick > lastTick.TickNumber {
+
+		err := p.ps.HandleEpochTransition(uint32(currentTickInfo.Epoch))
+		if err != nil {
+			return nil, errors.Wrap(err, "handling epoch transition")
+		}
+
 		return &protobuff.ProcessedTick{TickNumber: currentTickInfo.InitialTick, Epoch: uint32(currentTickInfo.Epoch)}, nil
 	}
 
@@ -139,7 +153,7 @@ func (p *Processor) getNextProcessingTick(_ context.Context, lastTick *protobuff
 }
 
 func (p *Processor) getLastProcessedTick(ctx context.Context, currentTickInfo types.TickInfo) (*protobuff.ProcessedTick, error) {
-	lastTick, err := p.ps.GetLastProcessedTick(ctx)
+	lastTick, err := p.ps.GetLastProcessedTick()
 	if err != nil {
 		//handles first run of the archiver where there is nothing in storage
 		// in this case last tick is 0 and epoch is current tick info epoch
@@ -163,17 +177,9 @@ func (p *Processor) processSkippedTicks(ctx context.Context, lastTick *protobuff
 		return errors.Errorf("Next tick should not be equal to last tick %d", nextTick.TickNumber)
 	}
 
-	err := p.ps.AppendProcessedTickInterval(ctx, nextTick.Epoch, &protobuff.ProcessedTickInterval{InitialProcessedTick: nextTick.TickNumber, LastProcessedTick: nextTick.TickNumber})
+	err := p.ps.GetCurrentEpochStore().AppendProcessedTickInterval(&protobuff.ProcessedTickInterval{InitialProcessedTick: nextTick.TickNumber, LastProcessedTick: nextTick.TickNumber})
 	if err != nil {
 		return errors.Wrap(err, "appending processed tick interval")
-	}
-
-	err = p.ps.SetSkippedTicksInterval(ctx, &protobuff.SkippedTicksInterval{
-		StartTick: lastTick.TickNumber + 1,
-		EndTick:   nextTick.TickNumber - 1,
-	})
-	if err != nil {
-		return errors.Wrap(err, "setting skipped ticks interval")
 	}
 
 	return nil
