@@ -208,6 +208,7 @@ func TestProcessor_ProcessStatus(t *testing.T) {
 	require.NoError(t, err)
 
 	diff = cmp.Diff(got, expected, cmpopts.IgnoreUnexported(pb.ProcessedTickInterval{}, pb.ProcessedTickIntervalsPerEpoch{}))
+	log.Printf("DIFF: %s\n", diff)
 	require.True(t, cmp.Equal(diff, ""))
 }
 
