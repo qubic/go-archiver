@@ -1,6 +1,7 @@
 package store
 
 import (
+	"cmp"
 	"encoding/binary"
 	"github.com/cockroachdb/pebble"
 	"github.com/pkg/errors"
@@ -317,6 +318,9 @@ func (s *PebbleStore) GetProcessedTickIntervals() ([]*protobuff.ProcessedTickInt
 		}
 		processedTickIntervalsPerEpoch = append(processedTickIntervalsPerEpoch, processedTickIntervals)
 	}
+	slices.SortFunc(processedTickIntervalsPerEpoch, func(a, b *protobuff.ProcessedTickIntervalsPerEpoch) int {
+		return cmp.Compare(a.Epoch, b.Epoch)
+	})
 	return processedTickIntervalsPerEpoch, nil
 
 }
