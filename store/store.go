@@ -2,14 +2,15 @@ package store
 
 import (
 	"encoding/binary"
-	"fmt"
 	"github.com/cockroachdb/pebble"
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
+	"log"
 	"path/filepath"
 	"slices"
+	"sync"
 )
 
 const maxTickNumber = ^uint64(0)
@@ -17,9 +18,9 @@ const maxTickNumber = ^uint64(0)
 var ErrNotFound = errors.New("store resource not found")
 
 type PebbleStore struct {
-	maxEpochCount     int
-	loadedEpochs      map[uint32]*EpochStore
-	currentEpochStore *EpochStore
+	maxEpochCount int
+
+	storeInfo *stores
 
 	storagePath string
 
@@ -38,7 +39,7 @@ func NewPebbleStore(storagePath string, logger *zap.Logger, epochCount int) (*Pe
 
 	ps := PebbleStore{
 		maxEpochCount: epochCount,
-		loadedEpochs:  make(map[uint32]*EpochStore),
+		storeInfo:     &stores{},
 		storagePath:   storagePath,
 		infoDb:        infoDb,
 		logger:        logger,
@@ -58,6 +59,8 @@ func NewPebbleStore(storagePath string, logger *zap.Logger, epochCount int) (*Pe
 		}
 	}
 
+	loadedEpochs := make(map[uint32]*EpochStore)
+
 	for _, epoch := range relevantEpochs {
 		if epoch == 0 {
 			continue
@@ -68,10 +71,11 @@ func NewPebbleStore(storagePath string, logger *zap.Logger, epochCount int) (*Pe
 		}
 
 		if lastProcessedTick != nil && epoch == lastProcessedTick.Epoch {
-			ps.currentEpochStore = epochStore
+			ps.storeInfo.setCurrentEpochStore(epochStore)
 		}
-		ps.loadedEpochs[epoch] = epochStore
+		loadedEpochs[epoch] = epochStore
 	}
+	ps.storeInfo.setLoadedEpochs(loadedEpochs)
 
 	return &ps, err
 }
@@ -88,7 +92,8 @@ func (s *PebbleStore) SetLastProcessedTick(processedTick *protobuff.ProcessedTic
 		return errors.Wrap(err, "storing last processed tick")
 	}
 
-	err = s.currentEpochStore.SetLastProcessedTick(processedTick.TickNumber)
+	currentEpochStore := s.storeInfo.getCurrentEpochStore()
+	err = currentEpochStore.SetLastProcessedTick(processedTick.TickNumber)
 	if err != nil {
 		return errors.Wrap(err, "storing last processed tick to epoch storage")
 	}
@@ -164,7 +169,7 @@ func (s *PebbleStore) GetRelevantEpochList() ([]uint32, error) {
 }
 
 func (s *PebbleStore) GetCurrentEpochStore() *EpochStore {
-	return s.currentEpochStore
+	return s.storeInfo.getCurrentEpochStore()
 }
 
 func (s *PebbleStore) HandleEpochTransition(epoch uint32) error {
@@ -174,12 +179,15 @@ func (s *PebbleStore) HandleEpochTransition(epoch uint32) error {
 		return errors.Wrap(err, "creating new epoch store")
 	}
 
-	s.currentEpochStore = epochStore
-	s.loadedEpochs[epoch] = epochStore
+	s.storeInfo.setCurrentEpochStore(epochStore)
 
-	epochs := getRelevantEpochListFromMap(s.loadedEpochs)
+	loadedEpochs := s.storeInfo.getLoadedEpochs()
+	loadedEpochs[epoch] = epochStore
+	s.storeInfo.setLoadedEpochs(loadedEpochs)
 
-	fmt.Printf("DEBUG: Epoch list pre cleanup: %v\n", epochs)
+	epochs := getRelevantEpochListFromMap(loadedEpochs)
+
+	log.Printf("Epoch list pre transition: %v\n", epochs)
 
 	if len(epochs) > s.maxEpochCount {
 		slices.Sort(epochs)
@@ -189,16 +197,15 @@ func (s *PebbleStore) HandleEpochTransition(epoch uint32) error {
 
 			//Commented for now. Closing the DB will hang for an unknown period of time. If the program is terminated before this finished, the updated list will not be saved, leading to a broken state
 			//oldStore := s.loadedEpochs[e]
-			delete(s.loadedEpochs, e)
+			delete(loadedEpochs, e)
 			//err := oldStore.pebbleDb.Close()
 			//return errors.Wrapf(err, "closing old epoch store %d", e)
 		}
-
 	}
 
-	epochs = getRelevantEpochListFromMap(s.loadedEpochs)
+	epochs = getRelevantEpochListFromMap(loadedEpochs)
 
-	fmt.Printf("DEBUG: Epoch list post cleanup: %v\n", epochs)
+	log.Printf("Epoch list post transition: %v\n", epochs)
 
 	err = s.SetRelevantEpochList(epochs)
 	if err != nil {
@@ -218,7 +225,9 @@ func getRelevantEpochListFromMap(epochMap map[uint32]*EpochStore) []uint32 {
 }
 
 func (s *PebbleStore) GetTickData(tickNumber uint32) (*protobuff.TickData, error) {
-	for _, store := range s.loadedEpochs {
+
+	loadedEpochs := s.storeInfo.getLoadedEpochs()
+	for _, store := range loadedEpochs {
 		tickData, err := store.GetTickData(tickNumber)
 		if err != nil {
 			if errors.Is(err, ErrNotFound) {
@@ -237,7 +246,8 @@ func (s *PebbleStore) GetTickTransactions(tickNumber uint32) ([]*protobuff.Trans
 
 	var transactions []*protobuff.Transaction
 
-	for _, store := range s.loadedEpochs {
+	loadedEpochs := s.storeInfo.getLoadedEpochs()
+	for _, store := range loadedEpochs {
 		tickData, err := store.GetTickData(tickNumber)
 		if err != nil {
 			if errors.Is(err, ErrNotFound) {
@@ -262,7 +272,9 @@ func (s *PebbleStore) GetTickTransactions(tickNumber uint32) ([]*protobuff.Trans
 }
 
 func (s *PebbleStore) GetTransaction(txId string) (*protobuff.Transaction, error) {
-	for _, store := range s.loadedEpochs {
+
+	loadedEpochs := s.storeInfo.getLoadedEpochs()
+	for _, store := range loadedEpochs {
 		transaction, err := store.GetTransaction(txId)
 		if err != nil {
 			if errors.Is(err, ErrNotFound) {
@@ -281,7 +293,8 @@ func (s *PebbleStore) GetLastProcessedTicksPerEpoch() (map[uint32]uint32, error)
 
 	epochLastProcessedTickMap := make(map[uint32]uint32)
 
-	for _, epochStore := range s.loadedEpochs {
+	loadedEpochs := s.storeInfo.getLoadedEpochs()
+	for _, epochStore := range loadedEpochs {
 		lastProcessedTick, err := epochStore.GetLastProcessedTick()
 		if err != nil {
 			return nil, errors.Wrapf(err, "getting last processed tick of epoch %d", epochStore.epoch)
@@ -296,7 +309,8 @@ func (s *PebbleStore) GetProcessedTickIntervals() ([]*protobuff.ProcessedTickInt
 
 	var processedTickIntervalsPerEpoch []*protobuff.ProcessedTickIntervalsPerEpoch
 
-	for _, epochStore := range s.loadedEpochs {
+	loadedEpochs := s.storeInfo.getLoadedEpochs()
+	for _, epochStore := range loadedEpochs {
 		processedTickIntervals, err := epochStore.GetProcessedTickIntervals()
 		if err != nil {
 			return nil, errors.Wrapf(err, "getting processed tick intervals of epoch %d", epochStore.epoch)
@@ -309,10 +323,51 @@ func (s *PebbleStore) GetProcessedTickIntervals() ([]*protobuff.ProcessedTickInt
 
 func (s *PebbleStore) Close() {
 	s.infoDb.Close()
+	s.storeInfo.closeStores()
+}
 
-	for _, store := range s.loadedEpochs {
-		store.pebbleDb.Close()
+type stores struct {
+	currentEpochStore *EpochStore
+	loadedEpochs      map[uint32]*EpochStore
+	mutex             sync.RWMutex
+}
+
+func (s *stores) getCurrentEpochStore() *EpochStore {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	return s.currentEpochStore
+
+}
+
+func (s *stores) setCurrentEpochStore(store *EpochStore) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	s.currentEpochStore = store
+}
+
+func (s *stores) getLoadedEpochs() map[uint32]*EpochStore {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	return s.loadedEpochs
+}
+
+func (s *stores) setLoadedEpochs(loadedEpochs map[uint32]*EpochStore) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	s.loadedEpochs = loadedEpochs
+}
+
+func (s *stores) closeStores() error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	for _, epochStore := range s.loadedEpochs {
+		err := epochStore.pebbleDb.Close()
+		if err != nil {
+			return errors.Wrapf(err, "closing store for epoch %d", epochStore.epoch)
+		}
 	}
+	return nil
 }
 
 const (
