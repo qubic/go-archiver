@@ -9,7 +9,6 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
 	"path/filepath"
-	"runtime"
 	"slices"
 )
 
@@ -32,10 +31,9 @@ func NewPebbleStore(storagePath string, logger *zap.Logger, epochCount int) (*Pe
 
 	infoDbPath := storagePath + string(filepath.Separator) + "info"
 
-	dbOptions := getDBOptions()
-	infoDb, err := pebble.Open(infoDbPath, &dbOptions)
+	infoDb, err := pebble.Open(infoDbPath, &pebble.Options{}) // Use default options
 	if err != nil {
-		return nil, errors.Wrap(err, "opening db with zstd compression")
+		return nil, errors.Wrap(err, "opening info db")
 	}
 
 	ps := PebbleStore{
@@ -314,56 +312,6 @@ func (s *PebbleStore) Close() {
 
 	for _, store := range s.loadedEpochs {
 		store.pebbleDb.Close()
-	}
-}
-
-func getDBOptions() pebble.Options {
-	l1Options := pebble.LevelOptions{
-		BlockRestartInterval: 16,
-		BlockSize:            4096,
-		BlockSizeThreshold:   90,
-		Compression:          pebble.NoCompression,
-		FilterPolicy:         nil,
-		FilterType:           pebble.TableFilter,
-		IndexBlockSize:       4096,
-		TargetFileSize:       268435456, // 256 MB
-	}
-	l2Options := pebble.LevelOptions{
-		BlockRestartInterval: 16,
-		BlockSize:            4096,
-		BlockSizeThreshold:   90,
-		Compression:          pebble.ZstdCompression,
-		FilterPolicy:         nil,
-		FilterType:           pebble.TableFilter,
-		IndexBlockSize:       4096,
-		TargetFileSize:       l1Options.TargetFileSize * 10, // 2.5 GB
-	}
-	l3Options := pebble.LevelOptions{
-		BlockRestartInterval: 16,
-		BlockSize:            4096,
-		BlockSizeThreshold:   90,
-		Compression:          pebble.ZstdCompression,
-		FilterPolicy:         nil,
-		FilterType:           pebble.TableFilter,
-		IndexBlockSize:       4096,
-		TargetFileSize:       l2Options.TargetFileSize * 10, // 25 GB
-	}
-	l4Options := pebble.LevelOptions{
-		BlockRestartInterval: 16,
-		BlockSize:            4096,
-		BlockSizeThreshold:   90,
-		Compression:          pebble.ZstdCompression,
-		FilterPolicy:         nil,
-		FilterType:           pebble.TableFilter,
-		IndexBlockSize:       4096,
-		TargetFileSize:       l3Options.TargetFileSize * 10, // 250 GB
-	}
-
-	return pebble.Options{
-		Levels:                   []pebble.LevelOptions{l1Options, l2Options, l3Options, l4Options},
-		MaxConcurrentCompactions: func() int { return runtime.NumCPU() },
-		MemTableSize:             268435456, // 256 MB
-		EventListener:            NewPebbleEventListener(),
 	}
 }
 

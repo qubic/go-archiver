@@ -7,6 +7,7 @@ import (
 	"github.com/qubic/go-archiver/protobuff"
 	"google.golang.org/protobuf/proto"
 	"path/filepath"
+	"runtime"
 	"strconv"
 )
 
@@ -21,7 +22,8 @@ func NewEpochStore(storageDirPath string, epoch uint32) (*EpochStore, error) {
 
 	dbPath := storageDirPath + string(filepath.Separator) + strconv.Itoa(int(epoch))
 
-	db, err := pebble.Open(dbPath, &pebble.Options{}) // TODO: Change to optimized settings
+	dbOptions := getDBOptions()
+	db, err := pebble.Open(dbPath, &dbOptions)
 	if err != nil {
 		return nil, errors.Wrapf(err, "opening db for epoch %d", epoch)
 	}
@@ -276,10 +278,8 @@ func assembleKey[T iDType](keyPrefix int, id T) []byte {
 	return key
 }
 
-// Compaction options. To be added back
-/*
-
-l1Options := pebble.LevelOptions{
+func getDBOptions() pebble.Options {
+	l1Options := pebble.LevelOptions{
 		BlockRestartInterval: 16,
 		BlockSize:            4096,
 		BlockSizeThreshold:   90,
@@ -293,37 +293,17 @@ l1Options := pebble.LevelOptions{
 		BlockRestartInterval: 16,
 		BlockSize:            4096,
 		BlockSizeThreshold:   90,
-		Compression:          pebble.ZstdCompression,
+		Compression:          pebble.NoCompression,
 		FilterPolicy:         nil,
 		FilterType:           pebble.TableFilter,
 		IndexBlockSize:       4096,
 		TargetFileSize:       l1Options.TargetFileSize * 10, // 2.5 GB
 	}
-	l3Options := pebble.LevelOptions{
-		BlockRestartInterval: 16,
-		BlockSize:            4096,
-		BlockSizeThreshold:   90,
-		Compression:          pebble.ZstdCompression,
-		FilterPolicy:         nil,
-		FilterType:           pebble.TableFilter,
-		IndexBlockSize:       4096,
-		TargetFileSize:       l2Options.TargetFileSize * 10, // 25 GB
-	}
-	l4Options := pebble.LevelOptions{
-		BlockRestartInterval: 16,
-		BlockSize:            4096,
-		BlockSizeThreshold:   90,
-		Compression:          pebble.ZstdCompression,
-		FilterPolicy:         nil,
-		FilterType:           pebble.TableFilter,
-		IndexBlockSize:       4096,
-		TargetFileSize:       l3Options.TargetFileSize * 10, // 250 GB
-	}
 
-	pebbleOptions := pebble.Options{
-		Levels:                   []pebble.LevelOptions{l1Options, l2Options, l3Options, l4Options},
+	return pebble.Options{
+		Levels:                   []pebble.LevelOptions{l1Options, l2Options},
 		MaxConcurrentCompactions: func() int { return runtime.NumCPU() },
 		MemTableSize:             268435456, // 256 MB
-		EventListener:            store.NewPebbleEventListener(),
+		EventListener:            NewPebbleEventListener(),
 	}
-*/
+}
