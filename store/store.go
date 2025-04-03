@@ -111,7 +111,7 @@ func (s *PebbleStore) GetLastProcessedTick() (*protobuff.ProcessedTick, error) {
 			return &protobuff.ProcessedTick{
 				TickNumber: 0,
 				Epoch:      0,
-			}, nil
+			}, ErrNotFound
 		}
 
 		return nil, errors.Wrap(err, "getting last processed tick")
@@ -183,7 +183,6 @@ func (s *PebbleStore) HandleEpochTransition(epoch uint32) error {
 
 	loadedEpochs := s.storeInfo.getLoadedEpochs()
 	loadedEpochs[epoch] = epochStore
-	s.storeInfo.setLoadedEpochs(loadedEpochs)
 
 	epochs := getRelevantEpochListFromMap(loadedEpochs)
 
@@ -202,6 +201,7 @@ func (s *PebbleStore) HandleEpochTransition(epoch uint32) error {
 			//return errors.Wrapf(err, "closing old epoch store %d", e)
 		}
 	}
+	s.storeInfo.setLoadedEpochs(loadedEpochs)
 
 	epochs = getRelevantEpochListFromMap(loadedEpochs)
 

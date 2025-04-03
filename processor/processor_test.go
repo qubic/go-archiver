@@ -2,7 +2,6 @@ package processor
 
 import (
 	"context"
-	"github.com/cockroachdb/pebble"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	pb "github.com/qubic/go-archiver/protobuff"
@@ -11,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
+	"log"
 	"os"
 	"path/filepath"
 	"testing"
@@ -24,12 +24,14 @@ func TestProcessor_GetLastProcessedTick(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(dbDir)
 
-	db, err := pebble.Open(filepath.Join(dbDir, "testdb"), &pebble.Options{})
-	require.NoError(t, err)
-	defer db.Close()
+	testPath := filepath.Join(dbDir, "testdb")
 
 	logger, _ := zap.NewDevelopment()
-	s := store.NewPebbleStore(db, logger)
+	s, err := store.NewPebbleStore(testPath, logger, 10)
+	require.NoError(t, err)
+
+	err = s.HandleEpochTransition(1)
+	require.NoError(t, err)
 
 	p := Processor{ps: s}
 
@@ -39,6 +41,7 @@ func TestProcessor_GetLastProcessedTick(t *testing.T) {
 
 	got, err := p.getLastProcessedTick(ctx, currentTickInfo)
 	require.NoError(t, err)
+	log.Printf("GOT: %v EXPECTED: %v", got, &expected)
 	require.True(t, proto.Equal(got, &expected))
 }
 
@@ -50,12 +53,11 @@ func TestProcessor_GetNextProcessingTick(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(dbDir)
 
-	db, err := pebble.Open(filepath.Join(dbDir, "testdb"), &pebble.Options{})
-	require.NoError(t, err)
-	defer db.Close()
+	testPath := filepath.Join(dbDir, "testdb")
 
 	logger, _ := zap.NewDevelopment()
-	s := store.NewPebbleStore(db, logger)
+	s, err := store.NewPebbleStore(testPath, logger, 10)
+	require.NoError(t, err)
 
 	p := Processor{ps: s}
 
@@ -96,12 +98,14 @@ func TestProcessor_ProcessStatus(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(dbDir)
 
-	db, err := pebble.Open(filepath.Join(dbDir, "testdb"), &pebble.Options{})
-	require.NoError(t, err)
-	defer db.Close()
+	testPath := filepath.Join(dbDir, "testdb")
 
 	logger, _ := zap.NewDevelopment()
-	s := store.NewPebbleStore(db, logger)
+	s, err := store.NewPebbleStore(testPath, logger, 10)
+	require.NoError(t, err)
+
+	err = s.HandleEpochTransition(1)
+	require.NoError(t, err)
 
 	p := Processor{ps: s}
 
@@ -123,7 +127,7 @@ func TestProcessor_ProcessStatus(t *testing.T) {
 			},
 		},
 	}
-	got, err := s.GetProcessedTickIntervals(ctx)
+	got, err := s.GetProcessedTickIntervals()
 	require.NoError(t, err)
 	diff := cmp.Diff(got, expected, cmpopts.IgnoreUnexported(pb.ProcessedTickInterval{}, pb.ProcessedTickIntervalsPerEpoch{}))
 	require.True(t, cmp.Equal(diff, ""))
@@ -135,7 +139,7 @@ func TestProcessor_ProcessStatus(t *testing.T) {
 	require.NoError(t, err)
 
 	expected[0].Intervals[0].LastProcessedTick = nextTick.TickNumber
-	got, err = s.GetProcessedTickIntervals(ctx)
+	got, err = s.GetProcessedTickIntervals()
 	require.NoError(t, err)
 
 	diff = cmp.Diff(got, expected, cmpopts.IgnoreUnexported(pb.ProcessedTickInterval{}, pb.ProcessedTickIntervalsPerEpoch{}))
@@ -151,7 +155,7 @@ func TestProcessor_ProcessStatus(t *testing.T) {
 		LastProcessedTick:    nextTick.TickNumber,
 	})
 
-	got, err = s.GetProcessedTickIntervals(ctx)
+	got, err = s.GetProcessedTickIntervals()
 	require.NoError(t, err)
 
 	diff = cmp.Diff(got, expected, cmpopts.IgnoreUnexported(pb.ProcessedTickInterval{}, pb.ProcessedTickIntervalsPerEpoch{}))
@@ -163,13 +167,15 @@ func TestProcessor_ProcessStatus(t *testing.T) {
 	require.NoError(t, err)
 
 	expected[0].Intervals[1].LastProcessedTick = nextTick.TickNumber
-	got, err = s.GetProcessedTickIntervals(ctx)
+	got, err = s.GetProcessedTickIntervals()
 	require.NoError(t, err)
 
 	diff = cmp.Diff(got, expected, cmpopts.IgnoreUnexported(pb.ProcessedTickInterval{}, pb.ProcessedTickIntervalsPerEpoch{}))
 	require.True(t, cmp.Equal(diff, ""))
 
 	// new epoch
+	err = s.HandleEpochTransition(2)
+	require.NoError(t, err)
 	lastTick.TickNumber = nextTick.TickNumber
 	nextTick = pb.ProcessedTick{TickNumber: 200, Epoch: 2}
 	err = p.processStatus(ctx, &lastTick, &nextTick)
@@ -184,10 +190,11 @@ func TestProcessor_ProcessStatus(t *testing.T) {
 		},
 	})
 
-	got, err = s.GetProcessedTickIntervals(ctx)
+	got, err = s.GetProcessedTickIntervals()
 	require.NoError(t, err)
 
 	diff = cmp.Diff(got, expected, cmpopts.IgnoreUnexported(pb.ProcessedTickInterval{}, pb.ProcessedTickIntervalsPerEpoch{}))
+	log.Printf("DIFF: %s\n", diff)
 	require.True(t, cmp.Equal(diff, ""))
 
 	lastTick.TickNumber = nextTick.TickNumber
@@ -197,7 +204,7 @@ func TestProcessor_ProcessStatus(t *testing.T) {
 	require.NoError(t, err)
 
 	expected[1].Intervals[0].LastProcessedTick = nextTick.TickNumber
-	got, err = s.GetProcessedTickIntervals(ctx)
+	got, err = s.GetProcessedTickIntervals()
 	require.NoError(t, err)
 
 	diff = cmp.Diff(got, expected, cmpopts.IgnoreUnexported(pb.ProcessedTickInterval{}, pb.ProcessedTickIntervalsPerEpoch{}))
@@ -212,12 +219,14 @@ func TestProcessor_ProcessStatusOnthefly(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(dbDir)
 
-	db, err := pebble.Open(filepath.Join(dbDir, "testdb"), &pebble.Options{})
-	require.NoError(t, err)
-	defer db.Close()
+	testPath := filepath.Join(dbDir, "testdb")
 
 	logger, _ := zap.NewDevelopment()
-	s := store.NewPebbleStore(db, logger)
+	s, err := store.NewPebbleStore(testPath, logger, 10)
+	require.NoError(t, err)
+
+	err = s.HandleEpochTransition(1)
+	require.NoError(t, err)
 
 	p := Processor{ps: s}
 
@@ -239,7 +248,7 @@ func TestProcessor_ProcessStatusOnthefly(t *testing.T) {
 			},
 		},
 	}
-	got, err := s.GetProcessedTickIntervals(ctx)
+	got, err := s.GetProcessedTickIntervals()
 	require.NoError(t, err)
 	diff := cmp.Diff(got, expected, cmpopts.IgnoreUnexported(pb.ProcessedTickInterval{}, pb.ProcessedTickIntervalsPerEpoch{}))
 	require.True(t, cmp.Equal(diff, ""))
