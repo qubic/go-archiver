@@ -132,6 +132,11 @@ func quorumTickSigVerify(ctx context.Context, sigVerifierFunc utils.SigVerifierF
 		//log.Printf("Validated vote for computor index: %d. Vote number %d\n", quorumTickData.ComputorIndex, successVotes)
 	}
 
+	if successVotes < types.MinimumQuorumVotes {
+		return errors.Errorf("not enough sucessful quorum votes: %d", successVotes)
+	}
+	log.Printf("Quorum votes: %d VALIDATED |  %d FAILED\n", successVotes, len(failedIndexes))
+
 	//log.Printf("Validated total quorum votes: %d\n", successVotes)
 	//log.Printf("Unvalidated total quorum votes: %d. List: %v, %v\n", len(failedIndexes), failedIndexes, failedIdentites)
 	return nil
