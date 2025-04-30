@@ -4,17 +4,13 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
-	"github.com/cockroachdb/pebble"
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-archiver/store"
-	"github.com/qubic/go-archiver/validator/chain"
 	"github.com/qubic/go-archiver/validator/computors"
 	"github.com/qubic/go-archiver/validator/quorum"
 	"github.com/qubic/go-archiver/validator/tick"
 	"github.com/qubic/go-archiver/validator/tx"
-	"github.com/qubic/go-archiver/validator/txstatus"
 	qubic "github.com/qubic/go-node-connector"
 	"github.com/qubic/go-node-connector/types"
 	"github.com/qubic/go-schnorrq"
@@ -85,7 +81,6 @@ func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumb
 
 	var tickData types.TickData
 	var validTxs = make([]types.Transaction, 0)
-	approvedTxs := &protobuff.TickTransactionsStatus{}
 
 	if quorumVotes[0].TxDigest != [32]byte{} {
 		td, err := v.qu.GetTickData(ctx, tickNumber)
@@ -117,34 +112,13 @@ func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumb
 
 		log.Printf("Validated %d transactions\n", len(validTxs))
 
-		var tickTxStatus types.TransactionStatus
-
-		if disableStatusAddon {
-			tickTxStatus = types.TransactionStatus{
-				CurrentTickOfNode:  tickNumber,
-				Tick:               tickNumber,
-				TxCount:            uint32(len(validTxs)),
-				MoneyFlew:          [128]byte{},
-				TransactionDigests: nil,
-			}
-		} else {
-			tickTxStatus, err = v.qu.GetTxStatus(ctx, tickNumber)
-			if err != nil {
-				return errors.Wrap(err, "getting tx status")
-			}
-		}
-
-		approvedTxs, err = txstatus.Validate(ctx, tickTxStatus, validTxs)
-		if err != nil {
-			return errors.Wrap(err, "validating tx status")
-		}
 	}
 
 	// proceed to storing tick information
-	err = quorum.Store(ctx, v.store, tickNumber, alignedVotes)
-	if err != nil {
-		return errors.Wrap(err, "storing quorum votes")
-	}
+	/*	err = quorum.Store(ctx, v.store, tickNumber, alignedVotes)
+		if err != nil {
+			return errors.Wrap(err, "storing quorum votes")
+		}*/
 
 	log.Printf("Stored %d quorum votes\n", len(alignedVotes))
 
@@ -162,55 +136,6 @@ func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumb
 
 	log.Printf("Stored %d transactions\n", len(validTxs))
 
-	err = txstatus.Store(ctx, v.store, tickNumber, approvedTxs)
-	if err != nil {
-		return errors.Wrap(err, "storing tx status")
-	}
-
-	err = chain.ComputeAndSave(ctx, v.store, initialEpochTick, tickNumber, alignedVotes[0])
-	if err != nil {
-		return errors.Wrap(err, "computing and saving chain digest")
-	}
-
-	err = chain.ComputeStoreAndSave(ctx, v.store, initialEpochTick, tickNumber, validTxs, approvedTxs)
-	if err != nil {
-		return errors.Wrap(err, "computing and saving store digest")
-	}
-
-	isEmpty, err := tick.CheckIfTickIsEmpty(tickData)
-	if err != nil {
-		return errors.Wrap(err, "checking if tick is empty")
-	}
-
-	if isEmpty {
-		emptyTicks, err := v.store.GetEmptyTicksForEpoch(uint32(epoch))
-		if err != nil {
-			if !errors.Is(err, pebble.ErrNotFound) {
-				return errors.Wrap(err, "getting empty ticks for current epoch")
-			}
-		}
-
-		if emptyTicks == 0 {
-			fmt.Printf("Initializing empty ticks for epoch: %d\n", epoch)
-			err := v.store.SetEmptyTickListPerEpoch(uint32(epoch), make([]uint32, 0))
-			if err != nil {
-				return errors.Wrapf(err, "initializing empty tick list for epoch %d", epoch)
-			}
-		}
-
-		emptyTicks += 1
-
-		err = v.store.SetEmptyTicksForEpoch(uint32(epoch), emptyTicks)
-		if err != nil {
-			return errors.Wrap(err, "setting current ticks for current epoch")
-		}
-		fmt.Printf("Empty ticks for epoch %d: %d\n", epoch, emptyTicks)
-
-		err = v.store.AppendEmptyTickToEmptyTickListPerEpoch(uint32(epoch), tickNumber)
-		if err != nil {
-			return errors.Wrap(err, "appending tick to empty tick list")
-		}
-	}
 	return nil
 }
 

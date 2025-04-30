@@ -44,7 +44,7 @@ func Store(ctx context.Context, store *store.PebbleStore, epoch uint16, computor
 		return errors.Wrap(err, "qubic to proto")
 	}
 
-	err = store.SetComputors(ctx, uint32(epoch), protoModel)
+	err = store.GetCurrentEpochStore().SetComputorList(protoModel)
 	if err != nil {
 		return errors.Wrap(err, "set computors")
 	}
@@ -53,7 +53,7 @@ func Store(ctx context.Context, store *store.PebbleStore, epoch uint16, computor
 }
 
 func Get(ctx context.Context, store *store.PebbleStore, epoch uint32) (types.Computors, error) {
-	protoModel, err := store.GetComputors(ctx, epoch)
+	protoModel, err := store.GetCurrentEpochStore().GetComputorList()
 	if err != nil {
 		return types.Computors{}, errors.Wrap(err, "get computors")
 	}

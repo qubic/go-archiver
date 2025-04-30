@@ -1,20 +1,13 @@
 package tick
 
 import (
-	"context"
-	"fmt"
-	"github.com/cockroachdb/pebble"
-	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
-	"github.com/qubic/go-archiver/store"
-	"github.com/qubic/go-node-connector/types"
 	"google.golang.org/protobuf/proto"
-	"time"
 )
 
 var emptyTickData = &protobuff.TickData{}
 
-func CalculateEmptyTicksForEpoch(ctx context.Context, ps *store.PebbleStore, epoch uint32) ([]uint32, error) {
+/*func CalculateEmptyTicksForEpoch(ctx context.Context, ps *store.PebbleStore, epoch uint32) ([]uint32, error) {
 
 	epochs, err := ps.GetProcessedTickIntervals(ctx)
 	if err != nil {
@@ -48,7 +41,7 @@ func CalculateEmptyTicksForEpoch(ctx context.Context, ps *store.PebbleStore, epo
 		return emptyTicks, err
 	}
 	return make([]uint32, 0), nil
-}
+}*/
 
 func CheckIfTickIsEmptyProto(tickData *protobuff.TickData) bool {
 
@@ -59,7 +52,7 @@ func CheckIfTickIsEmptyProto(tickData *protobuff.TickData) bool {
 	return false
 }
 
-func CheckIfTickIsEmpty(tickData types.TickData) (bool, error) {
+/*func CheckIfTickIsEmpty(tickData types.TickData) (bool, error) {
 	data, err := qubicToProto(tickData)
 	if err != nil {
 		return false, errors.Wrap(err, "converting tick data to protobuf format")
@@ -129,4 +122,4 @@ func ResetEmptyTicksForAllEpochs(ps *store.PebbleStore) error {
 	}
 
 	return nil
-}
+}*/

@@ -3,12 +3,10 @@ package main
 import (
 	"fmt"
 	"github.com/ardanlabs/conf"
-	"github.com/cockroachdb/pebble"
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/processor"
 	"github.com/qubic/go-archiver/rpc"
 	"github.com/qubic/go-archiver/store"
-	"github.com/qubic/go-archiver/validator/tick"
 	qubic "github.com/qubic/go-node-connector"
 	"github.com/qubic/go-node-connector/types"
 	"log"
@@ -16,7 +14,6 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
-	"runtime"
 	"syscall"
 	"time"
 )
@@ -58,6 +55,7 @@ func run() error {
 		}
 		Store struct {
 			ResetEmptyTickKeys bool `conf:"default:false"`
+			EpochCount         int  `conf:"default:2"`
 		}
 	}
 
@@ -87,74 +85,11 @@ func run() error {
 	}
 	log.Printf("main: Config :\n%v\n", out)
 
-	l1Options := pebble.LevelOptions{
-		BlockRestartInterval: 16,
-		BlockSize:            4096,
-		BlockSizeThreshold:   90,
-		Compression:          pebble.NoCompression,
-		FilterPolicy:         nil,
-		FilterType:           pebble.TableFilter,
-		IndexBlockSize:       4096,
-		TargetFileSize:       268435456, // 256 MB
-	}
-	l2Options := pebble.LevelOptions{
-		BlockRestartInterval: 16,
-		BlockSize:            4096,
-		BlockSizeThreshold:   90,
-		Compression:          pebble.ZstdCompression,
-		FilterPolicy:         nil,
-		FilterType:           pebble.TableFilter,
-		IndexBlockSize:       4096,
-		TargetFileSize:       l1Options.TargetFileSize * 10, // 2.5 GB
-	}
-	l3Options := pebble.LevelOptions{
-		BlockRestartInterval: 16,
-		BlockSize:            4096,
-		BlockSizeThreshold:   90,
-		Compression:          pebble.ZstdCompression,
-		FilterPolicy:         nil,
-		FilterType:           pebble.TableFilter,
-		IndexBlockSize:       4096,
-		TargetFileSize:       l2Options.TargetFileSize * 10, // 25 GB
-	}
-	l4Options := pebble.LevelOptions{
-		BlockRestartInterval: 16,
-		BlockSize:            4096,
-		BlockSizeThreshold:   90,
-		Compression:          pebble.ZstdCompression,
-		FilterPolicy:         nil,
-		FilterType:           pebble.TableFilter,
-		IndexBlockSize:       4096,
-		TargetFileSize:       l3Options.TargetFileSize * 10, // 250 GB
-	}
-
-	pebbleOptions := pebble.Options{
-		Levels:                   []pebble.LevelOptions{l1Options, l2Options, l3Options, l4Options},
-		MaxConcurrentCompactions: func() int { return runtime.NumCPU() },
-		MemTableSize:             268435456, // 256 MB
-		EventListener:            store.NewPebbleEventListener(),
-	}
-
-	db, err := pebble.Open(cfg.Qubic.StorageFolder, &pebbleOptions)
+	ps, err := store.NewPebbleStore(cfg.Qubic.StorageFolder, nil, cfg.Store.EpochCount)
 	if err != nil {
-		return errors.Wrap(err, "opening db with zstd compression")
+		return errors.Wrap(err, "creating info store")
 	}
-	defer db.Close()
-
-	ps := store.NewPebbleStore(db, nil)
-
-	if cfg.Store.ResetEmptyTickKeys {
-		fmt.Printf("Resetting empty ticks for all epochs...\n")
-		err = tick.ResetEmptyTicksForAllEpochs(ps)
-		if err != nil {
-			return errors.Wrap(err, "resetting empty ticks keys")
-		}
-	}
-
-	err = tick.CalculateEmptyTicksForAllEpochs(ps)
-	if err != nil {
-		return errors.Wrap(err, "calculating empty ticks for all epochs")
-	}
+	defer ps.Close()
 
 	p, err := qubic.NewPoolConnection(qubic.PoolConfig{
 		InitialCap:         cfg.Pool.InitialCap,

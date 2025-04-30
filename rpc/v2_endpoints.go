@@ -1,24 +1,6 @@
 package rpc
 
-import (
-	"cmp"
-	"context"
-	"encoding/hex"
-	"github.com/cockroachdb/pebble"
-
-	"log"
-
-	"slices"
-
-	"github.com/pkg/errors"
-	"github.com/qubic/go-archiver/protobuff"
-	"github.com/qubic/go-archiver/store"
-	"github.com/qubic/go-node-connector/types"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-)
-
-func (s *Server) GetTickQuorumDataV2(ctx context.Context, req *protobuff.GetTickRequestV2) (*protobuff.GetQuorumTickDataResponse, error) {
+/*func (s *Server) GetTickQuorumDataV2(ctx context.Context, req *protobuff.GetTickRequestV2) (*protobuff.GetQuorumTickDataResponse, error) {
 	return s.GetQuorumTickData(ctx, &protobuff.GetQuorumTickDataRequest{
 		TickNumber: req.TickNumber,
 	})
@@ -505,4 +487,4 @@ func (s *Server) GetEpochTickListV2(ctx context.Context, req *protobuff.GetEpoch
 		Ticks: selectedTicks,
 	}, nil
 
-}
+}*/

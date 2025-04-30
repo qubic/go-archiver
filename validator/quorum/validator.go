@@ -3,7 +3,6 @@ package quorum
 import (
 	"context"
 	"github.com/pkg/errors"
-	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-archiver/utils"
 	"github.com/qubic/go-node-connector/types"
 	"log"
@@ -160,6 +159,7 @@ func getDigestFromQuorumTickData(data types.QuorumTickVote) ([32]byte, error) {
 	return digest, nil
 }
 
+/*
 func Store(ctx context.Context, store *store.PebbleStore, tickNumber uint32, quorumVotes types.QuorumVotes) error {
 	protoModel := qubicToProtoStored(quorumVotes)
 
@@ -176,4 +176,4 @@ func Store(ctx context.Context, store *store.PebbleStore, tickNumber uint32, quo
 	}
 
 	return nil
-}
+}*/

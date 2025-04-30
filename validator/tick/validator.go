@@ -90,7 +90,7 @@ func Store(ctx context.Context, store *store.PebbleStore, tickNumber uint32, tic
 		return errors.Wrap(err, "converting qubic tick data to proto")
 	}
 
-	err = store.SetTickData(ctx, tickNumber, protoTickData)
+	err = store.GetCurrentEpochStore().SetTickData(tickNumber, protoTickData)
 	if err != nil {
 		return errors.Wrap(err, "set tick data")
 	}
