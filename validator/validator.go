@@ -78,7 +78,19 @@ func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumb
 
 	targetTickVoteSignature, err := v.store.GetTargetTickVoteSignature(uint32(epoch))
 	if err != nil {
-		return errors.Wrap(err, "getting target tick vote signature")
+		if !errors.Is(err, store.ErrNotFound) {
+			return errors.Wrap(err, "getting target tick vote signature")
+		}
+
+		systemInfo, err := v.qu.GetSystemInfo(ctx)
+		if err != nil {
+			return errors.Wrap(err, "fetching system info")
+		}
+		err = v.store.SetTargetTickVoteSignature(uint32(systemInfo.Epoch), systemInfo.TargetTickVoteSignature)
+		if err != nil {
+			return errors.Wrap(err, "storing target tick vote signature")
+		}
+		targetTickVoteSignature = systemInfo.TargetTickVoteSignature
 	}
 
 	alignedVotes, err := quorum.Validate(ctx, GoSchnorrqVerify, quorumVotes, comps, targetTickVoteSignature)

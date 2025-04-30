@@ -88,7 +88,7 @@ func (p *Processor) processOneByOne() error {
 		return errors.Wrap(err, "getting last processed tick")
 	}
 
-	nextTick, err := p.getNextProcessingTick(ctx, lastTick, tickInfo, client)
+	nextTick, err := p.getNextProcessingTick(ctx, lastTick, tickInfo)
 	if err != nil {
 		return errors.Wrap(err, "getting next processing tick")
 	}
@@ -127,21 +127,10 @@ func (p *Processor) processStatus(ctx context.Context, lastTick *protobuff.Proce
 	return nil
 }
 
-func (p *Processor) getNextProcessingTick(ctx context.Context, lastTick *protobuff.ProcessedTick, currentTickInfo types.TickInfo, client *qubic.Client) (*protobuff.ProcessedTick, error) {
+func (p *Processor) getNextProcessingTick(ctx context.Context, lastTick *protobuff.ProcessedTick, currentTickInfo types.TickInfo) (*protobuff.ProcessedTick, error) {
 	//handles the case where the initial tick of epoch returned by the node is greater than the last processed tick
 	// which means that we are in the next epoch and we should start from the initial tick of the current epoch
 	if currentTickInfo.InitialTick > lastTick.TickNumber {
-
-		if client != nil { // nil check here so we don't have to change tests
-			systemInfo, err := client.GetSystemInfo(ctx)
-			if err != nil {
-				return nil, errors.Wrap(err, "fetching system info")
-			}
-			err = p.ps.SetTargetTickVoteSignature(uint32(systemInfo.Epoch), systemInfo.TargetTickVoteSignature)
-			if err != nil {
-				return nil, errors.Wrap(err, "setting target tick vote signature")
-			}
-		}
 
 		return &protobuff.ProcessedTick{TickNumber: currentTickInfo.InitialTick, Epoch: uint32(currentTickInfo.Epoch)}, nil
 	}

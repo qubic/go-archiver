@@ -941,7 +941,7 @@ func (s *PebbleStore) GetTargetTickVoteSignature(epoch uint32) (uint32, error) {
 	value, closer, err := s.db.Get(key)
 	if err != nil {
 		if errors.Is(err, pebble.ErrNotFound) {
-			return 0, err
+			return 0, ErrNotFound
 		}
 	}
 	defer closer.Close()
