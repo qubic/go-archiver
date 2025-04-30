@@ -2,15 +2,17 @@ package quorum
 
 import (
 	"context"
+	"encoding/binary"
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-archiver/utils"
 	"github.com/qubic/go-node-connector/types"
 	"log"
+	"slices"
 )
 
 // Validate validates the quorum votes and if success returns the aligned votes back
-func Validate(ctx context.Context, sigVerifierFunc utils.SigVerifierFunc, quorumVotes types.QuorumVotes, computors types.Computors) (types.QuorumVotes, error) {
+func Validate(ctx context.Context, sigVerifierFunc utils.SigVerifierFunc, quorumVotes types.QuorumVotes, computors types.Computors, targetTickVoteSignature uint32) (types.QuorumVotes, error) {
 	if len(quorumVotes) < types.MinimumQuorumVotes {
 		return nil, errors.New("not enough quorum votes")
 	}
@@ -26,7 +28,7 @@ func Validate(ctx context.Context, sigVerifierFunc utils.SigVerifierFunc, quorum
 	}
 
 	log.Printf("Proceed to validate total quorum sigs: %d\n", len(alignedVotes))
-	err = quorumTickSigVerify(ctx, sigVerifierFunc, alignedVotes, computors)
+	err = quorumTickSigVerify(ctx, sigVerifierFunc, alignedVotes, computors, targetTickVoteSignature)
 	if err != nil {
 		return nil, errors.Wrap(err, "quorum tick signature verification failed")
 	}
@@ -105,7 +107,7 @@ func getAlignedVotes(quorumVotes types.QuorumVotes) (types.QuorumVotes, error) {
 	return alignedVotes, nil
 }
 
-func quorumTickSigVerify(ctx context.Context, sigVerifierFunc utils.SigVerifierFunc, quorumVotes types.QuorumVotes, computors types.Computors) error {
+func quorumTickSigVerify(ctx context.Context, sigVerifierFunc utils.SigVerifierFunc, quorumVotes types.QuorumVotes, computors types.Computors, targetTickVoteSignature uint32) error {
 	var successVotes = 0
 	failedIndexes := make([]uint16, 0, 0)
 	failedIdentites := make([]string, 0, 0)
@@ -116,7 +118,7 @@ func quorumTickSigVerify(ctx context.Context, sigVerifierFunc utils.SigVerifierF
 			return errors.Wrap(err, "getting digest from tick data")
 		}
 		computorPubKey := computors.PubKeys[quorumTickData.ComputorIndex]
-		if err := sigVerifierFunc(ctx, computorPubKey, digest, quorumTickData.Signature); err != nil {
+		if err := verifyTickVoteSignature(ctx, sigVerifierFunc, computorPubKey, digest, quorumTickData.Signature, targetTickVoteSignature); err != nil {
 			//return errors.Wrapf(err, "quorum tick signature verification failed for computor index: %d", quorumTickData.ComputorIndex)
 			//log.Printf("Quorum tick signature verification failed for computor index: %d. Err: %s\n", quorumTickData.ComputorIndex, err.Error())
 			failedIndexes = append(failedIndexes, quorumTickData.ComputorIndex)
@@ -140,6 +142,25 @@ func quorumTickSigVerify(ctx context.Context, sigVerifierFunc utils.SigVerifierF
 	//log.Printf("Validated total quorum votes: %d\n", successVotes)
 	//log.Printf("Unvalidated total quorum votes: %d. List: %v, %v\n", len(failedIndexes), failedIndexes, failedIdentites)
 	return nil
+}
+
+func verifyTickVoteSignature(ctx context.Context, sigVerifierFunc utils.SigVerifierFunc, computorPubKey, digest [32]byte, signature [64]byte, targetTickVoteSignature uint32) error {
+	invertedSignatureSection := swapBytes(signature[:4])
+	score := binary.LittleEndian.Uint32(invertedSignatureSection)
+
+	if score > targetTickVoteSignature {
+		return errors.New("vote signature score over target tick vote signature")
+	}
+
+	return sigVerifierFunc(ctx, computorPubKey, digest, signature)
+}
+
+func swapBytes(input []byte) []byte {
+	output := make([]byte, len(input))
+	copy(output, input)
+	slices.Reverse(output)
+
+	return output
 }
 
 func getDigestFromQuorumTickData(data types.QuorumTickVote) ([32]byte, error) {

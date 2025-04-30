@@ -65,7 +65,7 @@ func TestValidateVotes(t *testing.T) {
 		},
 	}
 
-	_, err := Validate(context.Background(), mockSigVerifierFunc, originalData, types.Computors{})
+	_, err := Validate(context.Background(), mockSigVerifierFunc, originalData, types.Computors{}, 0)
 	require.ErrorContains(t, err, "not enough quorum votes")
 
 	cases := []struct {
@@ -257,4 +257,28 @@ func deepCopy(votes types.QuorumVotes) types.QuorumVotes {
 	}
 
 	return cp
+}
+
+func TestByteSwap(t *testing.T) {
+
+	testData := []struct {
+		name     string
+		data     []byte
+		expected []byte
+	}{
+		{
+			name:     "Test_ByteSwap1",
+			data:     []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
+			expected: []byte{0x06, 0x05, 0x04, 0x03, 0x02, 0x01},
+		},
+	}
+
+	for _, testCase := range testData {
+		t.Run(testCase.name, func(t *testing.T) {
+
+			got := swapBytes(testCase.data)
+			require.Equal(t, testCase.expected, got)
+		})
+	}
+
 }
