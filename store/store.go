@@ -936,13 +936,14 @@ func (s *PebbleStore) SetTargetTickVoteSignature(epoch, value uint32) error {
 }
 
 func (s *PebbleStore) GetTargetTickVoteSignature(epoch uint32) (uint32, error) {
-
 	key := targetTickVoteSignatureKey(epoch)
+
 	value, closer, err := s.db.Get(key)
 	if err != nil {
 		if errors.Is(err, pebble.ErrNotFound) {
 			return 0, ErrNotFound
 		}
+		return 0, errors.Wrap(err, "getting target tick vote signature")
 	}
 	defer closer.Close()
 
