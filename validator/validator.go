@@ -76,7 +76,12 @@ func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumb
 		return errors.Wrap(err, "storing computors")
 	}
 
-	alignedVotes, err := quorum.Validate(ctx, GoSchnorrqVerify, quorumVotes, comps)
+	targetTickVoteSignature, err := v.store.GetTargetTickVoteSignature(uint32(epoch))
+	if err != nil {
+		return errors.Wrap(err, "getting target tick vote signature")
+	}
+
+	alignedVotes, err := quorum.Validate(ctx, GoSchnorrqVerify, quorumVotes, comps, targetTickVoteSignature)
 	if err != nil {
 		return errors.Wrap(err, "validating quorum")
 	}

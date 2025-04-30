@@ -921,3 +921,30 @@ func (s *PebbleStore) DeleteEmptyTickListKeyForEpoch(epoch uint32) error {
 	}
 	return nil
 }
+
+func (s *PebbleStore) SetTargetTickVoteSignature(epoch, value uint32) error {
+	key := targetTickVoteSignatureKey(epoch)
+
+	data := make([]byte, 4)
+	binary.LittleEndian.PutUint32(data, value)
+
+	err := s.db.Set(key, data, pebble.Sync)
+	if err != nil {
+		return errors.Wrapf(err, "saving target tick vote signature for epoch %d", epoch)
+	}
+	return nil
+}
+
+func (s *PebbleStore) GetTargetTickVoteSignature(epoch uint32) (uint32, error) {
+
+	key := targetTickVoteSignatureKey(epoch)
+	value, closer, err := s.db.Get(key)
+	if err != nil {
+		if errors.Is(err, pebble.ErrNotFound) {
+			return 0, err
+		}
+	}
+	defer closer.Close()
+
+	return binary.LittleEndian.Uint32(value), nil
+}

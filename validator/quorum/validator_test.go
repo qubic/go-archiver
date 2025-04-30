@@ -65,7 +65,7 @@ func TestValidateVotes(t *testing.T) {
 		},
 	}
 
-	_, err := Validate(context.Background(), mockSigVerifierFunc, originalData, types.Computors{})
+	_, err := Validate(context.Background(), mockSigVerifierFunc, originalData, types.Computors{}, 0)
 	require.ErrorContains(t, err, "not enough quorum votes")
 
 	cases := []struct {

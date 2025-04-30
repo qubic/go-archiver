@@ -65,14 +65,14 @@ func TestProcessor_GetNextProcessingTick(t *testing.T) {
 	expected := pb.ProcessedTick{TickNumber: currentTickInfo.InitialTick, Epoch: 1}
 
 	//first run should set next processing tick to initial tick of the current tick info
-	got, err := p.getNextProcessingTick(ctx, &lastTick, currentTickInfo)
+	got, err := p.getNextProcessingTick(ctx, &lastTick, currentTickInfo, nil)
 	require.NoError(t, err)
 	require.True(t, proto.Equal(got, &expected))
 
 	lastTick.TickNumber = currentTickInfo.InitialTick
 	expected.TickNumber += 1
 	//second run should set next processing tick to last + 1
-	got, err = p.getNextProcessingTick(ctx, &lastTick, currentTickInfo)
+	got, err = p.getNextProcessingTick(ctx, &lastTick, currentTickInfo, nil)
 	require.NoError(t, err)
 	require.True(t, proto.Equal(got, &expected))
 
@@ -83,7 +83,7 @@ func TestProcessor_GetNextProcessingTick(t *testing.T) {
 	expected.Epoch = 2
 
 	// epoch change should set next tick to current tick info initial tick and epoch to current tick info epoch
-	got, err = p.getNextProcessingTick(ctx, &lastTick, currentTickInfo)
+	got, err = p.getNextProcessingTick(ctx, &lastTick, currentTickInfo, nil)
 	require.NoError(t, err)
 	require.True(t, proto.Equal(got, &expected))
 }
