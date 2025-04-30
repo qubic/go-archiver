@@ -132,13 +132,15 @@ func (p *Processor) getNextProcessingTick(ctx context.Context, lastTick *protobu
 	// which means that we are in the next epoch and we should start from the initial tick of the current epoch
 	if currentTickInfo.InitialTick > lastTick.TickNumber {
 
-		systemInfo, err := client.GetSystemInfo(ctx)
-		if err != nil {
-			return nil, errors.Wrap(err, "fetching system info")
-		}
-		err = p.ps.SetTargetTickVoteSignature(uint32(systemInfo.Epoch), systemInfo.TargetTickVoteSignature)
-		if err != nil {
-			return nil, errors.Wrap(err, "setting target tick vote signature")
+		if client != nil { // nil check here so we don't have to change tests
+			systemInfo, err := client.GetSystemInfo(ctx)
+			if err != nil {
+				return nil, errors.Wrap(err, "fetching system info")
+			}
+			err = p.ps.SetTargetTickVoteSignature(uint32(systemInfo.Epoch), systemInfo.TargetTickVoteSignature)
+			if err != nil {
+				return nil, errors.Wrap(err, "setting target tick vote signature")
+			}
 		}
 
 		return &protobuff.ProcessedTick{TickNumber: currentTickInfo.InitialTick, Epoch: uint32(currentTickInfo.Epoch)}, nil
