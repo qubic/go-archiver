@@ -512,7 +512,7 @@ func (s *Server) GetStoreHash(ctx context.Context, req *protobuff.GetChainHashRe
 	return &protobuff.GetChainHashResponse{HexDigest: hex.EncodeToString(hash[:])}, nil
 }
 
-func (s *Server) Start() error {
+func (s *Server) Start(interceptors ...grpc.UnaryServerInterceptor) error {
 
 	tickInBoundsInterception := NewTickWithinBoundsInterceptor(s.store)
 
@@ -520,6 +520,7 @@ func (s *Server) Start() error {
 		grpc.MaxRecvMsgSize(600*1024*1024),
 		grpc.MaxSendMsgSize(600*1024*1024),
 		grpc.UnaryInterceptor(tickInBoundsInterception.GetInterceptor),
+		grpc.ChainUnaryInterceptor(interceptors...),
 	)
 	protobuff.RegisterArchiveServiceServer(srv, s)
 	reflection.Register(srv)

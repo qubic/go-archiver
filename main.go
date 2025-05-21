@@ -4,7 +4,11 @@ import (
 	"fmt"
 	"github.com/ardanlabs/conf"
 	"github.com/cockroachdb/pebble"
+	grpcProm "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/qubic/go-archiver/processor"
 	"github.com/qubic/go-archiver/rpc"
 	"github.com/qubic/go-archiver/store"
@@ -169,8 +173,15 @@ func run() error {
 		return errors.Wrap(err, "creating qubic pool")
 	}
 
+	srvMetrics := grpcProm.NewServerMetrics(
+		grpcProm.WithServerCounterOptions(grpcProm.WithConstLabels(prometheus.Labels{"namespace": "archiver"})),
+	)
+	reg := prometheus.NewRegistry()
+	reg.MustRegister(srvMetrics)
+	reg.MustRegister(collectors.NewGoCollector())
+
 	rpcServer := rpc.NewServer(cfg.Server.GrpcHost, cfg.Server.HttpHost, cfg.Server.NodeSyncThreshold, cfg.Server.ChainTickFetchUrl, ps, p)
-	err = rpcServer.Start()
+	err = rpcServer.Start(srvMetrics.UnaryServerInterceptor())
 	if err != nil {
 		return errors.Wrap(err, "starting rpc server")
 	}
@@ -194,6 +205,7 @@ func run() error {
 
 	pprofErrors := make(chan error, 1)
 
+	http.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{EnableOpenMetrics: true}))
 	go func() {
 		pprofErrors <- http.ListenAndServe(cfg.Server.ProfilingHost, nil)
 	}()
