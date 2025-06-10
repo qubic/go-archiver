@@ -124,6 +124,7 @@ func (el *EventListener) flushEnd(info pebble.FlushInfo) {
 	el.mutex.Lock()
 	defer el.mutex.Unlock()
 
+	el.compactionInfo.Flushes[info.JobID].Finished = true
 	el.compactionInfo.Flushes[info.JobID].EndedAt = time.Now().UTC().Format(time.RFC822)
 	el.compactionInfo.Flushes[info.JobID].Duration = info.TotalDuration.String()
 }
