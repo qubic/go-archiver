@@ -3,7 +3,7 @@ name: Test branch and deploy to Github Container Registry
 on:
   push:
     branches:
-      - 'hotfix/increase-max-page-size-identities-endpoint'
+      - 'compaction-tuning'
 
 jobs:
   test:
@@ -44,7 +44,7 @@ jobs:
           password: ${{secrets.GITHUB_TOKEN}}
 
       - name: "Build package"
-        run: 'docker build . --tag ghcr.io/qubic/qubic-archiver:page-size'
+        run: 'docker build . --tag ghcr.io/qubic/qubic-archiver:compaction-tuning'
 
       - name: "Publish package"
-        run: 'docker push ghcr.io/qubic/qubic-archiver:page-size'
+        run: 'docker push ghcr.io/qubic/qubic-archiver:compaction-tuning'

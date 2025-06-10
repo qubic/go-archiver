@@ -61,7 +61,8 @@ func run() error {
 			ArbitratorIdentity            string        `conf:"default:AFZPUAIYVPNUYGJRQVLUKOPPVLHAZQTGLYAAUUNBXFTVTAMSBKQBLEIEPCVJ"`
 		}
 		Store struct {
-			ResetEmptyTickKeys bool `conf:"default:false"`
+			ResetEmptyTickKeys     bool `conf:"default:false"`
+			CompactionInfoEndpoint bool `conf:"default:true"`
 		}
 	}
 
@@ -121,7 +122,7 @@ func run() error {
 		IndexBlockSize:       4096,
 		TargetFileSize:       l2Options.TargetFileSize * 10, // 25 GB
 	}
-	l4Options := pebble.LevelOptions{
+	/*l4Options := pebble.LevelOptions{
 		BlockRestartInterval: 16,
 		BlockSize:            4096,
 		BlockSizeThreshold:   90,
@@ -130,13 +131,15 @@ func run() error {
 		FilterType:           pebble.TableFilter,
 		IndexBlockSize:       4096,
 		TargetFileSize:       l3Options.TargetFileSize * 10, // 250 GB
-	}
+	}*/
+
+	el := store.NewEventListener()
 
 	pebbleOptions := pebble.Options{
-		Levels:                   []pebble.LevelOptions{l1Options, l2Options, l3Options, l4Options},
+		Levels:                   []pebble.LevelOptions{l1Options, l2Options, l3Options /*, l4Options*/},
 		MaxConcurrentCompactions: func() int { return runtime.NumCPU() },
 		MemTableSize:             268435456, // 256 MB
-		EventListener:            store.NewPebbleEventListener(),
+		EventListener:            &el.PebbleListener,
 	}
 
 	db, err := pebble.Open(cfg.Qubic.StorageFolder, &pebbleOptions)
@@ -206,6 +209,11 @@ func run() error {
 	pprofErrors := make(chan error, 1)
 
 	http.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{EnableOpenMetrics: true}))
+
+	if cfg.Store.CompactionInfoEndpoint {
+		http.HandleFunc("/compaction-info", el.HandleCompactionInfoEndpoint)
+	}
+
 	go func() {
 		pprofErrors <- http.ListenAndServe(cfg.Server.ProfilingHost, nil)
 	}()
