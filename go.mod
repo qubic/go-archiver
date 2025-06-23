@@ -4,6 +4,7 @@ go 1.24.0
 
 require (
 	github.com/ardanlabs/conf v1.5.0
+	github.com/ardanlabs/conf/v3 v3.8.0
 	github.com/cloudflare/circl v1.6.1
 	github.com/cockroachdb/pebble v1.1.5
 	github.com/google/go-cmp v0.7.0
