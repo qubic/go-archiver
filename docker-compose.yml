@@ -15,7 +15,7 @@ services:
     restart: always
 
   qubic-archiver:
-    image: ghcr.io/qubic/qubic-archiver:v0.10.1
+    image: ghcr.io/qubic/qubic-archiver:v0.11.1
     container_name: qubic-archiver
     ports:
       - "127.0.0.1:8001:8000"
