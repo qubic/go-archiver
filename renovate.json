@@ -4,7 +4,7 @@
     "config:recommended",
     "mergeConfidence:all-badges"
   ],
-  "baseBranches": ["deps"],
+  "baseBranches": ["main"],
   "packageRules": [
     {
       "groupName": "Mend: high confidence minor and patch dependency updates",
