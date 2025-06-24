@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/ardanlabs/conf"
+	"github.com/ardanlabs/conf/v3"
 	"github.com/cockroachdb/pebble"
 	grpcProm "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	"github.com/pkg/errors"
@@ -65,24 +65,13 @@ func run() error {
 		}
 	}
 
-	if err := conf.Parse(os.Args[1:], prefix, &cfg); err != nil {
-		switch err {
-		case conf.ErrHelpWanted:
-			usage, err := conf.Usage(prefix, &cfg)
-			if err != nil {
-				return errors.Wrap(err, "generating config usage")
-			}
-			fmt.Println(usage)
-			return nil
-		case conf.ErrVersionWanted:
-			version, err := conf.VersionString(prefix, &cfg)
-			if err != nil {
-				return errors.Wrap(err, "generating config version")
-			}
-			fmt.Println(version)
+	help, err := conf.Parse(prefix, &cfg)
+	if err != nil {
+		if errors.Is(err, conf.ErrHelpWanted) {
+			fmt.Println(help)
 			return nil
 		}
-		return errors.Wrap(err, "parsing config")
+		return fmt.Errorf("parsing config: %w", err)
 	}
 
 	out, err := conf.String(&cfg)
