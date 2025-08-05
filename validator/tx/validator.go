@@ -19,10 +19,6 @@ func Validate(ctx context.Context, sigVerifierFunc utils.SigVerifierFunc, transa
 		return []types.Transaction{}, nil
 	}
 
-	if len(transactions) != len(digestsMap) {
-		return nil, errors.Errorf("tx count mismatch. tx count: %d, digests count: %d", len(transactions), len(digestsMap))
-	}
-
 	validTxs, err := validateTransactions(ctx, sigVerifierFunc, transactions, digestsMap)
 	if err != nil {
 		return nil, errors.Wrap(err, "validating transactions")
@@ -31,6 +27,10 @@ func Validate(ctx context.Context, sigVerifierFunc utils.SigVerifierFunc, transa
 	return validTxs, nil
 }
 
+// validateTransactions validates the tick transactions against the digests map, if a transaction is not part of the
+// digests map, it is considered invalid. if we have more transactions than digests, then we don't care.
+// Implementation relies on the fact that for each valid transaction, the associated digest is removed
+// from the digest map and at the end of the function, the map should be empty.
 func validateTransactions(ctx context.Context, sigVerifierFunc utils.SigVerifierFunc, transactions []types.Transaction, digestsMap map[string]struct{}) ([]types.Transaction, error) {
 	validTransactions := make([]types.Transaction, 0, len(transactions))
 	for _, tx := range transactions {
@@ -64,8 +64,11 @@ func validateTransactions(ctx context.Context, sigVerifierFunc utils.SigVerifier
 			return nil, errors.Wrap(err, "verifying tx signature")
 		}
 		validTransactions = append(validTransactions, tx)
+		delete(digestsMap, hexDigest)
+	}
 
-		//log.Printf("Validated tx: %s. Count: %d\n", hexDigest, index)
+	if len(digestsMap) > 0 {
+		return nil, errors.Errorf("not all digests were matched, remaining: %d", len(digestsMap))
 	}
 
 	return validTransactions, nil
