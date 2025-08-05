@@ -68,7 +68,7 @@ func validateTransactions(ctx context.Context, sigVerifierFunc utils.SigVerifier
 	}
 
 	if len(digestsMap) > 0 {
-		return nil, errors.Errorf("not all digests were matched, remaining: %d", len(digestsMap))
+		return nil, errors.Errorf("not all digests were matched, remaining: %v", digestsMap)
 	}
 
 	return validTransactions, nil
