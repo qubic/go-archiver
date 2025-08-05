@@ -4,7 +4,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-node-connector/types"
-	"log"
 )
 
 func qubicToProto(txs types.Transactions, model types.TransactionStatus) (*protobuff.TickTransactionsStatus, error) {
@@ -21,7 +20,6 @@ func qubicToProto(txs types.Transactions, model types.TransactionStatus) (*proto
 			return nil, errors.Wrap(err, "converting digest to id")
 		}
 		if _, ok := txsIdMap[id.String()]; !ok {
-			log.Printf("Skipping tx status with id: %s\n", id.String())
 			continue
 		}
 
