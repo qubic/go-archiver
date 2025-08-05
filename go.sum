@@ -91,6 +91,7 @@ github.com/prometheus/procfs v0.9.0 h1:wzCHvIvM5SxWqYvwgVL7yJY8Lz3PKn49KQtpgMYJf
 github.com/prometheus/procfs v0.9.0/go.mod h1:+pB4zwohETzFnmlpe6yd2lSc+0/46IYZRB/chUwxUZY=
 github.com/qubic/go-node-connector v0.13.0 h1:uA2NNiPasrYdHS2K3liU3mNlmu+jVU5heNHqbHODU4E=
 github.com/qubic/go-node-connector v0.13.0/go.mod h1:jLbmYx2GUh8Ctk5zULFepgho7yoGZXrU8/tMk+fcuEc=
+github.com/qubic/go-node-connector v0.14.0/go.mod h1:jLbmYx2GUh8Ctk5zULFepgho7yoGZXrU8/tMk+fcuEc=
 github.com/qubic/go-schnorrq v1.0.1 h1:F0R/BQVf+O7Bp57NGJmc3uXlqsaIzerg/1bmU4jMLLE=
 github.com/qubic/go-schnorrq v1.0.1/go.mod h1:j2qw/zHiyjH9GAScAAETWpZk6iELbjYnzIg7CQwc5wM=
 github.com/rogpeppe/go-internal v1.9.0/go.mod h1:WtVeX8xhTBvf0smdhujwtBcq4Qrzq/fJaraNFVN+nFs=

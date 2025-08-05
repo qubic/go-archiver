@@ -11,7 +11,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.26.3
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.15.0
-	github.com/qubic/go-node-connector v0.13.0
+	github.com/qubic/go-node-connector v0.14.0
 	github.com/qubic/go-schnorrq v1.0.1
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0
