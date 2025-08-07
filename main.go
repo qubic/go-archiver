@@ -59,6 +59,7 @@ func run() error {
 			ProcessTickTimeout            time.Duration `conf:"default:5s"`
 			DisableTransactionStatusAddon bool          `conf:"default:false"`
 			ArbitratorIdentity            string        `conf:"default:AFZPUAIYVPNUYGJRQVLUKOPPVLHAZQTGLYAAUUNBXFTVTAMSBKQBLEIEPCVJ"`
+			InitialTick                   uint32        `conf:"default:0"` // Initial tick to start processing from, 0 means disabled
 		}
 		Store struct {
 			ResetEmptyTickKeys bool `conf:"default:false"`
@@ -195,7 +196,7 @@ func run() error {
 		return errors.Wrapf(err, "getting arbitrator public key from [%s]", cfg.Qubic.ArbitratorIdentity)
 	}
 
-	proc := processor.NewProcessor(p, ps, cfg.Qubic.ProcessTickTimeout, arbitratorPubKey, cfg.Qubic.DisableTransactionStatusAddon)
+	proc := processor.NewProcessor(p, ps, cfg.Qubic.ProcessTickTimeout, arbitratorPubKey, cfg.Qubic.DisableTransactionStatusAddon, cfg.Qubic.InitialTick)
 	procErrors := make(chan error, 1)
 
 	// Start the service listening for requests.
