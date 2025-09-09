@@ -510,7 +510,7 @@ service ArchiveService {
     };
   };
 
-  // Returns information regarding the status of the archiver instance.
+  // Deprecated. Use /getLastProcessedTick (query API) or /getProcessedTicksIntervals (query API) instead.
   rpc GetStatus(google.protobuf.Empty) returns (GetStatusResponse) {
     option (google.api.http) = {
       get: "/v1/status"
