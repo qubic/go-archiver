@@ -514,7 +514,7 @@ service ArchiveService {
     };
   };
 
-  // Returns the latest tick processed by the archiver instance.
+  // Deprecated: Use /v1/tick-info (live API) for the latest network tick or /getLastProcessedTick (query API) for the latest tick available in the archive.
   rpc GetLatestTick(google.protobuf.Empty) returns (GetLatestTickResponse) {
     option (google.api.http) = {
       get: "/v1/latestTick"
