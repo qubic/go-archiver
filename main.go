@@ -214,6 +214,8 @@ func run() error {
 		select {
 		case <-shutdown:
 			return errors.New("shutting down")
+		case err := <-pprofErrors:
+			log.Println("Profiling error: %w", err)
 		case err := <-procErrors:
 			return errors.Wrap(err, "archiver error")
 		}
