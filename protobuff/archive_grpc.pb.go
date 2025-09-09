@@ -49,49 +49,51 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ArchiveServiceClient interface {
-	// Quorum data
+	// Deprecated. Will be removed soon.
 	GetTickQuorumDataV2(ctx context.Context, in *GetTickRequestV2, opts ...grpc.CallOption) (*GetQuorumTickDataResponse, error)
-	// Chain hash
+	// Deprecated. Will be removed soon.
 	GetTickChainHashV2(ctx context.Context, in *GetTickRequestV2, opts ...grpc.CallOption) (*GetChainHashResponse, error)
-	// Store hash
+	// Deprecated. Will be removed soon.
 	GetTickStoreHashV2(ctx context.Context, in *GetTickRequestV2, opts ...grpc.CallOption) (*GetChainHashResponse, error)
-	// Returns the list of transactions for the given tick, including timestamp and transfer status.
+	// Deprecated. Use /getTransactionsForTick (query API) instead.
 	GetTickTransactionsV2(ctx context.Context, in *GetTickTransactionsRequestV2, opts ...grpc.CallOption) (*GetTickTransactionsResponseV2, error)
-	// Returns the information for the given transaction id, including timestamp and transfer status.
+	// Deprecated. Use /getTransactionByHash (query API) instead.
 	GetTransactionV2(ctx context.Context, in *GetTransactionRequestV2, opts ...grpc.CallOption) (*GetTransactionResponseV2, error)
-	// SendMany
+	// Deprecated. Will be removed soon.
 	GetSendManyTransactionV2(ctx context.Context, in *GetSendManyTransactionRequestV2, opts ...grpc.CallOption) (*GetSendManyTransactionResponseV2, error)
-	// Returns the list of transfers for the given identity, their status and timestamp, grouped by tick.
+	// Deprecated. Use /getTransactionsForIdentity (query API) instead.
 	GetIdentityTransfersInTickRangeV2(ctx context.Context, in *GetTransferTransactionsPerTickRequestV2, opts ...grpc.CallOption) (*GetIdentityTransfersInTickRangeResponseV2, error)
-	// Returns the the tick numbers for the the specified epoch, alongside with the 'isEmpty' status. Paginated.
+	// Deprecated. Will be removed soon.
 	GetEpochTickListV2(ctx context.Context, in *GetEpochTickListRequestV2, opts ...grpc.CallOption) (*GetEpochTickListResponseV2, error)
-	// Returns the list of empty ticks for the specified epoch. Paginated.
+	// Deprecated. Will be removed soon.
 	GetEmptyTickListV2(ctx context.Context, in *GetEmptyTickListRequestV2, opts ...grpc.CallOption) (*GetEmptyTickListResponseV2, error)
-	// Returns the information for the given tick.
+	// Deprecated. Use /getTickData (query API) instead.
 	GetTickData(ctx context.Context, in *GetTickDataRequest, opts ...grpc.CallOption) (*GetTickDataResponse, error)
+	// Deprecated. Will be removed soon.
 	GetQuorumTickData(ctx context.Context, in *GetQuorumTickDataRequest, opts ...grpc.CallOption) (*GetQuorumTickDataResponse, error)
-	// Deprecated: Use /v2/ticks/{tick_number}/transactions instead.
+	// Deprecated. Use /getTransactionsForTick (query API) instead.
 	GetTickTransactions(ctx context.Context, in *GetTickTransactionsRequest, opts ...grpc.CallOption) (*GetTickTransactionsResponse, error)
-	// Deprecated: Use /v2/ticks/{tick_number}/transactions instead.
+	// Deprecated. Use /getTransactionsForTick (query API) instead.
 	GetTickTransferTransactions(ctx context.Context, in *GetTickTransactionsRequest, opts ...grpc.CallOption) (*GetTickTransactionsResponse, error)
-	// Deprecated: Use /v2/ticks/{tick_number}/transactions instead.
+	// Deprecated. Use /getTransactionsForTick (query API) instead.
 	GetTickApprovedTransactions(ctx context.Context, in *GetTickApprovedTransactionsRequest, opts ...grpc.CallOption) (*GetTickApprovedTransactionsResponse, error)
-	// Returns the hash of the given processed tick. This is mainly used to compare archiver instances and verify they process ticks the same.
+	// Deprecated. Will be removed soon.
 	GetChainHash(ctx context.Context, in *GetChainHashRequest, opts ...grpc.CallOption) (*GetChainHashResponse, error)
+	// Deprecated. Will be removed soon.
 	GetStoreHash(ctx context.Context, in *GetChainHashRequest, opts ...grpc.CallOption) (*GetChainHashResponse, error)
-	// Deprecated: Use /v2/transactions/{tx_id} instead.
+	// Deprecated. Use /getTransactionByHash (query API) instead.
 	GetTransaction(ctx context.Context, in *GetTransactionRequest, opts ...grpc.CallOption) (*GetTransactionResponse, error)
-	// Deprecated: Use /v2/transactions/{tx_id} instead.
+	// Deprecated. Use /getTransactionByHash (query API) instead.
 	GetTransactionStatus(ctx context.Context, in *GetTransactionStatusRequest, opts ...grpc.CallOption) (*GetTransactionStatusResponse, error)
-	// Deprecated: Use /v2/identities/{identity}/transfers instead.
+	// Deprecated. Use /getTransactionsForIdentity (query API) instead.
 	GetTransferTransactionsPerTick(ctx context.Context, in *GetTransferTransactionsPerTickRequest, opts ...grpc.CallOption) (*GetTransferTransactionsPerTickResponse, error)
-	// Returns the list of computors for the given epoch.
+	// Deprecated. Use /getComputorsListForEpoch (query API) instead.
 	GetComputors(ctx context.Context, in *GetComputorsRequest, opts ...grpc.CallOption) (*GetComputorsResponse, error)
-	// Returns information regarding the status of the archiver instance.
+	// Deprecated. Use /getLastProcessedTick (query API) or /getProcessedTicksIntervals (query API) instead.
 	GetStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*GetStatusResponse, error)
 	// Deprecated: Use /v1/tick-info (live API) for the latest network tick or /getLastProcessedTick (query API) for the latest tick available in the archive.
 	GetLatestTick(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*GetLatestTickResponse, error)
-	// A method that is mainly used by the load-balancer to decide if the instance should be added to the balancing rotation based on if it's up-to-date with the network or not.
+	// Deprecated. Will be removed soon.
 	GetHealthCheck(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*GetHealthCheckResponse, error)
 }
 
@@ -337,49 +339,51 @@ func (c *archiveServiceClient) GetHealthCheck(ctx context.Context, in *emptypb.E
 // All implementations must embed UnimplementedArchiveServiceServer
 // for forward compatibility.
 type ArchiveServiceServer interface {
-	// Quorum data
+	// Deprecated. Will be removed soon.
 	GetTickQuorumDataV2(context.Context, *GetTickRequestV2) (*GetQuorumTickDataResponse, error)
-	// Chain hash
+	// Deprecated. Will be removed soon.
 	GetTickChainHashV2(context.Context, *GetTickRequestV2) (*GetChainHashResponse, error)
-	// Store hash
+	// Deprecated. Will be removed soon.
 	GetTickStoreHashV2(context.Context, *GetTickRequestV2) (*GetChainHashResponse, error)
-	// Returns the list of transactions for the given tick, including timestamp and transfer status.
+	// Deprecated. Use /getTransactionsForTick (query API) instead.
 	GetTickTransactionsV2(context.Context, *GetTickTransactionsRequestV2) (*GetTickTransactionsResponseV2, error)
-	// Returns the information for the given transaction id, including timestamp and transfer status.
+	// Deprecated. Use /getTransactionByHash (query API) instead.
 	GetTransactionV2(context.Context, *GetTransactionRequestV2) (*GetTransactionResponseV2, error)
-	// SendMany
+	// Deprecated. Will be removed soon.
 	GetSendManyTransactionV2(context.Context, *GetSendManyTransactionRequestV2) (*GetSendManyTransactionResponseV2, error)
-	// Returns the list of transfers for the given identity, their status and timestamp, grouped by tick.
+	// Deprecated. Use /getTransactionsForIdentity (query API) instead.
 	GetIdentityTransfersInTickRangeV2(context.Context, *GetTransferTransactionsPerTickRequestV2) (*GetIdentityTransfersInTickRangeResponseV2, error)
-	// Returns the the tick numbers for the the specified epoch, alongside with the 'isEmpty' status. Paginated.
+	// Deprecated. Will be removed soon.
 	GetEpochTickListV2(context.Context, *GetEpochTickListRequestV2) (*GetEpochTickListResponseV2, error)
-	// Returns the list of empty ticks for the specified epoch. Paginated.
+	// Deprecated. Will be removed soon.
 	GetEmptyTickListV2(context.Context, *GetEmptyTickListRequestV2) (*GetEmptyTickListResponseV2, error)
-	// Returns the information for the given tick.
+	// Deprecated. Use /getTickData (query API) instead.
 	GetTickData(context.Context, *GetTickDataRequest) (*GetTickDataResponse, error)
+	// Deprecated. Will be removed soon.
 	GetQuorumTickData(context.Context, *GetQuorumTickDataRequest) (*GetQuorumTickDataResponse, error)
-	// Deprecated: Use /v2/ticks/{tick_number}/transactions instead.
+	// Deprecated. Use /getTransactionsForTick (query API) instead.
 	GetTickTransactions(context.Context, *GetTickTransactionsRequest) (*GetTickTransactionsResponse, error)
-	// Deprecated: Use /v2/ticks/{tick_number}/transactions instead.
+	// Deprecated. Use /getTransactionsForTick (query API) instead.
 	GetTickTransferTransactions(context.Context, *GetTickTransactionsRequest) (*GetTickTransactionsResponse, error)
-	// Deprecated: Use /v2/ticks/{tick_number}/transactions instead.
+	// Deprecated. Use /getTransactionsForTick (query API) instead.
 	GetTickApprovedTransactions(context.Context, *GetTickApprovedTransactionsRequest) (*GetTickApprovedTransactionsResponse, error)
-	// Returns the hash of the given processed tick. This is mainly used to compare archiver instances and verify they process ticks the same.
+	// Deprecated. Will be removed soon.
 	GetChainHash(context.Context, *GetChainHashRequest) (*GetChainHashResponse, error)
+	// Deprecated. Will be removed soon.
 	GetStoreHash(context.Context, *GetChainHashRequest) (*GetChainHashResponse, error)
-	// Deprecated: Use /v2/transactions/{tx_id} instead.
+	// Deprecated. Use /getTransactionByHash (query API) instead.
 	GetTransaction(context.Context, *GetTransactionRequest) (*GetTransactionResponse, error)
-	// Deprecated: Use /v2/transactions/{tx_id} instead.
+	// Deprecated. Use /getTransactionByHash (query API) instead.
 	GetTransactionStatus(context.Context, *GetTransactionStatusRequest) (*GetTransactionStatusResponse, error)
-	// Deprecated: Use /v2/identities/{identity}/transfers instead.
+	// Deprecated. Use /getTransactionsForIdentity (query API) instead.
 	GetTransferTransactionsPerTick(context.Context, *GetTransferTransactionsPerTickRequest) (*GetTransferTransactionsPerTickResponse, error)
-	// Returns the list of computors for the given epoch.
+	// Deprecated. Use /getComputorsListForEpoch (query API) instead.
 	GetComputors(context.Context, *GetComputorsRequest) (*GetComputorsResponse, error)
-	// Returns information regarding the status of the archiver instance.
+	// Deprecated. Use /getLastProcessedTick (query API) or /getProcessedTicksIntervals (query API) instead.
 	GetStatus(context.Context, *emptypb.Empty) (*GetStatusResponse, error)
 	// Deprecated: Use /v1/tick-info (live API) for the latest network tick or /getLastProcessedTick (query API) for the latest tick available in the archive.
 	GetLatestTick(context.Context, *emptypb.Empty) (*GetLatestTickResponse, error)
-	// A method that is mainly used by the load-balancer to decide if the instance should be added to the balancing rotation based on if it's up-to-date with the network or not.
+	// Deprecated. Will be removed soon.
 	GetHealthCheck(context.Context, *emptypb.Empty) (*GetHealthCheckResponse, error)
 	mustEmbedUnimplementedArchiveServiceServer()
 }
