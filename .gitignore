@@ -9,6 +9,7 @@ store/MANIFEST-*
 store/OPTIONS-*
 store/*.log
 store/archiver/*
+archiver-data/
 
 go-archiver
 *.swagger.json

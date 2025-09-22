@@ -3,6 +3,7 @@ package tick
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-archiver/utils"
@@ -42,7 +43,7 @@ func Validate(ctx context.Context, sigVerifierFunc utils.SigVerifierFunc, data t
 	}
 
 	if fullDigest != quorumTickVote.TxDigest {
-		return errors.Wrapf(err, "quorum tx digest mismatch. full digest: %s. quorum tx digest: %s", hex.EncodeToString(fullDigest[:]), hex.EncodeToString(quorumTickVote.TxDigest[:]))
+		return fmt.Errorf("quorum tx digest mismatch. full digest: %s. quorum tx digest: %s", hex.EncodeToString(fullDigest[:]), hex.EncodeToString(quorumTickVote.TxDigest[:]))
 	}
 
 	return nil
@@ -67,9 +68,6 @@ func getDigestFromTickData(data types.TickData) ([32]byte, error) {
 }
 
 func getFullDigestFromTickData(data types.TickData) ([32]byte, error) {
-	// xor computor index with 8
-	data.ComputorIndex ^= 8
-
 	sData, err := utils.BinarySerialize(data)
 	if err != nil {
 		return [32]byte{}, errors.Wrap(err, "serializing data")
