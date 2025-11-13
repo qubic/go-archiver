@@ -510,7 +510,7 @@ service ArchiveService {
     };
   };
 
-  // Deprecated. Use /getLastProcessedTick (query API) or /getProcessedTicksIntervals (query API) instead.
+  // Deprecated. Use /getLastProcessedTick (query API) or /getProcessedTickIntervals (query API) instead.
   rpc GetStatus(google.protobuf.Empty) returns (GetStatusResponse) {
     option (google.api.http) = {
       get: "/v1/status"

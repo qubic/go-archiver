@@ -89,7 +89,7 @@ type ArchiveServiceClient interface {
 	GetTransferTransactionsPerTick(ctx context.Context, in *GetTransferTransactionsPerTickRequest, opts ...grpc.CallOption) (*GetTransferTransactionsPerTickResponse, error)
 	// Deprecated. Use /getComputorsListForEpoch (query API) instead.
 	GetComputors(ctx context.Context, in *GetComputorsRequest, opts ...grpc.CallOption) (*GetComputorsResponse, error)
-	// Deprecated. Use /getLastProcessedTick (query API) or /getProcessedTicksIntervals (query API) instead.
+	// Deprecated. Use /getLastProcessedTick (query API) or /getProcessedTickIntervals (query API) instead.
 	GetStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*GetStatusResponse, error)
 	// Deprecated: Use /v1/tick-info (live API) for the latest network tick or /getLastProcessedTick (query API) for the latest tick available in the archive.
 	GetLatestTick(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*GetLatestTickResponse, error)
@@ -379,7 +379,7 @@ type ArchiveServiceServer interface {
 	GetTransferTransactionsPerTick(context.Context, *GetTransferTransactionsPerTickRequest) (*GetTransferTransactionsPerTickResponse, error)
 	// Deprecated. Use /getComputorsListForEpoch (query API) instead.
 	GetComputors(context.Context, *GetComputorsRequest) (*GetComputorsResponse, error)
-	// Deprecated. Use /getLastProcessedTick (query API) or /getProcessedTicksIntervals (query API) instead.
+	// Deprecated. Use /getLastProcessedTick (query API) or /getProcessedTickIntervals (query API) instead.
 	GetStatus(context.Context, *emptypb.Empty) (*GetStatusResponse, error)
 	// Deprecated: Use /v1/tick-info (live API) for the latest network tick or /getLastProcessedTick (query API) for the latest tick available in the archive.
 	GetLatestTick(context.Context, *emptypb.Empty) (*GetLatestTickResponse, error)
