@@ -3,21 +3,21 @@ module github.com/qubic/go-archiver
 go 1.24.0
 
 require (
-	github.com/ardanlabs/conf/v3 v3.8.0
+	github.com/ardanlabs/conf/v3 v3.9.0
 	github.com/cloudflare/circl v1.6.1
 	github.com/cockroachdb/pebble v1.1.5
 	github.com/google/go-cmp v0.7.0
 	github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus v1.1.0
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.0
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.3
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.22.0
-	github.com/qubic/go-node-connector v0.13.0
+	github.com/prometheus/client_golang v1.23.2
+	github.com/qubic/go-node-connector v0.14.1
 	github.com/qubic/go-schnorrq v1.0.1
-	github.com/stretchr/testify v1.10.0
-	go.uber.org/zap v1.27.0
+	github.com/stretchr/testify v1.11.1
+	go.uber.org/zap v1.27.1
 	google.golang.org/genproto/googleapis/api v0.0.0-20250603155806-513f23925822
-	google.golang.org/grpc v1.73.0
-	google.golang.org/protobuf v1.36.6
+	google.golang.org/grpc v1.77.0
+	google.golang.org/protobuf v1.36.10
 )
 
 require (
