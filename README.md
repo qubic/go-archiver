@@ -2,6 +2,9 @@
 
 > The archiver service's purpose is to store and make available data regardless of the current epoch.
 
+> [!ATTENTION]
+> This version of the archiver is **not maintained anymore**. Please switch to [archiver-v2](https://github.com/qubic/go-archiver-v2).
+
 ## High level description:
 The archive system consists of two services:
 - `qubic-archiver` - the archiver processor and HTTP server that provides rpc endpoints to query the archiver
