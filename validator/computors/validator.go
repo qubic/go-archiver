@@ -5,7 +5,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-archiver/utils"
-	"github.com/qubic/go-node-connector/types"
+	"github.com/qubic/go-node-connector/v2/types"
 )
 
 func Validate(ctx context.Context, sigVerifierFunc utils.SigVerifierFunc, computors types.Computors, arbitratorPubKey [32]byte) error {

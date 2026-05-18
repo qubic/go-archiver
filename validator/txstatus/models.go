@@ -3,7 +3,7 @@ package txstatus
 import (
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
-	"github.com/qubic/go-node-connector/types"
+	"github.com/qubic/go-node-connector/v2/types"
 )
 
 func qubicToProto(txs types.Transactions, model types.TransactionStatus) (*protobuff.TickTransactionsStatus, error) {

@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
-	"github.com/qubic/go-node-connector/types"
+	"github.com/qubic/go-node-connector/v2/types"
 )
 
 func qubicToProto(txs types.Transactions) ([]*protobuff.Transaction, error) {

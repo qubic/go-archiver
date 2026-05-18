@@ -5,6 +5,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log"
+	"net/http"
+	"strconv"
+	"time"
+
 	"github.com/cockroachdb/pebble"
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
@@ -15,13 +20,9 @@ import (
 	"github.com/qubic/go-archiver/validator/tick"
 	"github.com/qubic/go-archiver/validator/tx"
 	"github.com/qubic/go-archiver/validator/txstatus"
-	qubic "github.com/qubic/go-node-connector"
-	"github.com/qubic/go-node-connector/types"
+	qubic "github.com/qubic/go-node-connector/v2"
+	"github.com/qubic/go-node-connector/v2/types"
 	"github.com/qubic/go-schnorrq"
-	"log"
-	"net/http"
-	"strconv"
-	"time"
 )
 
 type Validator struct {
@@ -141,7 +142,7 @@ func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumb
 				CurrentTickOfNode:  tickNumber,
 				Tick:               tickNumber,
 				TxCount:            uint32(len(validTxs)),
-				MoneyFlew:          [128]byte{},
+				MoneyFlew:          [(types.NumberOfTransactionsPerTick + 7) / 8]byte{},
 				TransactionDigests: nil,
 			}
 		} else {
