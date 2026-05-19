@@ -1,8 +1,14 @@
 # The qubic archiver service
 
+## EOL Notice
 > [!WARNING]
-> This version of the archiver is **not maintained anymore**. Please switch to [archiver-v2](https://github.com/qubic/go-archiver-v2).
+> This version of the archiver is **not maintained anymore and no longer receives updates or support**. Please switch to [archiver-v2](https://github.com/qubic/go-archiver-v2).  
+> **For migrating data from Archiver V1 to Archiver V2:**  
+> **Database migration tool and documentation available at [qubic/archiver-db-migrator](https://github.com/qubic/archiver-db-migrator)**
 
+
+
+---
 The archiver service's purpose is to store and make available data regardless of the current epoch.
 
 ## High level description:
@@ -12,6 +18,9 @@ The archive system consists of two services:
   network
 
 ## IMPORTANT
+
+> _**Note:** the following migration information is **outdated** and only refers to migrations migrating between versions of Archiver V1 which is **EOL**.  
+> It does not refer or is relevant to migrating Archiver V1 data to Archiver V2._
 
 > [!WARNING]  
 > This version of archiver is **INCOMPATIBLE** with versions < **v0.8.x**, as it features database compression and a different format for quorum data.   
