@@ -2,6 +2,15 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"net/http"
+	_ "net/http/pprof"
+	"os"
+	"os/signal"
+	"runtime"
+	"syscall"
+	"time"
+
 	"github.com/ardanlabs/conf"
 	"github.com/cockroachdb/pebble"
 	grpcProm "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
@@ -13,16 +22,8 @@ import (
 	"github.com/qubic/go-archiver/rpc"
 	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-archiver/validator/tick"
-	qubic "github.com/qubic/go-node-connector"
-	"github.com/qubic/go-node-connector/types"
-	"log"
-	"net/http"
-	_ "net/http/pprof"
-	"os"
-	"os/signal"
-	"runtime"
-	"syscall"
-	"time"
+	qubic "github.com/qubic/go-node-connector/v2"
+	"github.com/qubic/go-node-connector/v2/types"
 )
 
 const prefix = "QUBIC_ARCHIVER"

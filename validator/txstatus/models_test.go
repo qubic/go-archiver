@@ -1,9 +1,10 @@
 package txstatus
 
 import (
-	"github.com/qubic/go-node-connector/types"
 	"log"
 	"testing"
+
+	"github.com/qubic/go-node-connector/v2/types"
 )
 
 func TestQubicToProto(t *testing.T) {
@@ -11,7 +12,7 @@ func TestQubicToProto(t *testing.T) {
 		CurrentTickOfNode: 100,
 		Tick:              100,
 		TxCount:           3,
-		MoneyFlew:         [128]byte{0b10001000, 0b00000001},
+		MoneyFlew:         [(types.NumberOfTransactionsPerTick + 7) / 8]byte{0b10001000, 0b00000001},
 		TransactionDigests: [][32]byte{
 			[32]byte{209, 173, 239, 194, 151, 98, 29, 180, 83, 67, 142, 32, 4, 9, 167, 32, 159, 95, 116, 116, 214, 221, 171, 255, 13, 125, 86, 112, 5, 31, 191, 193},
 			[32]byte{230, 252, 58, 173, 75, 89, 77, 130, 191, 49, 3, 161, 16, 22, 216, 13, 232, 131, 222, 135, 59, 206, 196, 142, 144, 57, 98, 134, 80, 59, 38, 19},

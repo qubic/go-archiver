@@ -2,10 +2,11 @@ package tick
 
 import (
 	"encoding/hex"
+	"time"
+
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
-	"github.com/qubic/go-node-connector/types"
-	"time"
+	"github.com/qubic/go-node-connector/v2/types"
 )
 
 func qubicToProto(tickData types.TickData) (*protobuff.TickData, error) {
@@ -48,7 +49,7 @@ func digestsToIdentities(digests [types.NumberOfTransactionsPerTick][32]byte) ([
 	return identities, nil
 }
 
-func contractFeesToProto(contractFees [1024]int64) []int64 {
+func contractFeesToProto(contractFees [types.MaxNumberOfContracts]int64) []int64 {
 	protoContractFees := make([]int64, 0, len(contractFees))
 	for _, fee := range contractFees {
 		if fee == 0 {

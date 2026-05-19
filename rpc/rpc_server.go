@@ -4,14 +4,19 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"io"
+	"log"
+	"net"
+	"net/http"
+
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-archiver/validator/quorum"
 	"github.com/qubic/go-archiver/validator/tick"
-	qubic "github.com/qubic/go-node-connector"
-	"github.com/qubic/go-node-connector/types"
+	qubic "github.com/qubic/go-node-connector/v2"
+	"github.com/qubic/go-node-connector/v2/types"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
@@ -19,10 +24,6 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/emptypb"
-	"io"
-	"log"
-	"net"
-	"net/http"
 )
 
 var _ protobuff.ArchiveServiceServer = &Server{}

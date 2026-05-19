@@ -6,7 +6,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-archiver/utils"
-	"github.com/qubic/go-node-connector/types"
+	"github.com/qubic/go-node-connector/v2/types"
 	"time"
 )
 

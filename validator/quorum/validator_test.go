@@ -2,7 +2,7 @@ package quorum
 
 import (
 	"context"
-	"github.com/qubic/go-node-connector/types"
+	"github.com/qubic/go-node-connector/v2/types"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
