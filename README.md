@@ -19,7 +19,7 @@ The archive system consists of two services:
 
 ## IMPORTANT
 
-> _**Note:** the following migration information is **outdated** and only refers to migrations migrating between versions of Archiver V1 which is **EOL**.  
+> _**Note:** the following migration information is **outdated** and only refers to migrating between versions of Archiver V1 which is **EOL**.  
 > It does not refer or is relevant to migrating Archiver V1 data to Archiver V2._
 
 > [!WARNING]  
