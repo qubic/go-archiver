@@ -2,9 +2,10 @@ package tick
 
 import (
 	"encoding/hex"
+	"errors"
+	"fmt"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-node-connector/v2/types"
 )
@@ -18,7 +19,7 @@ func qubicToProto(tickData types.TickData) (*protobuff.TickData, error) {
 	timestamp := date.UnixMilli() + int64(tickData.Millisecond)
 	transactionIds, err := digestsToIdentities(tickData.TransactionDigests)
 	if err != nil {
-		return nil, errors.Wrap(err, "getting transaction ids from digests")
+		return nil, fmt.Errorf("getting transaction ids from digests: %w", err)
 	}
 	return &protobuff.TickData{
 		ComputorIndex:  uint32(tickData.ComputorIndex),
@@ -41,7 +42,7 @@ func digestsToIdentities(digests [types.NumberOfTransactionsPerTick][32]byte) ([
 		var id types.Identity
 		id, err := id.FromPubKey(digest, true)
 		if err != nil {
-			return nil, errors.Wrapf(err, "getting identity from digest hex %s", hex.EncodeToString(digest[:]))
+			return nil, fmt.Errorf("getting identity from digest hex %s: %w", hex.EncodeToString(digest[:]), err)
 		}
 		identities = append(identities, id.String())
 	}
@@ -90,7 +91,7 @@ func GetTickEpoch(tickNumber uint32, intervals []*protobuff.ProcessedTickInterva
 		}
 	}
 
-	return 0, errors.Errorf("unable to find the epoch for tick %d", tickNumber)
+	return 0, fmt.Errorf("unable to find the epoch for tick %d", tickNumber)
 }
 
 func GetProcessedTickIntervalsForEpoch(epoch uint32, intervals []*protobuff.ProcessedTickIntervalsPerEpoch) (*protobuff.ProcessedTickIntervalsPerEpoch, error) {
@@ -101,13 +102,13 @@ func GetProcessedTickIntervalsForEpoch(epoch uint32, intervals []*protobuff.Proc
 		return interval, nil
 	}
 
-	return nil, errors.Errorf("unable to find processed tick intervals for epoch %d", epoch)
+	return nil, fmt.Errorf("unable to find processed tick intervals for epoch %d", epoch)
 }
 
 func IsTickLastInAnyEpochInterval(tickNumber uint32, epoch uint32, intervals []*protobuff.ProcessedTickIntervalsPerEpoch) (bool, int, error) {
 	epochIntervals, err := GetProcessedTickIntervalsForEpoch(epoch, intervals)
 	if err != nil {
-		return false, -1, errors.Wrap(err, "getting processed tick intervals per epoch")
+		return false, -1, fmt.Errorf("getting processed tick intervals per epoch: %w", err)
 	}
 
 	for index, interval := range epochIntervals.Intervals {

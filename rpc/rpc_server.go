@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net"
 	"net/http"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-archiver/validator/quorum"
@@ -59,7 +60,7 @@ func NewServer(listenAddrGRPC, listenAddrHTTP string, syncThreshold int, chainTi
 func getTransactionInfo(ctx context.Context, pebbleStore *store.PebbleStore, transactionId string, tickNumber uint32) (*TransactionInfo, error) {
 	tickData, err := pebbleStore.GetTickData(ctx, tickNumber)
 	if err != nil {
-		return nil, errors.Wrap(err, "getting tick data")
+		return nil, fmt.Errorf("getting tick data: %w", err)
 	}
 
 	txStatus, err := pebbleStore.GetTransactionStatus(ctx, transactionId)
@@ -71,7 +72,7 @@ func getTransactionInfo(ctx context.Context, pebbleStore *store.PebbleStore, tra
 			}, nil
 		}
 
-		return nil, errors.Wrap(err, "getting transaction status")
+		return nil, fmt.Errorf("getting transaction status: %w", err)
 	}
 
 	return &TransactionInfo{
@@ -306,23 +307,23 @@ func fetchChainTick(ctx context.Context, url string) (int, error) {
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return 0, errors.Wrap(err, "creating new request")
+		return 0, fmt.Errorf("creating new request: %w", err)
 	}
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return 0, errors.Wrap(err, "getting chain tick from node fetcher")
+		return 0, fmt.Errorf("getting chain tick from node fetcher: %w", err)
 	}
 	defer res.Body.Close()
 
 	var resp response
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		return 0, errors.Wrap(err, "reading response body")
+		return 0, fmt.Errorf("reading response body: %w", err)
 	}
 	err = json.Unmarshal(body, &resp)
 	if err != nil {
-		return 0, errors.Wrap(err, "unmarshalling response")
+		return 0, fmt.Errorf("unmarshalling response: %w", err)
 	}
 
 	tickNumber := resp.ChainTick
@@ -396,7 +397,7 @@ func (s *Server) GetTickApprovedTransactions(ctx context.Context, req *protobuff
 
 		tx, err := s.store.GetTransaction(ctx, txStatus.TxId)
 		if err != nil {
-			return nil, errors.Wrapf(err, "getting tx %s from archiver", txStatus.TxId)
+			return nil, fmt.Errorf("getting tx %s from archiver: %w", txStatus.TxId, err)
 		}
 
 		if tx.InputType == 1 && tx.InputSize == 1000 && tx.DestId == "EAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAVWRF" {

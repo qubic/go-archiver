@@ -3,7 +3,7 @@ package tx
 import (
 	"context"
 	"encoding/hex"
-	"github.com/pkg/errors"
+	"fmt"
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-archiver/utils"
@@ -21,7 +21,7 @@ func Validate(ctx context.Context, sigVerifierFunc utils.SigVerifierFunc, transa
 
 	validTxs, err := validateTransactions(ctx, sigVerifierFunc, transactions, digestsMap)
 	if err != nil {
-		return nil, errors.Wrap(err, "validating transactions")
+		return nil, fmt.Errorf("validating transactions: %w", err)
 	}
 
 	return validTxs, nil
@@ -36,39 +36,39 @@ func validateTransactions(ctx context.Context, sigVerifierFunc utils.SigVerifier
 	for _, tx := range transactions {
 		txDigest, err := getDigestFromTransaction(tx)
 		if err != nil {
-			return nil, errors.Wrap(err, "getting digest from tx data")
+			return nil, fmt.Errorf("getting digest from tx data: %w", err)
 		}
 
 		txId, err := tx.ID()
 		if err != nil {
-			return nil, errors.Wrap(err, "getting tx id")
+			return nil, fmt.Errorf("getting tx id: %w", err)
 		}
 
 		hexDigest := hex.EncodeToString(txDigest[:])
 		if _, ok := digestsMap[hexDigest]; !ok {
-			return nil, errors.Errorf("tx id: %s not found in digests map", txId)
+			return nil, fmt.Errorf("tx id: %s not found in digests map", txId)
 		}
 
 		txDataBytes, err := tx.MarshallBinary()
 		if err != nil {
-			return nil, errors.Wrap(err, "marshalling tx data")
+			return nil, fmt.Errorf("marshalling tx data: %w", err)
 		}
 
 		constructedDigest, err := utils.K12Hash(txDataBytes[:len(txDataBytes)-64])
 		if err != nil {
-			return nil, errors.Wrap(err, "constructing digest from tx data")
+			return nil, fmt.Errorf("constructing digest from tx data: %w", err)
 		}
 
 		err = sigVerifierFunc(ctx, tx.SourcePublicKey, constructedDigest, tx.Signature)
 		if err != nil {
-			return nil, errors.Wrap(err, "verifying tx signature")
+			return nil, fmt.Errorf("verifying tx signature: %w", err)
 		}
 		validTransactions = append(validTransactions, tx)
 		delete(digestsMap, hexDigest)
 	}
 
 	if len(digestsMap) > 0 {
-		return nil, errors.Errorf("not all digests were matched, remaining: %v", digestsMap)
+		return nil, fmt.Errorf("not all digests were matched, remaining: %v", digestsMap)
 	}
 
 	return validTransactions, nil
@@ -77,12 +77,12 @@ func validateTransactions(ctx context.Context, sigVerifierFunc utils.SigVerifier
 func getDigestFromTransaction(tx types.Transaction) ([32]byte, error) {
 	txDataMarshalledBytes, err := tx.MarshallBinary()
 	if err != nil {
-		return [32]byte{}, errors.Wrap(err, "marshalling")
+		return [32]byte{}, fmt.Errorf("marshalling: %w", err)
 	}
 
 	digest, err := utils.K12Hash(txDataMarshalledBytes)
 	if err != nil {
-		return [32]byte{}, errors.Wrap(err, "hashing tx tx")
+		return [32]byte{}, fmt.Errorf("hashing tx tx: %w", err)
 	}
 
 	return digest, nil
@@ -106,12 +106,12 @@ func createTxDigestsMap(tickData types.TickData) map[string]struct{} {
 func Store(ctx context.Context, store *store.PebbleStore, tickNumber uint32, transactions types.Transactions) error {
 	err := storeTickTransactions(ctx, store, transactions)
 	if err != nil {
-		return errors.Wrap(err, "storing tick transactions")
+		return fmt.Errorf("storing tick transactions: %w", err)
 	}
 
 	err = storeTransferTransactions(ctx, store, tickNumber, transactions)
 	if err != nil {
-		return errors.Wrap(err, "storing transfer transactions")
+		return fmt.Errorf("storing transfer transactions: %w", err)
 	}
 
 	return nil
@@ -120,12 +120,12 @@ func Store(ctx context.Context, store *store.PebbleStore, tickNumber uint32, tra
 func storeTickTransactions(ctx context.Context, store *store.PebbleStore, transactions types.Transactions) error {
 	protoModel, err := qubicToProto(transactions)
 	if err != nil {
-		return errors.Wrap(err, "converting to proto")
+		return fmt.Errorf("converting to proto: %w", err)
 	}
 
 	err = store.SetTransactions(ctx, protoModel)
 	if err != nil {
-		return errors.Wrap(err, "storing tick transactions")
+		return fmt.Errorf("storing tick transactions: %w", err)
 	}
 
 	return nil
@@ -134,17 +134,17 @@ func storeTickTransactions(ctx context.Context, store *store.PebbleStore, transa
 func storeTransferTransactions(ctx context.Context, store *store.PebbleStore, tickNumber uint32, transactions types.Transactions) error {
 	transferTransactions, err := removeNonTransferTransactionsAndConvert(transactions)
 	if err != nil {
-		return errors.Wrap(err, "removing non transfer transactions")
+		return fmt.Errorf("removing non transfer transactions: %w", err)
 	}
 	txsPerIdentity, err := createTransferTransactionsIdentityMap(ctx, transferTransactions)
 	if err != nil {
-		return errors.Wrap(err, "filtering transfer transactions")
+		return fmt.Errorf("filtering transfer transactions: %w", err)
 	}
 
 	for id, txs := range txsPerIdentity {
 		err = store.PutTransferTransactionsPerTick(ctx, id, tickNumber, &protobuff.TransferTransactionsPerTick{TickNumber: uint32(tickNumber), Identity: id, Transactions: txs})
 		if err != nil {
-			return errors.Wrap(err, "storing transfer transactions")
+			return fmt.Errorf("storing transfer transactions: %w", err)
 		}
 	}
 
@@ -160,7 +160,7 @@ func removeNonTransferTransactionsAndConvert(transactions []types.Transaction) (
 
 		protoTx, err := txToProto(tx)
 		if err != nil {
-			return nil, errors.Wrap(err, "converting to proto")
+			return nil, fmt.Errorf("converting to proto: %w", err)
 		}
 
 		transferTransactions = append(transferTransactions, protoTx)

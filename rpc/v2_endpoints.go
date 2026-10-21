@@ -4,13 +4,14 @@ import (
 	"cmp"
 	"context"
 	"encoding/hex"
+	"errors"
+	"fmt"
 	"github.com/cockroachdb/pebble"
 
 	"log"
 
 	"slices"
 
-	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-node-connector/v2/types"
@@ -302,15 +303,15 @@ func (s *Server) GetIdentityTransfersInTickRangeV2(ctx context.Context, req *pro
 func getPaginationInformation(totalRecords, pageNumber, pageSize int) (*protobuff.Pagination, error) {
 
 	if pageNumber < 1 {
-		return nil, errors.Errorf("invalid page number [%d]", pageNumber)
+		return nil, fmt.Errorf("invalid page number [%d]", pageNumber)
 	}
 
 	if pageSize < 1 {
-		return nil, errors.Errorf("invalid page size [%d]", pageSize)
+		return nil, fmt.Errorf("invalid page size [%d]", pageSize)
 	}
 
 	if totalRecords < 0 {
-		return nil, errors.Errorf("invalid number of total records [%d]", totalRecords)
+		return nil, fmt.Errorf("invalid number of total records [%d]", totalRecords)
 	}
 
 	totalPages := totalRecords / pageSize // rounds down

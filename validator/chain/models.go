@@ -2,7 +2,7 @@ package chain
 
 import (
 	"bytes"
-	"github.com/pkg/errors"
+	"fmt"
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-archiver/utils"
 	"github.com/qubic/go-node-connector/v2/types"
@@ -34,12 +34,12 @@ type Chain struct {
 func (c *Chain) Digest() ([32]byte, error) {
 	b, err := c.MarshallBinary()
 	if err != nil {
-		return [32]byte{}, errors.Wrap(err, "serializing vote")
+		return [32]byte{}, fmt.Errorf("serializing vote: %w", err)
 	}
 
 	digest, err := utils.K12Hash(b)
 	if err != nil {
-		return [32]byte{}, errors.Wrap(err, "hashing vote")
+		return [32]byte{}, fmt.Errorf("hashing vote: %w", err)
 	}
 
 	return digest, nil
@@ -48,7 +48,7 @@ func (c *Chain) Digest() ([32]byte, error) {
 func (c *Chain) MarshallBinary() ([]byte, error) {
 	b, err := utils.BinarySerialize(c)
 	if err != nil {
-		return nil, errors.Wrap(err, "serializing vote")
+		return nil, fmt.Errorf("serializing vote: %w", err)
 	}
 
 	return b, nil
@@ -64,14 +64,14 @@ func (s *Store) MarshallBinary() ([]byte, error) {
 	var buff bytes.Buffer
 	_, err := buff.Write(s.PreviousTickStoreDigest[:])
 	if err != nil {
-		return nil, errors.Wrap(err, "writing previousTickStoreDigest")
+		return nil, fmt.Errorf("writing previousTickStoreDigest: %w", err)
 	}
 
 	digests := make([][32]byte, 0, len(s.ValidTxs))
 	for _, tx := range s.ValidTxs {
 		digest, err := tx.Digest()
 		if err != nil {
-			return nil, errors.Wrap(err, "marshalling tx")
+			return nil, fmt.Errorf("marshalling tx: %w", err)
 		}
 
 		digests = append(digests, digest)
@@ -82,18 +82,18 @@ func (s *Store) MarshallBinary() ([]byte, error) {
 	for _, digest := range digests {
 		_, err = buff.Write(digest[:])
 		if err != nil {
-			return nil, errors.Wrap(err, "writing digest")
+			return nil, fmt.Errorf("writing digest: %w", err)
 		}
 	}
 
 	b, err := proto.Marshal(s.TickTxsStatus)
 	if err != nil {
-		return nil, errors.Wrap(err, "marshalling tickTxsStatus")
+		return nil, fmt.Errorf("marshalling tickTxsStatus: %w", err)
 	}
 
 	_, err = buff.Write(b)
 	if err != nil {
-		return nil, errors.Wrap(err, "writing tickTxsStatus")
+		return nil, fmt.Errorf("writing tickTxsStatus: %w", err)
 	}
 
 	return buff.Bytes(), nil
@@ -102,12 +102,12 @@ func (s *Store) MarshallBinary() ([]byte, error) {
 func (s *Store) Digest() ([32]byte, error) {
 	b, err := s.MarshallBinary()
 	if err != nil {
-		return [32]byte{}, errors.Wrap(err, "serializing store")
+		return [32]byte{}, fmt.Errorf("serializing store: %w", err)
 	}
 
 	digest, err := utils.K12Hash(b)
 	if err != nil {
-		return [32]byte{}, errors.Wrap(err, "hashing vote")
+		return [32]byte{}, fmt.Errorf("hashing vote: %w", err)
 	}
 
 	return digest, nil

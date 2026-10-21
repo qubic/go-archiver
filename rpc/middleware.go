@@ -2,7 +2,7 @@ package rpc
 
 import (
 	"context"
-	"github.com/pkg/errors"
+	"fmt"
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-archiver/validator/tick"
 	"google.golang.org/grpc"
@@ -49,7 +49,7 @@ func (twb *TickWithinBoundsInterceptor) GetInterceptor(ctx context.Context, req 
 	}
 
 	if err != nil {
-		return nil, errors.Wrapf(err, "invalid tick number")
+		return nil, fmt.Errorf("invalid tick number: %w", err)
 	}
 
 	h, err := handler(ctx, req)

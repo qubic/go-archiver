@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -14,7 +15,6 @@ import (
 	"github.com/ardanlabs/conf"
 	"github.com/cockroachdb/pebble"
 	grpcProm "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
-	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -71,24 +71,24 @@ func run() error {
 		case conf.ErrHelpWanted:
 			usage, err := conf.Usage(prefix, &cfg)
 			if err != nil {
-				return errors.Wrap(err, "generating config usage")
+				return fmt.Errorf("generating config usage: %w", err)
 			}
 			fmt.Println(usage)
 			return nil
 		case conf.ErrVersionWanted:
 			version, err := conf.VersionString(prefix, &cfg)
 			if err != nil {
-				return errors.Wrap(err, "generating config version")
+				return fmt.Errorf("generating config version: %w", err)
 			}
 			fmt.Println(version)
 			return nil
 		}
-		return errors.Wrap(err, "parsing config")
+		return fmt.Errorf("parsing config: %w", err)
 	}
 
 	out, err := conf.String(&cfg)
 	if err != nil {
-		return errors.Wrap(err, "generating config for output")
+		return fmt.Errorf("generating config for output: %w", err)
 	}
 	log.Printf("main: Config :\n%v\n", out)
 
@@ -142,7 +142,7 @@ func run() error {
 
 	db, err := pebble.Open(cfg.Qubic.StorageFolder, &pebbleOptions)
 	if err != nil {
-		return errors.Wrap(err, "opening db with zstd compression")
+		return fmt.Errorf("opening db with zstd compression: %w", err)
 	}
 	defer db.Close()
 
@@ -152,13 +152,13 @@ func run() error {
 		fmt.Printf("Resetting empty ticks for all epochs...\n")
 		err = tick.ResetEmptyTicksForAllEpochs(ps)
 		if err != nil {
-			return errors.Wrap(err, "resetting empty ticks keys")
+			return fmt.Errorf("resetting empty ticks keys: %w", err)
 		}
 	}
 
 	err = tick.CalculateEmptyTicksForAllEpochs(ps)
 	if err != nil {
-		return errors.Wrap(err, "calculating empty ticks for all epochs")
+		return fmt.Errorf("calculating empty ticks for all epochs: %w", err)
 	}
 
 	p, err := qubic.NewPoolConnection(qubic.PoolConfig{
@@ -171,7 +171,7 @@ func run() error {
 		NodePort:           cfg.Qubic.NodePort,
 	})
 	if err != nil {
-		return errors.Wrap(err, "creating qubic pool")
+		return fmt.Errorf("creating qubic pool: %w", err)
 	}
 
 	srvMetrics := grpcProm.NewServerMetrics(
@@ -184,7 +184,7 @@ func run() error {
 	rpcServer := rpc.NewServer(cfg.Server.GrpcHost, cfg.Server.HttpHost, cfg.Server.NodeSyncThreshold, cfg.Server.ChainTickFetchUrl, ps, p)
 	err = rpcServer.Start(srvMetrics.UnaryServerInterceptor())
 	if err != nil {
-		return errors.Wrap(err, "starting rpc server")
+		return fmt.Errorf("starting rpc server: %w", err)
 	}
 
 	shutdown := make(chan os.Signal, 1)
@@ -193,7 +193,7 @@ func run() error {
 	arbitratorID := types.Identity(cfg.Qubic.ArbitratorIdentity)
 	arbitratorPubKey, err := arbitratorID.ToPubKey(false)
 	if err != nil {
-		return errors.Wrapf(err, "getting arbitrator public key from [%s]", cfg.Qubic.ArbitratorIdentity)
+		return fmt.Errorf("getting arbitrator public key from [%s]: %w", cfg.Qubic.ArbitratorIdentity, err)
 	}
 
 	proc := processor.NewProcessor(p, ps, cfg.Qubic.ProcessTickTimeout, arbitratorPubKey, cfg.Qubic.DisableTransactionStatusAddon)
@@ -218,7 +218,10 @@ func run() error {
 		case err := <-pprofErrors:
 			log.Println("Profiling error: %w", err)
 		case err := <-procErrors:
-			return errors.Wrap(err, "archiver error")
+			if err != nil {
+				return fmt.Errorf("archiver error: %w", err)
+			}
+			return nil
 		}
 	}
 }

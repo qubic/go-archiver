@@ -2,9 +2,9 @@ package tick
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/cockroachdb/pebble"
-	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-node-connector/v2/types"
@@ -18,7 +18,7 @@ func CalculateEmptyTicksForEpoch(ctx context.Context, ps *store.PebbleStore, epo
 
 	epochs, err := ps.GetProcessedTickIntervals(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "getting stored epochs")
+		return nil, fmt.Errorf("getting stored epochs: %w", err)
 	}
 
 	for _, e := range epochs {
@@ -35,7 +35,7 @@ func CalculateEmptyTicksForEpoch(ctx context.Context, ps *store.PebbleStore, epo
 
 				tickData, err := ps.GetTickData(ctx, tickNumber)
 				if err != nil {
-					return nil, errors.Wrapf(err, "getting tick data for tick %d", tickNumber)
+					return nil, fmt.Errorf("getting tick data for tick %d: %w", tickNumber, err)
 				}
 
 				if CheckIfTickIsEmptyProto(tickData) {
@@ -62,7 +62,7 @@ func CheckIfTickIsEmptyProto(tickData *protobuff.TickData) bool {
 func CheckIfTickIsEmpty(tickData types.TickData) (bool, error) {
 	data, err := qubicToProto(tickData)
 	if err != nil {
-		return false, errors.Wrap(err, "converting tick data to protobuf format")
+		return false, fmt.Errorf("converting tick data to protobuf format: %w", err)
 	}
 
 	return CheckIfTickIsEmptyProto(data), nil
@@ -75,7 +75,7 @@ func CalculateEmptyTicksForAllEpochs(ps *store.PebbleStore) error {
 
 	epochs, err := ps.GetLastProcessedTicksPerEpoch(ctx)
 	if err != nil {
-		return errors.Wrap(err, "getting epoch list from db")
+		return fmt.Errorf("getting epoch list from db: %w", err)
 	}
 
 	for epoch, _ := range epochs {
@@ -85,22 +85,22 @@ func CalculateEmptyTicksForAllEpochs(ps *store.PebbleStore) error {
 			return nil // We have the empty ticks
 		}
 		if !errors.Is(err, pebble.ErrNotFound) {
-			return errors.Wrap(err, "checking if epoch has empty ticks") // Some other error occured
+			return fmt.Errorf("checking if epoch has empty ticks: %w", err) // Some other error occured
 		}
 
 		fmt.Printf("Calculating empty ticks for epoch %d\n", epoch)
 		emptyTicksPerEpoch, err := CalculateEmptyTicksForEpoch(ctx, ps, epoch)
 		if err != nil {
-			return errors.Wrapf(err, "calculating empty ticks for epoch %d", epoch)
+			return fmt.Errorf("calculating empty ticks for epoch %d: %w", epoch, err)
 		}
 
 		err = ps.SetEmptyTicksForEpoch(epoch, uint32(len(emptyTicksPerEpoch)))
 		if err != nil {
-			return errors.Wrap(err, "saving emptyTickCount to database")
+			return fmt.Errorf("saving emptyTickCount to database: %w", err)
 		}
 		err = ps.SetEmptyTickListPerEpoch(epoch, emptyTicksPerEpoch)
 		if err != nil {
-			return errors.Wrap(err, "saving empty tick list to database")
+			return fmt.Errorf("saving empty tick list to database: %w", err)
 		}
 
 	}
@@ -113,18 +113,18 @@ func ResetEmptyTicksForAllEpochs(ps *store.PebbleStore) error {
 
 	epochs, err := ps.GetLastProcessedTicksPerEpoch(ctx)
 	if err != nil {
-		return errors.Wrap(err, "getting epoch list from db")
+		return fmt.Errorf("getting epoch list from db: %w", err)
 	}
 
 	for epoch, _ := range epochs {
 		fmt.Printf("Reseting empty ticks for epoch: %d\n", epoch)
 		err := ps.DeleteEmptyTicksKeyForEpoch(epoch)
 		if err != nil {
-			return errors.Wrap(err, "deleting empty tick key")
+			return fmt.Errorf("deleting empty tick key: %w", err)
 		}
 		err = ps.DeleteEmptyTickListKeyForEpoch(epoch)
 		if err != nil {
-			return errors.Wrap(err, "deleting empty tick list key")
+			return fmt.Errorf("deleting empty tick list key: %w", err)
 		}
 	}
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -11,7 +12,6 @@ import (
 	"time"
 
 	"github.com/cockroachdb/pebble"
-	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-archiver/validator/chain"
@@ -46,7 +46,7 @@ func GoSchnorrqVerify(_ context.Context, pubkey [32]byte, digest [32]byte, sig [
 func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumber uint32, disableStatusAddon bool) error {
 	quorumVotes, err := v.qu.GetQuorumVotes(ctx, tickNumber)
 	if err != nil {
-		return errors.Wrap(err, "getting quorum tick data")
+		return fmt.Errorf("getting quorum tick data: %w", err)
 	}
 
 	if len(quorumVotes) == 0 {
@@ -58,45 +58,45 @@ func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumb
 	var comps types.Computors
 	comps, err = computors.Get(ctx, v.store, uint32(epoch))
 	if err != nil {
-		if errors.Cause(err) != store.ErrNotFound {
-			return errors.Wrap(err, "getting computors from store")
+		if !errors.Is(err, store.ErrNotFound) {
+			return fmt.Errorf("getting computors from store: %w", err)
 		}
 
 		comps, err = v.qu.GetComputors(ctx)
 		if err != nil {
-			return errors.Wrap(err, "getting computors from qubic")
+			return fmt.Errorf("getting computors from qubic: %w", err)
 		}
 	}
 
 	err = computors.Validate(ctx, GoSchnorrqVerify, comps, v.arbitratorPubKey)
 	if err != nil {
-		return errors.Wrap(err, "validating comps")
+		return fmt.Errorf("validating comps: %w", err)
 	}
 	err = computors.Store(ctx, v.store, epoch, comps)
 	if err != nil {
-		return errors.Wrap(err, "storing computors")
+		return fmt.Errorf("storing computors: %w", err)
 	}
 
 	targetTickVoteSignature, err := v.store.GetTargetTickVoteSignature(uint32(epoch))
 	if err != nil {
 		if !errors.Is(err, store.ErrNotFound) {
-			return errors.Wrap(err, "getting target tick vote signature")
+			return fmt.Errorf("getting target tick vote signature: %w", err)
 		}
 
 		systemInfo, err := v.qu.GetSystemInfo(ctx)
 		if err != nil {
-			return errors.Wrap(err, "fetching system info")
+			return fmt.Errorf("fetching system info: %w", err)
 		}
 		err = v.store.SetTargetTickVoteSignature(uint32(systemInfo.Epoch), systemInfo.TargetTickVoteSignature)
 		if err != nil {
-			return errors.Wrap(err, "storing target tick vote signature")
+			return fmt.Errorf("storing target tick vote signature: %w", err)
 		}
 		targetTickVoteSignature = systemInfo.TargetTickVoteSignature
 	}
 
 	alignedVotes, err := quorum.Validate(ctx, GoSchnorrqVerify, quorumVotes, comps, targetTickVoteSignature)
 	if err != nil {
-		return errors.Wrap(err, "validating quorum")
+		return fmt.Errorf("validating quorum: %w", err)
 	}
 
 	log.Printf("Quorum validated. Aligned %d. Misaligned %d.\n", len(alignedVotes), len(quorumVotes)-len(alignedVotes))
@@ -108,7 +108,7 @@ func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumb
 	if quorumVotes[0].TxDigest != [32]byte{} {
 		td, err := v.qu.GetTickData(ctx, tickNumber)
 		if err != nil {
-			return errors.Wrap(err, "getting tick data")
+			return fmt.Errorf("getting tick data: %w", err)
 		}
 
 		tickData = td
@@ -116,21 +116,21 @@ func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumb
 
 		err = tick.Validate(ctx, GoSchnorrqVerify, tickData, alignedVotes[0], comps)
 		if err != nil {
-			return errors.Wrap(err, "validating tick data")
+			return fmt.Errorf("validating tick data: %w", err)
 		}
 
 		log.Println("Tick data validated")
 
 		transactions, err := v.qu.GetTickTransactions(ctx, tickNumber)
 		if err != nil {
-			return errors.Wrap(err, "getting tick transactions")
+			return fmt.Errorf("getting tick transactions: %w", err)
 		}
 
 		log.Printf("Validating %d transactions\n", len(transactions))
 
 		validTxs, err = tx.Validate(ctx, GoSchnorrqVerify, transactions, tickData)
 		if err != nil {
-			return errors.Wrap(err, "validating transactions")
+			return fmt.Errorf("validating transactions: %w", err)
 		}
 
 		log.Printf("Validated %d transactions\n", len(validTxs))
@@ -148,63 +148,63 @@ func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumb
 		} else {
 			tickTxStatus, err = v.qu.GetTxStatus(ctx, tickNumber)
 			if err != nil {
-				return errors.Wrap(err, "getting tx status")
+				return fmt.Errorf("getting tx status: %w", err)
 			}
 		}
 
 		approvedTxs, err = txstatus.Validate(ctx, tickTxStatus, validTxs)
 		if err != nil {
-			return errors.Wrap(err, "validating tx status")
+			return fmt.Errorf("validating tx status: %w", err)
 		}
 	}
 
 	// proceed to storing tick information
 	err = quorum.Store(ctx, v.store, tickNumber, alignedVotes)
 	if err != nil {
-		return errors.Wrap(err, "storing quorum votes")
+		return fmt.Errorf("storing quorum votes: %w", err)
 	}
 
 	log.Printf("Stored %d quorum votes\n", len(alignedVotes))
 
 	err = tick.Store(ctx, v.store, tickNumber, tickData)
 	if err != nil {
-		return errors.Wrap(err, "storing tick data")
+		return fmt.Errorf("storing tick data: %w", err)
 	}
 
 	log.Printf("Stored tick data\n")
 
 	err = tx.Store(ctx, v.store, tickNumber, validTxs)
 	if err != nil {
-		return errors.Wrap(err, "storing transactions")
+		return fmt.Errorf("storing transactions: %w", err)
 	}
 
 	log.Printf("Stored %d transactions\n", len(validTxs))
 
 	err = txstatus.Store(ctx, v.store, tickNumber, approvedTxs)
 	if err != nil {
-		return errors.Wrap(err, "storing tx status")
+		return fmt.Errorf("storing tx status: %w", err)
 	}
 
 	err = chain.ComputeAndSave(ctx, v.store, initialEpochTick, tickNumber, alignedVotes[0])
 	if err != nil {
-		return errors.Wrap(err, "computing and saving chain digest")
+		return fmt.Errorf("computing and saving chain digest: %w", err)
 	}
 
 	err = chain.ComputeStoreAndSave(ctx, v.store, initialEpochTick, tickNumber, validTxs, approvedTxs)
 	if err != nil {
-		return errors.Wrap(err, "computing and saving store digest")
+		return fmt.Errorf("computing and saving store digest: %w", err)
 	}
 
 	isEmpty, err := tick.CheckIfTickIsEmpty(tickData)
 	if err != nil {
-		return errors.Wrap(err, "checking if tick is empty")
+		return fmt.Errorf("checking if tick is empty: %w", err)
 	}
 
 	if isEmpty {
 		emptyTicks, err := v.store.GetEmptyTicksForEpoch(uint32(epoch))
 		if err != nil {
 			if !errors.Is(err, pebble.ErrNotFound) {
-				return errors.Wrap(err, "getting empty ticks for current epoch")
+				return fmt.Errorf("getting empty ticks for current epoch: %w", err)
 			}
 		}
 
@@ -212,7 +212,7 @@ func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumb
 			fmt.Printf("Initializing empty ticks for epoch: %d\n", epoch)
 			err := v.store.SetEmptyTickListPerEpoch(uint32(epoch), make([]uint32, 0))
 			if err != nil {
-				return errors.Wrapf(err, "initializing empty tick list for epoch %d", epoch)
+				return fmt.Errorf("initializing empty tick list for epoch %d: %w", epoch, err)
 			}
 		}
 
@@ -220,13 +220,13 @@ func (v *Validator) ValidateTick(ctx context.Context, initialEpochTick, tickNumb
 
 		err = v.store.SetEmptyTicksForEpoch(uint32(epoch), emptyTicks)
 		if err != nil {
-			return errors.Wrap(err, "setting current ticks for current epoch")
+			return fmt.Errorf("setting current ticks for current epoch: %w", err)
 		}
 		fmt.Printf("Empty ticks for epoch %d: %d\n", epoch, emptyTicks)
 
 		err = v.store.AppendEmptyTickToEmptyTickListPerEpoch(uint32(epoch), tickNumber)
 		if err != nil {
-			return errors.Wrap(err, "appending tick to empty tick list")
+			return fmt.Errorf("appending tick to empty tick list: %w", err)
 		}
 	}
 	return nil
@@ -243,24 +243,24 @@ func (v *Validator) queryQliServicesForTransactions(ctx context.Context, tickNum
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.qubic.li/Public/TickTransaction/"+strconv.Itoa(int(tickNumber)), nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "creating new request")
+		return nil, fmt.Errorf("creating new request: %w", err)
 	}
 
 	httpRes, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending request")
+		return nil, fmt.Errorf("sending request: %w", err)
 	}
 	defer httpRes.Body.Close()
 
 	if httpRes.StatusCode != http.StatusOK {
-		return nil, errors.Errorf("got non 200 status code: %d", httpRes.StatusCode)
+		return nil, fmt.Errorf("got non 200 status code: %d", httpRes.StatusCode)
 	}
 
 	var res responseStatusStruct
 
 	err = json.NewDecoder(httpRes.Body).Decode(&res)
 	if err != nil {
-		return nil, errors.Wrap(err, "decoding response")
+		return nil, fmt.Errorf("decoding response: %w", err)
 	}
 
 	return res, nil
@@ -269,7 +269,7 @@ func (v *Validator) queryQliServicesForTransactions(ctx context.Context, tickNum
 func (v *Validator) GetTxStatus(ctx context.Context, tickNumber uint64) (*protobuff.TickTransactionsStatus, error) {
 	qliServicesTransactions, err := v.queryQliServicesForTransactions(ctx, tickNumber)
 	if err != nil {
-		return nil, errors.Wrap(err, "querying qli services for transactions")
+		return nil, fmt.Errorf("querying qli services for transactions: %w", err)
 	}
 
 	transactions := make([]*protobuff.TransactionStatus, 0, len(qliServicesTransactions))
@@ -278,13 +278,13 @@ func (v *Validator) GetTxStatus(ctx context.Context, tickNumber uint64) (*protob
 
 		decoded, err := base64.StdEncoding.DecodeString(transaction.Digest)
 		if err != nil {
-			return nil, errors.Wrap(err, "base64 decoding digest")
+			return nil, fmt.Errorf("base64 decoding digest: %w", err)
 		}
 		var pubKey [32]byte
 		copy(pubKey[:], decoded[:32])
 		id, err = id.FromPubKey(pubKey, true)
 		if err != nil {
-			return nil, errors.Wrap(err, "creating identity from public key")
+			return nil, fmt.Errorf("creating identity from public key: %w", err)
 		}
 		t := protobuff.TransactionStatus{
 			TxId:      id.String(),
