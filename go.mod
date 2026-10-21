@@ -11,8 +11,8 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.32.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.25.0
-	github.com/qubic/go-node-connector/v2 v2.3.0
-	github.com/qubic/go-schnorrq v1.1.3
+	github.com/qubic/go-node-connector/v2 v2.4.0
+	github.com/qubic/go-schnorrq v1.2.0
 	github.com/stretchr/testify v1.12.1
 	go.uber.org/zap v1.28.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20261019180522-ce908d29299b
@@ -23,14 +23,14 @@ require (
 require (
 	github.com/DataDog/zstd v1.4.5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/bits-and-blooms/bitset v1.24.4 // indirect
+	github.com/bits-and-blooms/bitset v1.26.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cockroachdb/errors v1.11.3 // indirect
 	github.com/cockroachdb/fifo v0.0.0-20240606204812-0bbfbd93a7ce // indirect
 	github.com/cockroachdb/logtags v0.0.0-20230118201751-21c54148d20b // indirect
 	github.com/cockroachdb/redact v1.1.5 // indirect
 	github.com/cockroachdb/tokenbucket v0.0.0-20230807174530-cc333fc44b06 // indirect
-	github.com/consensys/gnark-crypto v0.20.1 // indirect
+	github.com/consensys/gnark-crypto v0.22.0 // indirect
 	github.com/getsentry/sentry-go v0.27.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
