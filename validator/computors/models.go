@@ -2,7 +2,7 @@ package computors
 
 import (
 	"encoding/hex"
-	"github.com/pkg/errors"
+	"fmt"
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-node-connector/v2/types"
 )
@@ -10,7 +10,7 @@ import (
 func qubicToProto(computors types.Computors) (*protobuff.Computors, error) {
 	identities, err := pubKeysToIdentities(computors.PubKeys)
 	if err != nil {
-		return nil, errors.Wrap(err, "converting pubKeys to identities")
+		return nil, fmt.Errorf("converting pubKeys to identities: %w", err)
 
 	}
 	return &protobuff.Computors{
@@ -29,7 +29,7 @@ func pubKeysToIdentities(pubKeys [types.NumberOfComputors][32]byte) ([]string, e
 		var id types.Identity
 		id, err := id.FromPubKey(identity, false)
 		if err != nil {
-			return nil, errors.Wrapf(err, "getting identity from pubKey hex %s", hex.EncodeToString(identity[:]))
+			return nil, fmt.Errorf("getting identity from pubKey hex %s: %w", hex.EncodeToString(identity[:]), err)
 		}
 		identities = append(identities, id.String())
 	}
@@ -39,13 +39,13 @@ func pubKeysToIdentities(pubKeys [types.NumberOfComputors][32]byte) ([]string, e
 func protoToQubic(computors *protobuff.Computors) (types.Computors, error) {
 	pubKeys, err := identitiesToPubKeys(computors.Identities)
 	if err != nil {
-		return types.Computors{}, errors.Wrap(err, "converting proto identities to qubic model")
+		return types.Computors{}, fmt.Errorf("converting proto identities to qubic model: %w", err)
 	}
 
 	var sig [64]byte
 	sigBytes, err := hex.DecodeString(computors.SignatureHex)
 	if err != nil {
-		return types.Computors{}, errors.Wrap(err, "decoding signature")
+		return types.Computors{}, fmt.Errorf("decoding signature: %w", err)
 	}
 	copy(sig[:], sigBytes)
 
@@ -65,7 +65,7 @@ func identitiesToPubKeys(identities []string) ([types.NumberOfComputors][32]byte
 		id := types.Identity(identity)
 		pubKeyBytes, err := id.ToPubKey(false)
 		if err != nil {
-			return [types.NumberOfComputors][32]byte{}, errors.Wrapf(err, "converting identity to pubkey: %s", identity)
+			return [types.NumberOfComputors][32]byte{}, fmt.Errorf("converting identity to pubkey: %s: %w", identity, err)
 		}
 		pubKeys[i] = pubKeyBytes
 	}

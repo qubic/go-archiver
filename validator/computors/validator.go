@@ -2,7 +2,7 @@ package computors
 
 import (
 	"context"
-	"github.com/pkg/errors"
+	"fmt"
 	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-archiver/utils"
 	"github.com/qubic/go-node-connector/v2/types"
@@ -11,12 +11,12 @@ import (
 func Validate(ctx context.Context, sigVerifierFunc utils.SigVerifierFunc, computors types.Computors, arbitratorPubKey [32]byte) error {
 	digest, err := getDigestFromComputors(computors)
 	if err != nil {
-		return errors.Wrap(err, "getting digest from computors")
+		return fmt.Errorf("getting digest from computors: %w", err)
 	}
 
 	err = sigVerifierFunc(ctx, arbitratorPubKey, digest, computors.Signature)
 	if err != nil {
-		return errors.Wrap(err, "verifying computors signature")
+		return fmt.Errorf("verifying computors signature: %w", err)
 	}
 
 	return nil
@@ -25,14 +25,14 @@ func Validate(ctx context.Context, sigVerifierFunc utils.SigVerifierFunc, comput
 func getDigestFromComputors(data types.Computors) ([32]byte, error) {
 	sData, err := utils.BinarySerialize(data)
 	if err != nil {
-		return [32]byte{}, errors.Wrap(err, "serializing data")
+		return [32]byte{}, fmt.Errorf("serializing data: %w", err)
 	}
 
 	// remove signature from computors data
 	computorsData := sData[:len(sData)-64]
 	digest, err := utils.K12Hash(computorsData)
 	if err != nil {
-		return [32]byte{}, errors.Wrap(err, "hashing computors data")
+		return [32]byte{}, fmt.Errorf("hashing computors data: %w", err)
 	}
 
 	return digest, nil
@@ -41,12 +41,12 @@ func getDigestFromComputors(data types.Computors) ([32]byte, error) {
 func Store(ctx context.Context, store *store.PebbleStore, epoch uint16, computors types.Computors) error {
 	protoModel, err := qubicToProto(computors)
 	if err != nil {
-		return errors.Wrap(err, "qubic to proto")
+		return fmt.Errorf("qubic to proto: %w", err)
 	}
 
 	err = store.SetComputors(ctx, uint32(epoch), protoModel)
 	if err != nil {
-		return errors.Wrap(err, "set computors")
+		return fmt.Errorf("set computors: %w", err)
 	}
 
 	return nil
@@ -55,12 +55,12 @@ func Store(ctx context.Context, store *store.PebbleStore, epoch uint16, computor
 func Get(ctx context.Context, store *store.PebbleStore, epoch uint32) (types.Computors, error) {
 	protoModel, err := store.GetComputors(ctx, epoch)
 	if err != nil {
-		return types.Computors{}, errors.Wrap(err, "get computors")
+		return types.Computors{}, fmt.Errorf("get computors: %w", err)
 	}
 
 	model, err := protoToQubic(protoModel)
 	if err != nil {
-		return types.Computors{}, errors.Wrap(err, "proto to qubic")
+		return types.Computors{}, fmt.Errorf("proto to qubic: %w", err)
 	}
 
 	return model, nil

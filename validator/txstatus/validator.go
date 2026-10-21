@@ -3,7 +3,7 @@ package txstatus
 import (
 	"bytes"
 	"context"
-	"github.com/pkg/errors"
+	"fmt"
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-node-connector/v2/types"
@@ -12,12 +12,12 @@ import (
 
 func Validate(ctx context.Context, tickTxStatus types.TransactionStatus, tickTxs types.Transactions) (*protobuff.TickTransactionsStatus, error) {
 	//if tickTxStatus.TxCount != uint32(len(tickTxs)) {
-	//	return nil, errors.Errorf("Mismatched tx length. Tick tx status count: %d - len(tickTx): %d", tickTxStatus.TxCount, len(tickTxs))
+	//	return nil, fmt.Errorf("Mismatched tx length. Tick tx status count: %d - len(tickTx): %d", tickTxStatus.TxCount, len(tickTxs))
 	//}
 
 	//tickTxDigests, err := getTickTxDigests(tickTxs)
 	//if err != nil {
-	//	return nil, errors.Wrap(err, "getting tick tx digests")
+	//	return nil, fmt.Errorf("getting tick tx digests: %w", err)
 	//}
 
 	//if !equalDigests(tickTxDigests, tickTxStatus.TransactionDigests) {
@@ -26,7 +26,7 @@ func Validate(ctx context.Context, tickTxStatus types.TransactionStatus, tickTxs
 
 	proto, err := qubicToProto(tickTxs, tickTxStatus)
 	if err != nil {
-		return nil, errors.Wrap(err, "qubic to proto")
+		return nil, fmt.Errorf("qubic to proto: %w", err)
 	}
 
 	return proto, nil
@@ -37,7 +37,7 @@ func getTickTxDigests(tickTxs types.Transactions) ([][32]byte, error) {
 	for index, tx := range tickTxs {
 		digest, err := tx.Digest()
 		if err != nil {
-			return nil, errors.Wrapf(err, "creating digest for tx on index %d", index)
+			return nil, fmt.Errorf("creating digest for tx on index %d: %w", index, err)
 		}
 
 		tickTxDigests = append(tickTxDigests, digest)
@@ -80,7 +80,7 @@ func sortByteSlices(slice [][32]byte) {
 func Store(ctx context.Context, store *store.PebbleStore, tickNumber uint32, approvedTxs *protobuff.TickTransactionsStatus) error {
 	err := store.SetTickTransactionsStatus(ctx, uint64(tickNumber), approvedTxs)
 	if err != nil {
-		return errors.Wrap(err, "setting tts")
+		return fmt.Errorf("setting tts: %w", err)
 	}
 
 	return nil

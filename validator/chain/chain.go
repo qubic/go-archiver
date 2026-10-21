@@ -2,7 +2,7 @@ package chain
 
 import (
 	"context"
-	"github.com/pkg/errors"
+	"fmt"
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-node-connector/v2/types"
@@ -11,17 +11,17 @@ import (
 func ComputeAndSave(ctx context.Context, store *store.PebbleStore, initialEpochTick, tickNumber uint32, quorumVote types.QuorumTickVote) error {
 	prevDigest, err := getPrevChainDigest(ctx, store, initialEpochTick, tickNumber)
 	if err != nil {
-		return errors.Wrap(err, "getting prev chain digest")
+		return fmt.Errorf("getting prev chain digest: %w", err)
 	}
 
 	currentDigest, err := computeCurrentTickDigest(ctx, quorumVote, prevDigest)
 	if err != nil {
-		return errors.Wrap(err, "computing current tick digest")
+		return fmt.Errorf("computing current tick digest: %w", err)
 	}
 
 	err = store.PutChainDigest(ctx, tickNumber, currentDigest[:])
 	if err != nil {
-		return errors.Wrapf(err, "storing chain digest for tick: %d\n", tickNumber)
+		return fmt.Errorf("storing chain digest for tick: %d\n: %w", tickNumber, err)
 	}
 
 	return nil
@@ -34,17 +34,17 @@ func ComputeStoreAndSave(ctx context.Context, store *store.PebbleStore, initialE
 
 	prevDigest, err := getPrevStoreDigest(ctx, store, initialEpochTick, tickNumber)
 	if err != nil {
-		return errors.Wrap(err, "getting prev chain digest")
+		return fmt.Errorf("getting prev chain digest: %w", err)
 	}
 
 	currentDigest, err := computeCurrentTickStoreDigest(ctx, validTxs, tickTxsStatus, prevDigest)
 	if err != nil {
-		return errors.Wrap(err, "computing current tick digest")
+		return fmt.Errorf("computing current tick digest: %w", err)
 	}
 
 	err = store.PutStoreDigest(ctx, tickNumber, currentDigest[:])
 	if err != nil {
-		return errors.Wrapf(err, "storing store digest for tick: %d\n", tickNumber)
+		return fmt.Errorf("storing store digest for tick: %d\n: %w", tickNumber, err)
 	}
 
 	return nil
@@ -59,7 +59,7 @@ func getPrevStoreDigest(ctx context.Context, store *store.PebbleStore, initialEp
 	if err != nil {
 		//returning nil error in order to not fail until epoch change
 		return [32]byte{}, nil
-		//return [32]byte{}, errors.Wrapf(err, "getting chain digest for last tick: %d\n", tickNumber-1)
+		//return [32]byte{}, fmt.Errorf("getting chain digest for last tick: %d\n: %w", tickNumber-1, err)
 	}
 
 	var previousTickStoreDigest [32]byte
@@ -76,7 +76,7 @@ func getPrevChainDigest(ctx context.Context, store *store.PebbleStore, initialEp
 
 	previousTickChainDigestStored, err := store.GetChainDigest(ctx, tickNumber-1)
 	if err != nil {
-		return [32]byte{}, errors.Wrapf(err, "getting chain digest for last tick: %d\n", tickNumber-1)
+		return [32]byte{}, fmt.Errorf("getting chain digest for last tick: %d\n: %w", tickNumber-1, err)
 	}
 
 	var previousTickChainDigest [32]byte
@@ -107,7 +107,7 @@ func computeCurrentTickDigest(ctx context.Context, vote types.QuorumTickVote, pr
 
 	digest, err := chain.Digest()
 	if err != nil {
-		return [32]byte{}, errors.Wrap(err, "computing chain digest")
+		return [32]byte{}, fmt.Errorf("computing chain digest: %w", err)
 	}
 	return digest, nil
 }
@@ -121,7 +121,7 @@ func computeCurrentTickStoreDigest(ctx context.Context, validTxs []types.Transac
 
 	digest, err := s.Digest()
 	if err != nil {
-		return [32]byte{}, errors.Wrap(err, "computing store digest")
+		return [32]byte{}, fmt.Errorf("computing store digest: %w", err)
 	}
 
 	return digest, nil

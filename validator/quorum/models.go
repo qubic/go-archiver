@@ -3,7 +3,7 @@ package quorum
 import (
 	"encoding/binary"
 	"encoding/hex"
-	"github.com/pkg/errors"
+	"fmt"
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-archiver/utils"
 	"github.com/qubic/go-node-connector/v2/types"
@@ -73,7 +73,7 @@ func convertUint32ToHex(value uint32) string {
 func convertHexToUint32(value string) (uint32, error) {
 	b, err := hex.DecodeString(value)
 	if err != nil {
-		return 0, errors.Wrap(err, "decoding string value")
+		return 0, fmt.Errorf("decoding string value: %w", err)
 	}
 	return binary.LittleEndian.Uint32(b), nil
 }
@@ -117,25 +117,25 @@ func ReconstructQuorumData(currentTickQuorumData, nextTickQuorumData *protobuff.
 
 	spectrumDigest, err := hex.DecodeString(nextTickQuorumData.QuorumTickStructure.PrevSpectrumDigestHex)
 	if err != nil {
-		return nil, errors.Wrap(err, "obtaining spectrum digest from next tick quorum data")
+		return nil, fmt.Errorf("obtaining spectrum digest from next tick quorum data: %w", err)
 	}
 	universeDigest, err := hex.DecodeString(nextTickQuorumData.QuorumTickStructure.PrevUniverseDigestHex)
 	if err != nil {
-		return nil, errors.Wrap(err, "obtaining universe digest from next tick quorum data")
+		return nil, fmt.Errorf("obtaining universe digest from next tick quorum data: %w", err)
 	}
 	computerDigest, err := hex.DecodeString(nextTickQuorumData.QuorumTickStructure.PrevComputerDigestHex)
 	if err != nil {
-		return nil, errors.Wrap(err, "obtaining computer digest from next tick quorum data")
+		return nil, fmt.Errorf("obtaining computer digest from next tick quorum data: %w", err)
 	}
 
 	resourceDigest, err := hex.DecodeString(nextTickQuorumData.QuorumTickStructure.PrevResourceTestingDigestHex)
 	if err != nil {
-		return nil, errors.Wrap(err, "obtaining resource testing digest from next tick quorum data")
+		return nil, fmt.Errorf("obtaining resource testing digest from next tick quorum data: %w", err)
 	}
 
 	transactionBodyDigest, err := hex.DecodeString(nextTickQuorumData.QuorumTickStructure.PrevTransactionBodyHex)
 	if err != nil {
-		return nil, errors.Wrap(err, "obtaining transaction body digest from the next tick quorum data")
+		return nil, fmt.Errorf("obtaining transaction body digest from the next tick quorum data: %w", err)
 	}
 
 	for id, voteDiff := range currentTickQuorumData.QuorumDiffPerComputor {
@@ -144,7 +144,7 @@ func ReconstructQuorumData(currentTickQuorumData, nextTickQuorumData *protobuff.
 
 		computorPublicKey, err := identity.ToPubKey(false)
 		if err != nil {
-			return nil, errors.Wrapf(err, "obtaining public key for computor id: %d", id)
+			return nil, fmt.Errorf("obtaining public key for computor id: %d: %w", id, err)
 		}
 
 		var tmp [64]byte
@@ -153,19 +153,19 @@ func ReconstructQuorumData(currentTickQuorumData, nextTickQuorumData *protobuff.
 		copy(tmp[32:], spectrumDigest[:])
 		saltedSpectrumDigest, err := utils.K12Hash(tmp[:])
 		if err != nil {
-			return nil, errors.Wrap(err, "hashing salted spectrum digest")
+			return nil, fmt.Errorf("hashing salted spectrum digest: %w", err)
 		}
 
 		copy(tmp[32:], universeDigest[:])
 		saltedUniverseDigest, err := utils.K12Hash(tmp[:])
 		if err != nil {
-			return nil, errors.Wrap(err, "hashing salted universe digest")
+			return nil, fmt.Errorf("hashing salted universe digest: %w", err)
 		}
 
 		copy(tmp[32:], computerDigest[:])
 		saltedComputerDigest, err := utils.K12Hash(tmp[:])
 		if err != nil {
-			return nil, errors.Wrap(err, "hashing salted computer digest")
+			return nil, fmt.Errorf("hashing salted computer digest: %w", err)
 		}
 
 		newFormat := epoch >= 151
@@ -179,7 +179,7 @@ func ReconstructQuorumData(currentTickQuorumData, nextTickQuorumData *protobuff.
 		// Create resource testing digest no matter what
 		saltedResourceTestingDigestBytes, err := reconstructShortSaltedDigest(computorPublicKey[:], resourceDigest, newFormat)
 		if err != nil {
-			return nil, errors.Wrap(err, "reconstructing salted resource testing digest")
+			return nil, fmt.Errorf("reconstructing salted resource testing digest: %w", err)
 		}
 		saltedResourceTestingDigest := hex.EncodeToString(saltedResourceTestingDigestBytes[:digestSize])
 
@@ -188,7 +188,7 @@ func ReconstructQuorumData(currentTickQuorumData, nextTickQuorumData *protobuff.
 		if newFormat {
 			saltedTransactionBodyDigestBytes, err := reconstructShortSaltedDigest(computorPublicKey[:], transactionBodyDigest, true)
 			if err != nil {
-				return nil, errors.Wrap(err, "reconstructing salted transaction body digest")
+				return nil, fmt.Errorf("reconstructing salted transaction body digest: %w", err)
 			}
 			saltedTransactionBodyDigest = hex.EncodeToString(saltedTransactionBodyDigestBytes[:digestSize])
 		}
@@ -220,7 +220,7 @@ func reconstructShortSaltedDigest(computorPubkey, prevDigest []byte, newFormat b
 
 	saltedDigest, err := utils.K12Hash(buf2)
 	if err != nil {
-		return [32]byte{}, errors.Wrap(err, "hashing salted digest")
+		return [32]byte{}, fmt.Errorf("hashing salted digest: %w", err)
 	}
 	return saltedDigest, nil
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-archiver/utils"
 	"github.com/qubic/go-node-connector/v2/types"
@@ -28,18 +27,18 @@ func Validate(ctx context.Context, sigVerifierFunc utils.SigVerifierFunc, data t
 
 	digest, err := getDigestFromTickData(data)
 	if err != nil {
-		return errors.Wrap(err, "getting partial tick data digest")
+		return fmt.Errorf("getting partial tick data digest: %w", err)
 	}
 
 	// verify tick signature
 	err = sigVerifierFunc(ctx, computorPubKey, digest, data.Signature)
 	if err != nil {
-		return errors.Wrap(err, "verifying tick signature")
+		return fmt.Errorf("verifying tick signature: %w", err)
 	}
 
 	fullDigest, err := getFullDigestFromTickData(data)
 	if err != nil {
-		return errors.Wrap(err, "getting full tick data digest")
+		return fmt.Errorf("getting full tick data digest: %w", err)
 	}
 
 	if fullDigest != quorumTickVote.TxDigest {
@@ -55,13 +54,13 @@ func getDigestFromTickData(data types.TickData) ([32]byte, error) {
 
 	sData, err := utils.BinarySerialize(data)
 	if err != nil {
-		return [32]byte{}, errors.Wrap(err, "serializing data")
+		return [32]byte{}, fmt.Errorf("serializing data: %w", err)
 	}
 
 	tickData := sData[:len(sData)-64]
 	digest, err := utils.K12Hash(tickData)
 	if err != nil {
-		return [32]byte{}, errors.Wrap(err, "hashing tick data")
+		return [32]byte{}, fmt.Errorf("hashing tick data: %w", err)
 	}
 
 	return digest, nil
@@ -70,13 +69,13 @@ func getDigestFromTickData(data types.TickData) ([32]byte, error) {
 func getFullDigestFromTickData(data types.TickData) ([32]byte, error) {
 	sData, err := utils.BinarySerialize(data)
 	if err != nil {
-		return [32]byte{}, errors.Wrap(err, "serializing data")
+		return [32]byte{}, fmt.Errorf("serializing data: %w", err)
 	}
 
 	tickData := sData[:]
 	digest, err := utils.K12Hash(tickData)
 	if err != nil {
-		return [32]byte{}, errors.Wrap(err, "hashing tick data")
+		return [32]byte{}, fmt.Errorf("hashing tick data: %w", err)
 	}
 
 	return digest, nil
@@ -85,12 +84,12 @@ func getFullDigestFromTickData(data types.TickData) ([32]byte, error) {
 func Store(ctx context.Context, store *store.PebbleStore, tickNumber uint32, tickData types.TickData) error {
 	protoTickData, err := qubicToProto(tickData)
 	if err != nil {
-		return errors.Wrap(err, "converting qubic tick data to proto")
+		return fmt.Errorf("converting qubic tick data to proto: %w", err)
 	}
 
 	err = store.SetTickData(ctx, tickNumber, protoTickData)
 	if err != nil {
-		return errors.Wrap(err, "set tick data")
+		return fmt.Errorf("set tick data: %w", err)
 	}
 	return nil
 }

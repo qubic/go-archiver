@@ -2,7 +2,8 @@ package processor
 
 import (
 	"context"
-	"github.com/pkg/errors"
+	"errors"
+	"fmt"
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-archiver/validator"
@@ -22,7 +23,7 @@ type TickInTheFutureError struct {
 }
 
 func (e *TickInTheFutureError) Error() string {
-	return errors.Errorf("Requested tick %d is in the future. Latest tick is: %d", e.requestedTick, e.latestTick).Error()
+	return fmt.Errorf("Requested tick %d is in the future. Latest tick is: %d", e.requestedTick, e.latestTick).Error()
 }
 
 type Processor struct {
@@ -60,7 +61,7 @@ func (p *Processor) processOneByOne() error {
 	var err error
 	client, err := p.pool.Get()
 	if err != nil {
-		return errors.Wrap(err, "getting qubic pooled client connection")
+		return fmt.Errorf("getting qubic pooled client connection: %w", err)
 	}
 	defer func() {
 		if err == nil {
@@ -80,17 +81,17 @@ func (p *Processor) processOneByOne() error {
 
 	tickInfo, err := client.GetTickInfo(ctx)
 	if err != nil {
-		return errors.Wrap(err, "getting tick info")
+		return fmt.Errorf("getting tick info: %w", err)
 	}
 
 	lastTick, err := p.getLastProcessedTick(ctx, tickInfo)
 	if err != nil {
-		return errors.Wrap(err, "getting last processed tick")
+		return fmt.Errorf("getting last processed tick: %w", err)
 	}
 
 	nextTick, err := p.getNextProcessingTick(ctx, lastTick, tickInfo)
 	if err != nil {
-		return errors.Wrap(err, "getting next processing tick")
+		return fmt.Errorf("getting next processing tick: %w", err)
 	}
 	log.Printf("Next tick to process: %d\n", nextTick.TickNumber)
 
@@ -102,12 +103,12 @@ func (p *Processor) processOneByOne() error {
 	val := validator.New(client, p.ps, p.arbitratorPubKey)
 	err = val.ValidateTick(ctx, tickInfo.InitialTick, nextTick.TickNumber, p.disableStatusAddon)
 	if err != nil {
-		return errors.Wrapf(err, "validating tick %d", nextTick.TickNumber)
+		return fmt.Errorf("validating tick %d: %w", nextTick.TickNumber, err)
 	}
 
 	err = p.processStatus(ctx, lastTick, nextTick)
 	if err != nil {
-		return errors.Wrapf(err, "processing status for lastTick %+v and nextTick %+v", lastTick, nextTick)
+		return fmt.Errorf("processing status for lastTick %+v and nextTick %+v: %w", lastTick, nextTick, err)
 	}
 
 	return nil
@@ -116,12 +117,12 @@ func (p *Processor) processOneByOne() error {
 func (p *Processor) processStatus(ctx context.Context, lastTick *protobuff.ProcessedTick, nextTick *protobuff.ProcessedTick) error {
 	err := p.processSkippedTicks(ctx, lastTick, nextTick)
 	if err != nil {
-		return errors.Wrap(err, "processing skipped ticks")
+		return fmt.Errorf("processing skipped ticks: %w", err)
 	}
 
 	err = p.ps.SetLastProcessedTick(ctx, nextTick)
 	if err != nil {
-		return errors.Wrapf(err, "setting last processed tick %d", nextTick.TickNumber)
+		return fmt.Errorf("setting last processed tick %d: %w", nextTick.TickNumber, err)
 	}
 
 	return nil
@@ -147,7 +148,7 @@ func (p *Processor) getLastProcessedTick(ctx context.Context, currentTickInfo ty
 			return &protobuff.ProcessedTick{TickNumber: 0, Epoch: uint32(currentTickInfo.Epoch)}, nil
 		}
 
-		return nil, errors.Wrap(err, "getting last processed tick")
+		return nil, fmt.Errorf("getting last processed tick: %w", err)
 	}
 
 	return lastTick, nil
@@ -160,12 +161,12 @@ func (p *Processor) processSkippedTicks(ctx context.Context, lastTick *protobuff
 	}
 
 	if nextTick.TickNumber-lastTick.TickNumber == 0 {
-		return errors.Errorf("Next tick should not be equal to last tick %d", nextTick.TickNumber)
+		return fmt.Errorf("Next tick should not be equal to last tick %d", nextTick.TickNumber)
 	}
 
 	err := p.ps.AppendProcessedTickInterval(ctx, nextTick.Epoch, &protobuff.ProcessedTickInterval{InitialProcessedTick: nextTick.TickNumber, LastProcessedTick: nextTick.TickNumber})
 	if err != nil {
-		return errors.Wrap(err, "appending processed tick interval")
+		return fmt.Errorf("appending processed tick interval: %w", err)
 	}
 
 	err = p.ps.SetSkippedTicksInterval(ctx, &protobuff.SkippedTicksInterval{
@@ -173,7 +174,7 @@ func (p *Processor) processSkippedTicks(ctx context.Context, lastTick *protobuff
 		EndTick:   nextTick.TickNumber - 1,
 	})
 	if err != nil {
-		return errors.Wrap(err, "setting skipped ticks interval")
+		return fmt.Errorf("setting skipped ticks interval: %w", err)
 	}
 
 	return nil

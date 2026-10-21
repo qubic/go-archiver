@@ -2,7 +2,7 @@ package tx
 
 import (
 	"encoding/hex"
-	"github.com/pkg/errors"
+	"fmt"
 	"github.com/qubic/go-archiver/protobuff"
 	"github.com/qubic/go-node-connector/v2/types"
 )
@@ -12,7 +12,7 @@ func qubicToProto(txs types.Transactions) ([]*protobuff.Transaction, error) {
 	for i, tx := range txs {
 		txProto, err := txToProto(tx)
 		if err != nil {
-			return nil, errors.Wrapf(err, "converting tx to proto")
+			return nil, fmt.Errorf("converting tx to proto: %w", err)
 		}
 		protoTxs[i] = txProto
 	}
@@ -23,24 +23,24 @@ func qubicToProto(txs types.Transactions) ([]*protobuff.Transaction, error) {
 func txToProto(tx types.Transaction) (*protobuff.Transaction, error) {
 	digest, err := tx.Digest()
 	if err != nil {
-		return nil, errors.Wrap(err, "getting tx digest")
+		return nil, fmt.Errorf("getting tx digest: %w", err)
 	}
 	var txID types.Identity
 	txID, err = txID.FromPubKey(digest, true)
 	if err != nil {
-		return nil, errors.Wrap(err, "getting tx id")
+		return nil, fmt.Errorf("getting tx id: %w", err)
 	}
 
 	var sourceID types.Identity
 	sourceID, err = sourceID.FromPubKey(tx.SourcePublicKey, false)
 	if err != nil {
-		return nil, errors.Wrap(err, "getting source id")
+		return nil, fmt.Errorf("getting source id: %w", err)
 	}
 
 	var destID types.Identity
 	destID, err = destID.FromPubKey(tx.DestinationPublicKey, false)
 	if err != nil {
-		return nil, errors.Wrap(err, "getting dest id")
+		return nil, fmt.Errorf("getting dest id: %w", err)
 	}
 
 	return &protobuff.Transaction{
